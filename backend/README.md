@@ -9,6 +9,10 @@ suppliers, customers, products, and product pricing.
    ```bash
    cp .env.example .env
    ```
+   `DJANGO_SECRET_KEY` must be set to a real random value of at least 32
+   bytes/characters before running anything beyond local dev testing — it
+   also signs JWTs (HS256), and a short key triggers simplejwt's
+   `InsecureKeyLengthWarning`.
 2. Start Postgres and Redis:
    ```bash
    docker compose up -d postgres redis
