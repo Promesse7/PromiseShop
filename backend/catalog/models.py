@@ -29,3 +29,15 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.barcode})"
+
+
+class ProductPricing(models.Model):
+    price_id = models.AutoField(primary_key=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="pricing_history")
+    wholesale_price = models.DecimalField(max_digits=12, decimal_places=2)
+    retail_price = models.DecimalField(max_digits=12, decimal_places=2)
+    effective_date = models.DateField()
+    is_current = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.product} @ {self.effective_date}"
