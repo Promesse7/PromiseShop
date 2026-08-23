@@ -104,6 +104,7 @@ from datetime import timedelta  # noqa: E402
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "USER_ID_FIELD": "employee_id",
 }
 
 LANGUAGE_CODE = "en-us"
