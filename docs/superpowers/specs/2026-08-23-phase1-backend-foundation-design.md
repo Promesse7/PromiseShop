@@ -98,6 +98,30 @@ substantial and belongs to its own phase/spec.
 - Everything else (field names, types, constraints, FKs) follows the docx schema in
   `Promise Electronic Shop - Inventory System Design.docx` section 4 directly.
 
+## RBAC matrix (Phase 1 endpoints)
+
+The design decisions above name two specific admin-only gates (wholesale price visibility,
+employee management) without stating a full per-endpoint permission matrix. To remove that
+ambiguity before implementation:
+
+| Endpoint | Read (list/retrieve) | Write (create/update/delete) |
+|---|---|---|
+| `/api/auth/login/` | any credentialed request | — |
+| `/api/employees/` | Admin only | Admin only |
+| `/api/categories/` | any authenticated employee | any authenticated employee |
+| `/api/suppliers/` | any authenticated employee | any authenticated employee |
+| `/api/customers/` | any authenticated employee | any authenticated employee |
+| `/api/products/` | any authenticated employee | any authenticated employee |
+| `/api/products/{id}/pricing/` | any authenticated employee (wholesale_price field omitted unless role is Admin) | any authenticated employee (can set retail_price; wholesale_price accepted only from Admin — non-admin submissions get a 403 if they include it) |
+
+Rationale: purchasing/sales staff need to read and write catalog/supplier/customer data as part
+of their daily work (per the mockups, e.g. screens 1d/2a/2b are usable by Sales Staff), so
+Phase 1 doesn't lock those down beyond authentication. The two things the docx and mockups are
+explicit about — wholesale cost visibility and employee/account management — stay Admin-gated.
+Finer-grained write restrictions (e.g. only Admin can edit an existing product's price per
+mockup 2c) can be tightened in the phase that builds that specific screen's backing endpoint,
+once that flow's exact rules are worked out.
+
 ## Data flow (Phase 1 scope)
 
 1. **Login**: `POST /api/auth/login/` with username+password → simplejwt validates against
