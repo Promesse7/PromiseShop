@@ -39,5 +39,14 @@ class ProductPricing(models.Model):
     effective_date = models.DateField()
     is_current = models.BooleanField(default=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product"],
+                condition=models.Q(is_current=True),
+                name="one_current_price_per_product",
+            )
+        ]
+
     def __str__(self):
         return f"{self.product} @ {self.effective_date}"

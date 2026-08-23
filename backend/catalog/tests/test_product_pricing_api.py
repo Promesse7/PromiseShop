@@ -1,5 +1,6 @@
 import pytest
 from datetime import date
+from django.db import IntegrityError
 from rest_framework.test import APIClient
 from accounts.models import Employee
 from catalog.models import Category, Product, ProductPricing
@@ -135,3 +136,59 @@ def test_non_admin_updating_wholesale_price_is_rejected(admin, sales_staff, prod
         format="json",
     )
     assert allow_response.status_code == 200
+
+
+def test_non_admin_creating_pricing_row_carries_forward_wholesale_price(admin, sales_staff, product):
+    admin_client = auth_client(admin, "adminpass")
+    admin_client.post(
+        "/api/product-pricing/",
+        {
+            "product": product.product_id,
+            "wholesale_price": "108000.00",
+            "retail_price": "145000.00",
+            "effective_date": "2026-01-01",
+        },
+        format="json",
+    )
+
+    staff_client = auth_client(sales_staff, "staffpass")
+    response = staff_client.post(
+        "/api/product-pricing/",
+        {
+            "product": product.product_id,
+            "retail_price": "150000.00",
+            "effective_date": "2026-06-01",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    new_price_id = response.json()["price_id"]
+    created = ProductPricing.objects.get(pk=new_price_id)
+    assert str(created.wholesale_price) == "108000.00"
+
+
+def test_non_admin_creating_first_pricing_row_without_wholesale_price_fails_cleanly(sales_staff, product):
+    client = auth_client(sales_staff, "staffpass")
+    response = client.post(
+        "/api/product-pricing/",
+        {
+            "product": product.product_id,
+            "retail_price": "150000.00",
+            "effective_date": "2026-06-01",
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert ProductPricing.objects.filter(product=product).count() == 0
+
+
+def test_only_one_current_price_per_product_enforced_at_db_level(product):
+    ProductPricing.objects.create(
+        product=product, wholesale_price="108000.00", retail_price="145000.00",
+        effective_date=date(2026, 1, 1), is_current=True,
+    )
+    with pytest.raises(IntegrityError):
+        ProductPricing.objects.create(
+            product=product, wholesale_price="110000.00", retail_price="150000.00",
+            effective_date=date(2026, 6, 1), is_current=True,
+        )

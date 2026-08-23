@@ -48,3 +48,34 @@ def test_duplicate_code_rejected(sales_staff):
     client.post("/api/categories/", {"name": "Audio", "code": "AUD"}, format="json")
     response = client.post("/api/categories/", {"name": "Audio Two", "code": "AUD"}, format="json")
     assert response.status_code == 400
+
+
+def test_updating_category_code_is_rejected(sales_staff):
+    client = auth_client(sales_staff, "staffpass")
+    create_response = client.post(
+        "/api/categories/", {"name": "Audio", "code": "AUD"}, format="json"
+    )
+    category_id = create_response.json()["category_id"]
+
+    response = client.patch(
+        f"/api/categories/{category_id}/", {"code": "NEW"}, format="json"
+    )
+    assert response.status_code == 400
+
+    from catalog.models import Category
+    unchanged = Category.objects.get(pk=category_id)
+    assert unchanged.code == "AUD"
+
+
+def test_updating_category_name_still_allowed(sales_staff):
+    client = auth_client(sales_staff, "staffpass")
+    create_response = client.post(
+        "/api/categories/", {"name": "Audio", "code": "AUD"}, format="json"
+    )
+    category_id = create_response.json()["category_id"]
+
+    response = client.patch(
+        f"/api/categories/{category_id}/", {"name": "Audio & Video"}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.json()["name"] == "Audio & Video"

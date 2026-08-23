@@ -64,3 +64,32 @@ def test_submitted_barcode_is_ignored(sales_staff, category):
     )
     assert response.status_code == 201
     assert response.json()["barcode"] == "PES-AUD-00001"
+
+
+def test_updating_product_category_is_rejected(sales_staff, category):
+    client = auth_client(sales_staff, "staffpass")
+    create_response = client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    other_category = Category.objects.create(name="Video", code="VID")
+    response = client.patch(
+        f"/api/products/{product_id}/", {"category": other_category.category_id}, format="json"
+    )
+    assert response.status_code == 400
+
+    unchanged = Product.objects.get(pk=product_id)
+    assert unchanged.category_id == category.category_id
+
+
+def test_updating_product_name_still_allowed(sales_staff, category):
+    client = auth_client(sales_staff, "staffpass")
+    create_response = client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = client.patch(f"/api/products/{product_id}/", {"name": "Renamed"}, format="json")
+    assert response.status_code == 200
+    assert response.json()["name"] == "Renamed"
