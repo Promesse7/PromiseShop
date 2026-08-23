@@ -55,3 +55,57 @@ def test_refresh_issues_new_access_token(employee):
     )
     assert refresh_response.status_code == 200
     assert "access" in refresh_response.json()
+
+
+def test_terminated_employee_cannot_login():
+    terminated = Employee.objects.create_user(
+        username="t.ndayisenga",
+        password="s3cret-pass",
+        full_name="Terminated Person",
+        hire_date=date(2025, 1, 15),
+        role=Employee.Role.SALES_STAFF,
+        status=Employee.Status.TERMINATED,
+    )
+    client = APIClient()
+    response = client.post(
+        "/api/auth/login/",
+        {"username": terminated.username, "password": "s3cret-pass"},
+        format="json",
+    )
+    assert response.status_code == 401
+
+
+def test_inactive_employee_cannot_login():
+    inactive = Employee.objects.create_user(
+        username="i.uwase",
+        password="s3cret-pass",
+        full_name="Inactive Person",
+        hire_date=date(2025, 1, 15),
+        role=Employee.Role.SALES_STAFF,
+        status=Employee.Status.INACTIVE,
+    )
+    client = APIClient()
+    response = client.post(
+        "/api/auth/login/",
+        {"username": inactive.username, "password": "s3cret-pass"},
+        format="json",
+    )
+    assert response.status_code == 401
+
+
+def test_previously_issued_token_rejected_after_employee_is_terminated(employee):
+    client = APIClient()
+    login_response = client.post(
+        "/api/auth/login/",
+        {"username": "e.mugisha", "password": "s3cret-pass"},
+        format="json",
+    )
+    assert login_response.status_code == 200
+    access_token = login_response.json()["access"]
+
+    employee.status = Employee.Status.TERMINATED
+    employee.save()
+
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {access_token}")
+    response = client.get("/api/categories/")
+    assert response.status_code == 401

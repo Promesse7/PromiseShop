@@ -1,3 +1,4 @@
+from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -21,6 +22,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
             "username", "password", "hire_date", "status", "created_at",
         ]
         read_only_fields = ["employee_id", "created_at"]
+
+    def validate_password(self, value):
+        validate_password(value)
+        return value
 
     def create(self, validated_data):
         password = validated_data.pop("password")

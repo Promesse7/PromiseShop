@@ -71,7 +71,7 @@ def test_non_admin_gets_403_creating_employee(sales_staff):
         "/api/employees/",
         {
             "username": "should.fail",
-            "password": "pw",
+            "password": "a-Str0ng-Passw0rd!",
             "full_name": "Nope",
             "hire_date": "2026-01-10",
             "role": Employee.Role.TECHNICIAN,
@@ -79,3 +79,20 @@ def test_non_admin_gets_403_creating_employee(sales_staff):
         format="json",
     )
     assert response.status_code == 403
+
+
+def test_admin_creating_employee_with_weak_password_is_rejected(admin):
+    client = auth_client(admin, "adminpass")
+    response = client.post(
+        "/api/employees/",
+        {
+            "username": "weak.pass",
+            "password": "pw",
+            "full_name": "Weak Password",
+            "hire_date": "2026-01-10",
+            "role": Employee.Role.TECHNICIAN,
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert not Employee.objects.filter(username="weak.pass").exists()
