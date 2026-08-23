@@ -10,6 +10,7 @@ urlpatterns = [
     path("api/", include("accounts.urls")),
     path("api/", include("catalog.urls")),
     path("api/", include("purchasing.urls")),
+    path("api/", include("sales.urls")),
     path("api/auth/login/", EmployeeTokenObtainPairView.as_view(), name="auth-login"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
 ]
