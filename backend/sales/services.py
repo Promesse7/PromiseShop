@@ -17,11 +17,11 @@ def _resolve_retail_price(product):
     return pricing.retail_price
 
 
-def _notify_admins(sale):
-    admins = Employee.objects.filter(role=Employee.Role.ADMIN)
+def _notify_admins(sale, notification_type="sale_alert"):
+    admins = Employee.objects.filter(role=Employee.Role.ADMIN, status=Employee.Status.ACTIVE)
     NotificationLog.objects.bulk_create([
         NotificationLog(
-            type="sale_alert", recipient=admin, related_sale=sale,
+            type=notification_type, recipient=admin, related_sale=sale,
             status=NotificationLog.NotificationStatus.SENT,
         )
         for admin in admins
@@ -51,25 +51,26 @@ def complete_sale(customer, employee, payment_method, items):
                 )
             locked_inventories[product_id] = inventory
 
-        sale = Sale.objects.create(
-            customer=customer, employee=employee, payment_method=payment_method,
-            total_amount=Decimal("0.00"),
-        )
-
+        resolved_items = []
         total = Decimal("0.00")
         for entry in items:
             product = entry["product"]
             quantity = entry["quantity"]
             unit_price = _resolve_retail_price(product)
             subtotal = unit_price * quantity
+            resolved_items.append((product, quantity, unit_price, subtotal))
+            total += subtotal
+
+        sale = Sale.objects.create(
+            customer=customer, employee=employee, payment_method=payment_method,
+            total_amount=total,
+        )
+
+        for product, quantity, unit_price, subtotal in resolved_items:
             SaleItem.objects.create(
                 sale=sale, product=product, quantity=quantity,
                 unit_price=unit_price, subtotal=subtotal,
             )
-            total += subtotal
-
-        sale.total_amount = total
-        sale.save(update_fields=["total_amount"])
 
         for product_id, quantity in quantities.items():
             inventory = locked_inventories[product_id]
@@ -82,6 +83,9 @@ def complete_sale(customer, employee, payment_method, items):
 
 
 def reverse_sale(sale, new_status):
+    if new_status not in (Sale.SaleStatus.RETURNED, Sale.SaleStatus.CANCELLED):
+        raise ValidationError(f"Invalid reversal status: {new_status}")
+
     with transaction.atomic():
         locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
         if locked_sale.status != Sale.SaleStatus.COMPLETED:
@@ -101,4 +105,6 @@ def reverse_sale(sale, new_status):
 
         locked_sale.status = new_status
         locked_sale.save(update_fields=["status"])
+
+        _notify_admins(locked_sale, notification_type="sale_reversed")
     return locked_sale
