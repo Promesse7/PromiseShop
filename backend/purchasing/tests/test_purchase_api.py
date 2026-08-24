@@ -180,3 +180,35 @@ def test_add_item_to_received_purchase_returns_400(employee, draft_purchase, pro
         format="json",
     )
     assert response.status_code == 400
+
+
+def test_patch_updates_draft_purchase_header(employee, draft_purchase):
+    client = auth_client(employee, "staffpass")
+    response = client.patch(
+        f"/api/purchases/{draft_purchase.purchase_id}/",
+        {"invoice_number": "KE-9999", "payment_status": "paid"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.json()["invoice_number"] == "KE-9999"
+    assert response.json()["payment_status"] == "paid"
+    # Verify persistence by fetching from DB
+    refreshed = Purchase.objects.get(pk=draft_purchase.purchase_id)
+    assert refreshed.invoice_number == "KE-9999"
+    assert refreshed.payment_status == "paid"
+
+
+def test_patch_received_purchase_returns_403(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 1, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/receive/")
+    response = client.patch(
+        f"/api/purchases/{draft_purchase.purchase_id}/",
+        {"invoice_number": "KE-SHOULD-FAIL"},
+        format="json",
+    )
+    assert response.status_code == 403
