@@ -5,7 +5,8 @@ suppliers, customers, products, and product pricing (Phase 1), plus purchasing
 — draft purchases, line items, and receiving into stock (Phase 2), plus sales
 — completing sales against stock, and returns/cancellations that restore it
 (Phase 3), plus stock/equipment tracking — inventory stock levels and equipment
-unit registration, status, and condition (Phase 4).
+unit registration, status, and condition (Phase 4), plus finance — expense
+tracking by category (Phase 5b).
 
 ## Setup
 
@@ -90,6 +91,9 @@ status changes only via the dedicated `change-status` action.
 The entire Finance API is **admin-only**: every verb (GET, POST, PATCH, PUT, DELETE)
 returns 403 Forbidden for non-admin users. `recorded_by` is always server-set from
 the acting employee at creation time and remains fixed across subsequent edits.
+The list endpoint defaults to newest-first ordering (`-expense_date`, with
+`-expense_id` as a tiebreaker for same-day expenses). `DELETE` is a hard delete
+— there is no soft-delete or undo.
 
 The admin dashboard and `notifications.NotificationLog`'s own direct API remain
 schema-only (models + migrations exist; no API yet) — see

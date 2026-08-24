@@ -1,9 +1,15 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from finance.models import Expense
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
+    amount = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01")
+    )
+
     class Meta:
         model = Expense
         fields = [

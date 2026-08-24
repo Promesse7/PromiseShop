@@ -71,7 +71,7 @@ def test_create_expense_ignores_client_submitted_recorded_by(admin, other_admin)
 
 
 def test_list_and_retrieve_as_admin(admin):
-    Expense.objects.create(
+    expense = Expense.objects.create(
         category=Expense.ExpenseCategory.RENT, amount="200000.00",
         expense_date=date(2026, 8, 1), recorded_by=admin,
     )
@@ -79,6 +79,10 @@ def test_list_and_retrieve_as_admin(admin):
     list_response = client.get("/api/expenses/")
     assert list_response.status_code == 200
     assert list_response.json()["count"] == 1
+
+    detail_response = client.get(f"/api/expenses/{expense.expense_id}/")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["expense_id"] == expense.expense_id
 
 
 def test_category_filter(admin):
@@ -105,11 +109,37 @@ def test_patch_updates_fields_but_preserves_recorded_by(admin, other_admin):
     )
     client = auth_client(other_admin, "adminpass")
     response = client.patch(
-        f"/api/expenses/{expense.expense_id}/", {"amount": "210000.00"}, format="json"
+        f"/api/expenses/{expense.expense_id}/",
+        {"amount": "210000.00", "recorded_by": other_admin.employee_id},
+        format="json",
     )
     assert response.status_code == 200
     expense.refresh_from_db()
     assert str(expense.amount) == "210000.00"
+    assert expense.recorded_by == admin
+
+
+def test_put_updates_fields_but_ignores_recorded_by(admin, other_admin):
+    expense = Expense.objects.create(
+        category=Expense.ExpenseCategory.RENT, amount="200000.00",
+        expense_date=date(2026, 8, 1), recorded_by=admin,
+    )
+    client = auth_client(other_admin, "adminpass")
+    response = client.put(
+        f"/api/expenses/{expense.expense_id}/",
+        {
+            "category": "utilities", "amount": "99000.00",
+            "expense_date": "2026-08-15", "description": "Replaced via PUT",
+            "recorded_by": other_admin.employee_id,
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+    expense.refresh_from_db()
+    assert expense.category == "utilities"
+    assert str(expense.amount) == "99000.00"
+    assert str(expense.expense_date) == "2026-08-15"
+    assert expense.description == "Replaced via PUT"
     assert expense.recorded_by == admin
 
 
@@ -134,6 +164,26 @@ def test_invalid_category_returns_400(admin):
     assert response.status_code == 400
 
 
+def test_negative_amount_returns_400(admin):
+    client = auth_client(admin, "adminpass")
+    response = client.post(
+        "/api/expenses/",
+        {"category": "other", "amount": "-5000.00", "expense_date": "2026-08-20"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_zero_amount_returns_400(admin):
+    client = auth_client(admin, "adminpass")
+    response = client.post(
+        "/api/expenses/",
+        {"category": "other", "amount": "0.00", "expense_date": "2026-08-20"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
 def test_non_admin_gets_403_on_every_verb(staff):
     expense = Expense.objects.create(
         category=Expense.ExpenseCategory.OTHER, amount="5000.00",
@@ -144,6 +194,7 @@ def test_non_admin_gets_403_on_every_verb(staff):
     assert client.get(f"/api/expenses/{expense.expense_id}/").status_code == 403
     assert client.post("/api/expenses/", {}, format="json").status_code == 403
     assert client.patch(f"/api/expenses/{expense.expense_id}/", {}, format="json").status_code == 403
+    assert client.put(f"/api/expenses/{expense.expense_id}/", {}, format="json").status_code == 403
     assert client.delete(f"/api/expenses/{expense.expense_id}/").status_code == 403
 
 

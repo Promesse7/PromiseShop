@@ -10,7 +10,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdmin]
 
     def get_queryset(self):
-        queryset = Expense.objects.all().order_by("-expense_date")
+        queryset = Expense.objects.all().order_by("-expense_date", "-expense_id")
         category = self.request.query_params.get("category")
         if category:
             queryset = queryset.filter(category=category)
