@@ -80,6 +80,9 @@ def receive_purchase(purchase):
     if not items:
         raise ValidationError("Cannot receive a purchase with no line items.")
     with transaction.atomic():
+        purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if purchase.status != Purchase.Status.DRAFT:
+            raise ValidationError("Purchase has already been received.")
         for item in items:
             inventory, _ = Inventory.objects.select_for_update().get_or_create(
                 product=item.product, defaults={"quantity_in_stock": 0}
