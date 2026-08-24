@@ -7,7 +7,8 @@ suppliers, customers, products, and product pricing (Phase 1), plus purchasing
 (Phase 3), plus stock/equipment tracking — inventory stock levels and equipment
 unit registration, status, and condition (Phase 4), plus a personal
 notifications inbox (Phase 5a) and finance — expense tracking by category
-(Phase 5b).
+(Phase 5b), plus admin dashboard — read-only analytics endpoints for sales,
+stock, finance, and activity (Phase 6).
 
 ## Setup
 
@@ -96,9 +97,19 @@ The list endpoint defaults to newest-first ordering (`-expense_date`, with
 `-expense_id` as a tiebreaker for same-day expenses). `DELETE` is a hard delete
 — there is no soft-delete or undo.
 
-The admin dashboard remains schema-only — see
-`docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
-what's deferred to later phases.
+### Admin Dashboard (Phase 6)
+
+- `GET /api/dashboard/sales-summary/?period=today|week|month|year`
+- `GET /api/dashboard/stock-health/`
+- `GET /api/dashboard/financial-snapshot/?period=today|week|month|year`
+- `GET /api/dashboard/activity-feed/?limit=<n, default 20>`
+
+The admin dashboard endpoints provide read-only analytics. **All endpoints are
+admin-only** (`IsAdmin` permission required) and read-only — no POST/PATCH/PUT/DELETE
+actions. The `period` parameter (where present) accepts: `today` (current calendar
+day), `week` (rolling 7 days from yesterday), `month` (calendar month-to-date),
+or `year` (calendar year-to-date). An invalid `period` value returns 400 Bad Request.
+`stock-health` is a point-in-time snapshot and does not accept a period parameter.
 
 ### Notifications (Phase 5a)
 
