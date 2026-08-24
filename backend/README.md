@@ -65,9 +65,9 @@ unit registration, status, and condition (Phase 4).
 
 Sales are immutable once created — no PATCH/PUT/DELETE; a completed sale can
 only be reversed via the `return`/`cancel` actions above, which restore the
-locked stock. `notifications.NotificationLog` still has no directly-exposed
-API — this phase only writes to it internally as a side effect of completing
-a sale.
+locked stock. `notifications.NotificationLog` has no directly-exposed API in
+this phase — this phase only writes to it internally as a side effect of
+completing a sale; the read API arrives in Phase 5a below.
 
 ### Stock & Equipment (Phase 4)
 

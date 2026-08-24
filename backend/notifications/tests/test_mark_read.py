@@ -68,3 +68,18 @@ def test_mark_read_unauthenticated_returns_401():
     client = APIClient()
     response = client.post("/api/notifications/1/mark-read/")
     assert response.status_code == 401
+
+
+def test_mark_read_with_unread_query_param_still_works(employee):
+    from django.utils import timezone
+    original_read_at = timezone.now()
+    log = NotificationLog.objects.create(
+        type="sale_alert", recipient=employee, read_at=original_read_at
+    )
+    client = auth_client(employee, "adminpass")
+    response = client.post(
+        f"/api/notifications/{log.notification_id}/mark-read/?unread=true"
+    )
+    assert response.status_code == 200
+    log.refresh_from_db()
+    assert log.read_at == original_read_at

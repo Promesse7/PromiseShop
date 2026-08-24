@@ -15,8 +15,8 @@ class NotificationLogViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = NotificationLog.objects.filter(
             recipient=self.request.user
-        ).order_by("-sent_at")
-        if self.request.query_params.get("unread") == "true":
+        ).order_by("-sent_at", "-notification_id")
+        if self.action == "list" and self.request.query_params.get("unread") == "true":
             queryset = queryset.filter(read_at__isnull=True)
         return queryset
 

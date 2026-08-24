@@ -97,3 +97,21 @@ def test_unauthenticated_request_returns_401():
     client = APIClient()
     response = client.get("/api/notifications/")
     assert response.status_code == 401
+
+
+@pytest.fixture
+def sales_staff_employee():
+    return Employee.objects.create_user(
+        username="sales1", password="salespass", full_name="Sales One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.SALES_STAFF,
+    )
+
+
+def test_non_admin_employee_can_list_and_mark_read_own_notifications(sales_staff_employee):
+    log = NotificationLog.objects.create(type="sale_alert", recipient=sales_staff_employee)
+    client = auth_client(sales_staff_employee, "salespass")
+    list_response = client.get("/api/notifications/")
+    assert list_response.status_code == 200
+    assert list_response.json()["count"] == 1
+    mark_read_response = client.post(f"/api/notifications/{log.notification_id}/mark-read/")
+    assert mark_read_response.status_code == 200
