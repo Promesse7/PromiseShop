@@ -4,7 +4,8 @@ Django REST API: full DB schema, JWT auth, and CRUD for employees, categories,
 suppliers, customers, products, and product pricing (Phase 1), plus purchasing
 — draft purchases, line items, and receiving into stock (Phase 2), plus sales
 — completing sales against stock, and returns/cancellations that restore it
-(Phase 3).
+(Phase 3), plus stock/equipment tracking — inventory stock levels and equipment
+unit registration, status, and condition (Phase 4).
 
 ## Setup
 
@@ -68,7 +69,20 @@ locked stock. `notifications.NotificationLog` still has no directly-exposed
 API — this phase only writes to it internally as a side effect of completing
 a sale.
 
-Stock/equipment and the admin dashboard are still schema-only (models +
-migrations exist; no API yet) — see
+### Stock & Equipment (Phase 4)
+
+- `GET /api/inventory/` (with optional `?low_stock=true` filter)
+- `GET/PATCH /api/inventory/{id}/`
+- `POST/GET /api/equipment-units/`
+- `GET/PATCH /api/equipment-units/{id}/`
+- `POST /api/equipment-units/{id}/change-status/`
+
+`Inventory` quantities (`quantity_in_stock`, `in_use`, `damaged`) are never
+directly editable — only `storage_location` may be updated via PATCH.
+`EquipmentUnit.status` and `serial_number` are never editable via PATCH;
+status changes only via the dedicated `change-status` action.
+
+The admin dashboard and `notifications.NotificationLog`'s own direct API remain
+schema-only (models + migrations exist; no API yet) — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
 what's deferred to later phases.
