@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin
 from dashboard.services import resolve_period_range
+from finance.models import Expense
 from sales.models import Sale, SaleItem
 from stock.models import EquipmentUnit, Inventory
 
@@ -63,4 +64,31 @@ class StockHealthView(APIView):
         return Response({
             "low_stock_count": low_stock_count,
             "equipment_status_counts": status_counts,
+        })
+
+
+class FinancialSnapshotView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        period = request.query_params.get("period")
+        start, end = resolve_period_range(period)
+
+        total_revenue = Sale.objects.filter(
+            status=Sale.SaleStatus.COMPLETED, sale_date__date__range=(start, end)
+        ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+
+        expenses_in_period = Expense.objects.filter(expense_date__range=(start, end))
+        total_expenses = expenses_in_period.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+        by_category = {choice[0]: Decimal("0.00") for choice in Expense.ExpenseCategory.choices}
+        for row in expenses_in_period.values("category").annotate(total=Sum("amount")):
+            by_category[row["category"]] = row["total"]
+
+        return Response({
+            "period": period,
+            "total_revenue": total_revenue,
+            "total_expenses": total_expenses,
+            "expenses_by_category": by_category,
+            "net": total_revenue - total_expenses,
         })
