@@ -5,7 +5,9 @@ suppliers, customers, products, and product pricing (Phase 1), plus purchasing
 — draft purchases, line items, and receiving into stock (Phase 2), plus sales
 — completing sales against stock, and returns/cancellations that restore it
 (Phase 3), plus stock/equipment tracking — inventory stock levels and equipment
-unit registration, status, and condition (Phase 4).
+unit registration, status, and condition (Phase 4), plus a personal
+notifications inbox (Phase 5a) and finance — expense tracking by category
+(Phase 5b).
 
 ## Setup
 
@@ -81,6 +83,18 @@ completing a sale; the read API arrives in Phase 5a below.
 directly editable — only `storage_location` may be updated via PATCH.
 `EquipmentUnit.status` and `serial_number` are never editable via PATCH;
 status changes only via the dedicated `change-status` action.
+
+### Finance / Expenses (Phase 5b)
+
+- `GET/POST /api/expenses/` (with optional `?category=` filter)
+- `GET/PATCH/PUT/DELETE /api/expenses/{id}/`
+
+The entire Finance API is **admin-only**: every verb (GET, POST, PATCH, PUT, DELETE)
+returns 403 Forbidden for non-admin users. `recorded_by` is always server-set from
+the acting employee at creation time and remains fixed across subsequent edits.
+The list endpoint defaults to newest-first ordering (`-expense_date`, with
+`-expense_id` as a tiebreaker for same-day expenses). `DELETE` is a hard delete
+— there is no soft-delete or undo.
 
 The admin dashboard remains schema-only — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
