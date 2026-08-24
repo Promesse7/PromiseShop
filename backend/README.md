@@ -2,7 +2,9 @@
 
 Django REST API: full DB schema, JWT auth, and CRUD for employees, categories,
 suppliers, customers, products, and product pricing (Phase 1), plus purchasing
-— draft purchases, line items, and receiving into stock (Phase 2).
+— draft purchases, line items, and receiving into stock (Phase 2), plus sales
+— completing sales against stock, and returns/cancellations that restore it
+(Phase 3).
 
 ## Setup
 
@@ -53,7 +55,20 @@ suppliers, customers, products, and product pricing (Phase 1), plus purchasing
 - `DELETE /api/purchases/{id}/items/{item_id}/`
 - `POST /api/purchases/{id}/receive/`
 
-Sales/POS, stock/equipment, dashboard, and notification endpoints are still
-schema-only (models + migrations exist; no API yet) — see
+### Sales / POS (Phase 3)
+
+- `POST/GET /api/sales/`
+- `GET /api/sales/{id}/`
+- `POST /api/sales/{id}/return/`
+- `POST /api/sales/{id}/cancel/`
+
+Sales are immutable once created — no PATCH/PUT/DELETE; a completed sale can
+only be reversed via the `return`/`cancel` actions above, which restore the
+locked stock. `notifications.NotificationLog` still has no directly-exposed
+API — this phase only writes to it internally as a side effect of completing
+a sale.
+
+Stock/equipment and the admin dashboard are still schema-only (models +
+migrations exist; no API yet) — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
 what's deferred to later phases.
