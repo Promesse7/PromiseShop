@@ -1,6 +1,7 @@
 import pytest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+from django.utils import timezone
 from rest_framework.test import APIClient
 from accounts.models import Employee
 from catalog.models import Category, Product
@@ -59,7 +60,6 @@ def make_completed_sale(employee, product, sale_date, amount, quantity=1):
 
 
 def test_sales_summary_today(admin, product):
-    from django.utils import timezone
     now = timezone.now()
     make_completed_sale(admin, product, now, Decimal("10000.00"))
     client = auth_client(admin, "adminpass")
@@ -71,7 +71,6 @@ def test_sales_summary_today(admin, product):
 
 
 def test_sales_summary_excludes_sales_outside_period(admin, product):
-    from django.utils import timezone
     now = timezone.now()
     outside = now - timedelta(days=40)
     make_completed_sale(admin, product, outside, Decimal("5000.00"))
@@ -82,7 +81,6 @@ def test_sales_summary_excludes_sales_outside_period(admin, product):
 
 
 def test_sales_summary_excludes_non_completed_sales(admin, product):
-    from django.utils import timezone
     sale = Sale.objects.create(
         employee=admin, total_amount=Decimal("9000.00"), status=Sale.SaleStatus.CANCELLED,
     )
@@ -96,7 +94,6 @@ def test_sales_summary_excludes_non_completed_sales(admin, product):
 
 
 def test_sales_summary_top_products_ordered_and_limited_to_5(admin, category):
-    from django.utils import timezone
     now = timezone.now()
     products = [
         Product.objects.create(category=category, barcode=f"PES-AUD-0000{i}", name=f"Item {i}")
@@ -133,6 +130,49 @@ def test_sales_summary_missing_period_returns_400(admin):
     client = auth_client(admin, "adminpass")
     response = client.get("/api/dashboard/sales-summary/")
     assert response.status_code == 400
+
+
+def test_sales_summary_week_boundary(admin, product):
+    now = timezone.now()
+    inside = now - timedelta(days=6)
+    outside = now - timedelta(days=7)
+    make_completed_sale(admin, product, inside, Decimal("1000.00"))
+    make_completed_sale(admin, product, outside, Decimal("5000.00"))
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/sales-summary/?period=week")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sale_count"] == 1
+    assert Decimal(body["total_revenue"]) == Decimal("1000.00")
+
+
+def test_sales_summary_month_boundary(admin, product):
+    today = date.today()
+    inside = timezone.make_aware(datetime.combine(today.replace(day=1), datetime.min.time()))
+    prev_month_last_day = today.replace(day=1) - timedelta(days=1)
+    outside = timezone.make_aware(datetime.combine(prev_month_last_day, datetime.min.time()))
+    make_completed_sale(admin, product, inside, Decimal("2000.00"))
+    make_completed_sale(admin, product, outside, Decimal("7000.00"))
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/sales-summary/?period=month")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sale_count"] == 1
+    assert Decimal(body["total_revenue"]) == Decimal("2000.00")
+
+
+def test_sales_summary_year_boundary(admin, product):
+    today = date.today()
+    inside = timezone.make_aware(datetime(today.year, 1, 1))
+    outside = timezone.make_aware(datetime(today.year - 1, 12, 31))
+    make_completed_sale(admin, product, inside, Decimal("3000.00"))
+    make_completed_sale(admin, product, outside, Decimal("8000.00"))
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/sales-summary/?period=year")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sale_count"] == 1
+    assert Decimal(body["total_revenue"]) == Decimal("3000.00")
 
 
 def test_sales_summary_non_admin_returns_403(staff):
