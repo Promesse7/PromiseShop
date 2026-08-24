@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from django.db.models import Sum, Count, F
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -40,13 +41,13 @@ class SalesSummaryView(APIView):
 
         return Response({
             "period": period,
-            "total_revenue": total_revenue,
+            "total_revenue": str(total_revenue),
             "sale_count": sale_count,
             "top_products": [
                 {
                     "product_id": row["product_id"],
                     "product_name": row["product__name"],
-                    "revenue": row["revenue"],
+                    "revenue": str(row["revenue"]),
                 }
                 for row in top_products
             ],
@@ -89,12 +90,16 @@ class FinancialSnapshotView(APIView):
         for row in expenses_in_period.values("category").annotate(total=Sum("amount")):
             by_category[row["category"]] = row["total"]
 
+        net = total_revenue - total_expenses
+
         return Response({
             "period": period,
-            "total_revenue": total_revenue,
-            "total_expenses": total_expenses,
-            "expenses_by_category": by_category,
-            "net": total_revenue - total_expenses,
+            "total_revenue": str(total_revenue),
+            "total_expenses": str(total_expenses),
+            "expenses_by_category": {
+                category: str(value) for category, value in by_category.items()
+            },
+            "net": str(net),
         })
 
 
@@ -102,10 +107,17 @@ class ActivityFeedView(APIView):
     permission_classes = [IsAdmin]
 
     def get(self, request):
-        limit = int(request.query_params.get("limit", 20))
+        raw_limit = request.query_params.get("limit", "20")
+        try:
+            limit = int(raw_limit)
+        except ValueError:
+            raise ValidationError({"limit": f"Invalid limit: {raw_limit!r}. Must be an integer."})
+        limit = max(1, min(limit, 100))
 
         sales = Sale.objects.order_by("-sale_date")[:limit]
-        purchases = Purchase.objects.order_by("-purchase_date", "-purchase_id")[:limit]
+        purchases = Purchase.objects.select_related("supplier").order_by(
+            "-purchase_date", "-purchase_id"
+        )[:limit]
         notifications = NotificationLog.objects.filter(
             recipient=request.user
         ).order_by("-sent_at")[:limit]
@@ -116,6 +128,7 @@ class ActivityFeedView(APIView):
                 "type": "sale",
                 "id": sale.sale_id,
                 "timestamp": sale.sale_date,
+                "status": sale.status,
                 "summary": f"Sale #{sale.sale_id} - {sale.total_amount}",
             })
         for purchase in purchases:
@@ -126,7 +139,8 @@ class ActivityFeedView(APIView):
                 "type": "purchase",
                 "id": purchase.purchase_id,
                 "timestamp": purchase_timestamp,
-                "summary": f"Purchase #{purchase.purchase_id} - {purchase.supplier}",
+                "status": purchase.status,
+                "summary": str(purchase),
             })
         for notification in notifications:
             items.append({

@@ -147,7 +147,7 @@ def test_sales_summary_week_boundary(admin, product):
 
 
 def test_sales_summary_month_boundary(admin, product):
-    today = date.today()
+    today = timezone.localdate()
     inside = timezone.make_aware(datetime.combine(today.replace(day=1), datetime.min.time()))
     prev_month_last_day = today.replace(day=1) - timedelta(days=1)
     outside = timezone.make_aware(datetime.combine(prev_month_last_day, datetime.min.time()))
@@ -162,7 +162,7 @@ def test_sales_summary_month_boundary(admin, product):
 
 
 def test_sales_summary_year_boundary(admin, product):
-    today = date.today()
+    today = timezone.localdate()
     inside = timezone.make_aware(datetime(today.year, 1, 1))
     outside = timezone.make_aware(datetime(today.year - 1, 12, 31))
     make_completed_sale(admin, product, inside, Decimal("3000.00"))

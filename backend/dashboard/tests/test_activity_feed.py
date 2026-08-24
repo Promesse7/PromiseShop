@@ -1,6 +1,7 @@
 import pytest
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
+from django.utils import timezone
 from rest_framework.test import APIClient
 from accounts.models import Employee
 from notifications.models import NotificationLog
@@ -108,3 +109,67 @@ def test_activity_feed_unauthenticated_returns_401():
     client = APIClient()
     response = client.get("/api/dashboard/activity-feed/")
     assert response.status_code == 401
+
+
+def test_activity_feed_non_numeric_limit_returns_400(admin):
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/activity-feed/?limit=abc")
+    assert response.status_code == 400
+
+
+def test_activity_feed_negative_limit_is_clamped_to_one(admin):
+    for _ in range(3):
+        Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.COMPLETED)
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/activity-feed/?limit=-5")
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+def test_activity_feed_huge_limit_is_clamped_to_100(admin):
+    for _ in range(10):
+        Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.COMPLETED)
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/activity-feed/?limit=99999")
+    assert response.status_code == 200
+    assert len(response.json()) == 10
+
+
+def test_activity_feed_cancelled_sale_includes_status(admin):
+    Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.CANCELLED)
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/activity-feed/")
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["status"] == "cancelled"
+
+
+def test_activity_feed_orders_items_newest_first(admin, supplier):
+    now = timezone.now()
+
+    sale = Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.COMPLETED)
+    Sale.objects.filter(pk=sale.pk).update(sale_date=now - timedelta(hours=3))
+
+    purchase = Purchase.objects.create(
+        supplier=supplier, employee=admin, purchase_date=(now - timedelta(days=1)).date(),
+        status=Purchase.Status.DRAFT,
+    )
+
+    notification = NotificationLog.objects.create(type="sale_alert", recipient=admin)
+    NotificationLog.objects.filter(pk=notification.pk).update(sent_at=now)
+
+    client = auth_client(admin, "adminpass")
+    response = client.get("/api/dashboard/activity-feed/")
+    assert response.status_code == 200
+    body = response.json()
+
+    ordered = [(item["type"], item["id"]) for item in body]
+    assert ordered == [
+        ("notification", notification.notification_id),
+        ("sale", sale.sale_id),
+        ("purchase", purchase.purchase_id),
+    ]
+
+    timestamps = [item["timestamp"] for item in body]
+    assert timestamps == sorted(timestamps, reverse=True)

@@ -72,7 +72,7 @@ def test_financial_snapshot_computes_net(admin, product):
 
 
 def test_financial_snapshot_expenses_by_category_include_zero_categories(admin):
-    today = date.today()
+    today = timezone.localdate()
     Expense.objects.create(
         category=Expense.ExpenseCategory.RENT, amount=Decimal("20000.00"),
         expense_date=today, recorded_by=admin,
@@ -115,7 +115,7 @@ def test_financial_snapshot_unauthenticated_returns_401():
 
 
 def test_financial_snapshot_week_boundary_includes_and_excludes_expenses_and_sales(admin, product):
-    today = date.today()
+    today = timezone.localdate()
     inside_date = today - timedelta(days=6)
     outside_date = today - timedelta(days=7)
 
