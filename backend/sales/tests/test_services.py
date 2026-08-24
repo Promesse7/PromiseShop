@@ -186,3 +186,76 @@ def test_reverse_sale_rejects_non_completed_sale(employee, admin, category):
     reverse_sale(sale, Sale.SaleStatus.RETURNED)
     with pytest.raises(ValidationError):
         reverse_sale(sale, Sale.SaleStatus.RETURNED)
+
+
+def test_reverse_sale_rejects_invalid_new_status(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    with pytest.raises(ValidationError):
+        reverse_sale(sale, Sale.SaleStatus.COMPLETED)
+    assert Sale.objects.get(pk=sale.pk).status == Sale.SaleStatus.COMPLETED
+    assert Inventory.objects.get(product=product).quantity_in_stock == 9
+
+
+def test_notify_admins_excludes_terminated_and_inactive_admins(employee, admin, category):
+    Employee.objects.create_user(
+        username="admin2", password="adminpass", full_name="Admin Two",
+        hire_date=date(2025, 1, 1), role=Employee.Role.ADMIN, status=Employee.Status.TERMINATED,
+    )
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    logs = NotificationLog.objects.filter(related_sale=sale)
+    assert logs.count() == 1
+    assert logs.first().recipient_id == admin.pk
+
+
+def test_reverse_sale_notifies_active_admins_with_sale_reversed_type(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    logs = NotificationLog.objects.filter(related_sale=sale, type="sale_reversed")
+    assert logs.count() == 1
+    assert logs.first().recipient_id == admin.pk
+    assert logs.first().status == NotificationLog.NotificationStatus.SENT
+
+
+def test_duplicate_product_lines_aggregate_and_round_trip(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 3}, {"product": product, "quantity": 2}],
+    )
+    assert sale.total_amount == Decimal("500.00")
+    assert SaleItem.objects.filter(sale=sale).count() == 2
+    assert Inventory.objects.get(product=product).quantity_in_stock == 5
+
+    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    assert Inventory.objects.get(product=product).quantity_in_stock == 10
+
+
+def test_complete_sale_uses_current_price_not_stale_price(employee, admin, category):
+    product = Product.objects.create(category=category, barcode="PES-AUD-00001", name="Speaker")
+    ProductPricing.objects.create(
+        product=product, wholesale_price=Decimal("40.00"), retail_price=Decimal("80.00"),
+        effective_date=date(2025, 1, 1), is_current=False,
+    )
+    ProductPricing.objects.create(
+        product=product, wholesale_price=Decimal("50.00"), retail_price=Decimal("100.00"),
+        effective_date=date(2026, 1, 1), is_current=True,
+    )
+    Inventory.objects.create(product=product, quantity_in_stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    item = SaleItem.objects.get(sale=sale)
+    assert item.unit_price == Decimal("100.00")

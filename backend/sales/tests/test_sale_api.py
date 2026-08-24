@@ -67,6 +67,20 @@ def test_complete_sale_via_api(employee, admin, product):
     assert body["items"][0]["subtotal"] == "200.00"
 
 
+def test_client_supplied_price_is_ignored(employee, admin, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/sales/",
+        {
+            "payment_method": "cash",
+            "items": [{"product": product.product_id, "quantity": 1, "unit_price": "0.01"}],
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.json()["items"][0]["unit_price"] == "100.00"
+
+
 def test_walk_in_sale_via_api(employee, admin, product):
     client = auth_client(employee, "staffpass")
     response = client.post(
