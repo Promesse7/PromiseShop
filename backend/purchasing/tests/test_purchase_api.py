@@ -29,6 +29,14 @@ def employee():
 
 
 @pytest.fixture
+def admin():
+    return Employee.objects.create_user(
+        username="admin1", password="adminpass", full_name="Admin One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.ADMIN,
+    )
+
+
+@pytest.fixture
 def supplier():
     return Supplier.objects.create(name="Kigali Electronics Ltd")
 
@@ -48,8 +56,8 @@ def draft_purchase(employee, supplier):
     return Purchase.objects.create(supplier=supplier, employee=employee, purchase_date=date(2026, 1, 1))
 
 
-def test_create_draft_purchase(employee, supplier):
-    client = auth_client(employee, "staffpass")
+def test_create_draft_purchase(admin, supplier):
+    client = auth_client(admin, "adminpass")
     response = client.post(
         "/api/purchases/",
         {"supplier": supplier.supplier_id, "invoice_number": "KE-8841", "purchase_date": "2026-01-01"},
@@ -67,8 +75,8 @@ def test_unauthenticated_request_gets_401():
     assert response.status_code == 401
 
 
-def test_add_existing_product_item_via_api(employee, draft_purchase, product):
-    client = auth_client(employee, "staffpass")
+def test_add_existing_product_item_via_api(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
     response = client.post(
         f"/api/purchases/{draft_purchase.purchase_id}/items/",
         {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
@@ -116,8 +124,8 @@ def test_discrepancy_note_provided_returns_201(employee, draft_purchase, product
     assert response.status_code == 201
 
 
-def test_header_totals_reflect_after_add(employee, draft_purchase, product):
-    client = auth_client(employee, "staffpass")
+def test_header_totals_reflect_after_add(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
     client.post(
         f"/api/purchases/{draft_purchase.purchase_id}/items/",
         {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
@@ -127,8 +135,8 @@ def test_header_totals_reflect_after_add(employee, draft_purchase, product):
     assert response.json()["total_paid"] == "200.00"
 
 
-def test_delete_item_updates_totals(employee, draft_purchase, product):
-    client = auth_client(employee, "staffpass")
+def test_delete_item_updates_totals(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
     add_response = client.post(
         f"/api/purchases/{draft_purchase.purchase_id}/items/",
         {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
@@ -198,7 +206,7 @@ def test_patch_updates_draft_purchase_header(employee, draft_purchase):
     assert refreshed.payment_status == "paid"
 
 
-def test_patch_received_purchase_returns_403(employee, draft_purchase, product):
+def test_patch_received_purchase_returns_400(employee, draft_purchase, product):
     client = auth_client(employee, "staffpass")
     client.post(
         f"/api/purchases/{draft_purchase.purchase_id}/items/",
@@ -211,4 +219,155 @@ def test_patch_received_purchase_returns_403(employee, draft_purchase, product):
         {"invoice_number": "KE-SHOULD-FAIL"},
         format="json",
     )
-    assert response.status_code == 403
+    assert response.status_code == 400
+
+
+def test_delete_purchase_returns_405(employee, draft_purchase):
+    client = auth_client(employee, "staffpass")
+    response = client.delete(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 405
+
+
+def test_delete_received_purchase_returns_405(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 1, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/receive/")
+    response = client.delete(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 405
+
+
+def test_put_purchase_returns_405(employee, draft_purchase, supplier):
+    client = auth_client(employee, "staffpass")
+    response = client.put(
+        f"/api/purchases/{draft_purchase.purchase_id}/",
+        {"supplier": supplier.supplier_id, "purchase_date": "2026-01-01"},
+        format="json",
+    )
+    assert response.status_code == 405
+
+
+def test_non_admin_does_not_see_purchase_totals(employee, admin, draft_purchase, product):
+    admin_client = auth_client(admin, "adminpass")
+    admin_client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    staff_client = auth_client(employee, "staffpass")
+    response = staff_client.get(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 200
+    body = response.json()
+    assert "total_paid" not in body
+    assert "total_invoiced" not in body
+
+
+def test_admin_sees_purchase_totals(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    response = client.get(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total_paid"] == "200.00"
+    assert body["total_invoiced"] == "200.00"
+
+
+def test_non_admin_adding_item_does_not_see_cost_fields(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    assert response.status_code == 201
+    body = response.json()
+    for field in ("unit_cost_paid", "unit_cost_invoiced", "subtotal_paid", "subtotal_invoiced"):
+        assert field not in body
+
+
+def test_get_purchase_includes_items_array(admin, draft_purchase, product, category):
+    other_product = Product.objects.create(category=category, barcode="PES-AUD-00002", name="Boya Mic")
+    client = auth_client(admin, "adminpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": other_product.product_id, "quantity": 1, "unit_cost_paid": "50.00", "unit_cost_invoiced": "50.00"},
+        format="json",
+    )
+    response = client.get(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 2
+
+
+def test_non_admin_get_purchase_items_are_masked(employee, admin, draft_purchase, product):
+    admin_client = auth_client(admin, "adminpass")
+    admin_client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    staff_client = auth_client(employee, "staffpass")
+    response = staff_client.get(f"/api/purchases/{draft_purchase.purchase_id}/")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    assert len(items) == 1
+    for field in ("unit_cost_paid", "unit_cost_invoiced", "subtotal_paid", "subtotal_invoiced"):
+        assert field not in items[0]
+
+
+def test_negative_quantity_returns_400(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": -1, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_zero_quantity_returns_400(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 0, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_negative_unit_cost_paid_returns_400(employee, draft_purchase, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 1, "unit_cost_paid": "-100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_purchase_employee_is_set_server_side_ignoring_client_value(employee, admin, supplier):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/purchases/",
+        {
+            "supplier": supplier.supplier_id, "purchase_date": "2026-01-01",
+            "employee": admin.employee_id,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    purchase = Purchase.objects.get(pk=response.json()["purchase_id"])
+    assert purchase.employee_id == employee.employee_id
+    assert purchase.employee_id != admin.employee_id
