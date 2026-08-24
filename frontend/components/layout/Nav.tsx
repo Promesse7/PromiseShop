@@ -1,0 +1,58 @@
+import Link from "next/link";
+import { Tag } from "@/components/ui/Tag";
+import type { EmployeeRole } from "@/lib/types";
+
+interface NavLink {
+  href: string;
+  label: string;
+}
+
+const STAFF_LINKS: NavLink[] = [
+  { href: "/checkout", label: "Checkout" },
+  { href: "/products", label: "Products" },
+  { href: "/purchases", label: "Purchases" },
+  { href: "/stock", label: "Stock" },
+];
+
+const ADMIN_LINKS: NavLink[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/products", label: "Products" },
+  { href: "/sales", label: "Sales" },
+  { href: "/purchases", label: "Purchases" },
+  { href: "/stock", label: "Stock" },
+  { href: "/employees", label: "Employees" },
+];
+
+const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
+
+export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
+  return ADMIN_ROLES.includes(role) ? ADMIN_LINKS : STAFF_LINKS;
+}
+
+interface NavProps {
+  role: EmployeeRole;
+  username: string;
+}
+
+export function Nav({ role, username }: NavProps) {
+  const links = getNavLinksForRole(role);
+  const isAdmin = ADMIN_ROLES.includes(role);
+  const roleLabel = role === "admin" ? "Admin" : role === "manager" ? "Manager" : role === "sales_staff" ? "Sales Staff" : "Technician";
+
+  return (
+    <nav className="flex items-center gap-4 py-2.5 px-4 border-b border-divider">
+      <span className="font-sans font-medium text-base mr-auto whitespace-nowrap">
+        Promise Electronic Shop
+      </span>
+      {links.map((link) => (
+        <Link key={link.href} href={link.href} className="text-sm hover:text-accent">
+          {link.label}
+        </Link>
+      ))}
+      {isAdmin && <Tag>Admin</Tag>}
+      <span className="text-sm opacity-60">
+        {username} · {roleLabel}
+      </span>
+    </nav>
+  );
+}
