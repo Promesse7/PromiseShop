@@ -5,7 +5,8 @@ from rest_framework.exceptions import ValidationError
 from accounts.models import Employee
 from catalog.models import Category, Product, ProductPricing
 from purchasing.models import Supplier, Purchase, PurchaseItem
-from purchasing.services import add_existing_product_item, add_new_product_item
+from purchasing.services import add_existing_product_item, add_new_product_item, remove_item, receive_purchase
+from stock.models import Inventory
 
 pytestmark = pytest.mark.django_db
 
@@ -97,3 +98,64 @@ def test_add_item_to_received_purchase_rejected(draft_purchase, product):
     draft_purchase.save()
     with pytest.raises(ValidationError):
         add_existing_product_item(draft_purchase, product, 1, Decimal("100.00"), Decimal("100.00"))
+
+
+def test_remove_item_recomputes_totals(draft_purchase, product):
+    item = add_existing_product_item(draft_purchase, product, 2, Decimal("100.00"), Decimal("100.00"))
+    remove_item(draft_purchase, item)
+    draft_purchase.refresh_from_db()
+    assert draft_purchase.total_paid == Decimal("0.00")
+    assert PurchaseItem.objects.filter(pk=item.pk).exists() is False
+
+
+def test_remove_item_from_received_purchase_rejected(draft_purchase, product):
+    item = add_existing_product_item(draft_purchase, product, 1, Decimal("100.00"), Decimal("100.00"))
+    draft_purchase.status = Purchase.Status.RECEIVED
+    draft_purchase.save()
+    with pytest.raises(ValidationError):
+        remove_item(draft_purchase, item)
+
+
+def test_receive_purchase_increments_existing_inventory(draft_purchase, product):
+    Inventory.objects.create(product=product, quantity_in_stock=5)
+    add_existing_product_item(draft_purchase, product, 3, Decimal("100.00"), Decimal("100.00"))
+    receive_purchase(draft_purchase)
+    inventory = Inventory.objects.get(product=product)
+    assert inventory.quantity_in_stock == 8
+    draft_purchase.refresh_from_db()
+    assert draft_purchase.status == Purchase.Status.RECEIVED
+
+
+def test_receive_purchase_creates_inventory_when_none_exists(draft_purchase, product):
+    assert Inventory.objects.filter(product=product).exists() is False
+    add_existing_product_item(draft_purchase, product, 4, Decimal("100.00"), Decimal("100.00"))
+    receive_purchase(draft_purchase)
+    inventory = Inventory.objects.get(product=product)
+    assert inventory.quantity_in_stock == 4
+
+
+def test_receive_empty_purchase_rejected(draft_purchase):
+    with pytest.raises(ValidationError):
+        receive_purchase(draft_purchase)
+
+
+def test_receive_already_received_purchase_rejected(draft_purchase, product):
+    add_existing_product_item(draft_purchase, product, 1, Decimal("100.00"), Decimal("100.00"))
+    receive_purchase(draft_purchase)
+    with pytest.raises(ValidationError):
+        receive_purchase(draft_purchase)
+
+
+def test_sequential_receives_for_never_stocked_product_do_not_duplicate_inventory(draft_purchase, product, category, employee, supplier):
+    # Mirrors catalog/tests/test_barcode_service.py's sequential-call pattern: proves the
+    # get_or_create-under-select_for_update path is idempotent across repeated receives
+    # against the same product, since true concurrent-transaction testing is out of scope.
+    add_existing_product_item(draft_purchase, product, 2, Decimal("100.00"), Decimal("100.00"))
+    receive_purchase(draft_purchase)
+
+    second_purchase = Purchase.objects.create(supplier=supplier, employee=employee, purchase_date=date(2026, 2, 1))
+    add_existing_product_item(second_purchase, product, 5, Decimal("100.00"), Decimal("100.00"))
+    receive_purchase(second_purchase)
+
+    assert Inventory.objects.filter(product=product).count() == 1
+    assert Inventory.objects.get(product=product).quantity_in_stock == 7

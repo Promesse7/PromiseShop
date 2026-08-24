@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from catalog.models import Product, ProductPricing
 from catalog.services import generate_barcode
 from purchasing.models import Purchase, PurchaseItem
+from stock.models import Inventory
 
 
 def _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note):
@@ -62,3 +63,29 @@ def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, 
             purchase, product, quantity, unit_cost_paid, unit_cost_invoiced, price_discrepancy_note
         )
     return item
+
+
+def remove_item(purchase, item):
+    if purchase.status != Purchase.Status.DRAFT:
+        raise ValidationError("Cannot remove items from a purchase that has already been received.")
+    with transaction.atomic():
+        item.delete()
+        _recompute_purchase_totals(purchase)
+
+
+def receive_purchase(purchase):
+    if purchase.status != Purchase.Status.DRAFT:
+        raise ValidationError("Purchase has already been received.")
+    items = list(purchase.items.select_related("product").all())
+    if not items:
+        raise ValidationError("Cannot receive a purchase with no line items.")
+    with transaction.atomic():
+        for item in items:
+            inventory, _ = Inventory.objects.select_for_update().get_or_create(
+                product=item.product, defaults={"quantity_in_stock": 0}
+            )
+            inventory.quantity_in_stock += item.quantity
+            inventory.save(update_fields=["quantity_in_stock"])
+        purchase.status = Purchase.Status.RECEIVED
+        purchase.save(update_fields=["status"])
+    return purchase
