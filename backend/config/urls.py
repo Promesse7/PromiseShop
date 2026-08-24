@@ -14,6 +14,7 @@ urlpatterns = [
     path("api/", include("stock.urls")),
     path("api/", include("notifications.urls")),
     path("api/", include("finance.urls")),
+    path("api/", include("dashboard.urls")),
     path("api/auth/login/", EmployeeTokenObtainPairView.as_view(), name="auth-login"),
     path("api/auth/refresh/", TokenRefreshView.as_view(), name="auth-refresh"),
 ]
