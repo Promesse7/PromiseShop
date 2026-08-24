@@ -36,7 +36,7 @@ suppliers, customers, products, and product pricing.
    The API is now at `http://localhost:8000/api/`, and the Django admin at
    `http://localhost:8000/admin/`.
 
-## Endpoints (Phase 1)
+## Endpoints
 
 - `POST /api/auth/login/`, `POST /api/auth/refresh/`
 - `/api/employees/` (Admin only)
@@ -44,7 +44,15 @@ suppliers, customers, products, and product pricing.
 - `/api/product-pricing/?product=<id>` (wholesale_price visible to Admin only)
 - `/api/health/`
 
-Purchasing, sales/POS, stock/equipment, dashboard, and notification endpoints
-are schema-only in Phase 1 (models + migrations exist; no API yet) — see
+### Purchasing (Phase 2)
+
+- `POST/GET /api/purchases/`
+- `GET/PATCH /api/purchases/{id}/`
+- `POST /api/purchases/{id}/items/`
+- `DELETE /api/purchases/{id}/items/{item_id}/`
+- `POST /api/purchases/{id}/receive/`
+
+Sales/POS, stock/equipment, dashboard, and notification endpoints are still
+schema-only (models + migrations exist; no API yet) — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
 what's deferred to later phases.
