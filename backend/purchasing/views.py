@@ -2,7 +2,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework import status as http_status
 
@@ -18,7 +18,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
-    queryset = Purchase.objects.all().order_by("-purchase_date")
+    queryset = Purchase.objects.all().order_by("-purchase_date").prefetch_related("items")
     serializer_class = PurchaseSerializer
     permission_classes = [IsAuthenticated]
 
@@ -27,8 +27,25 @@ class PurchaseViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if serializer.instance.status != Purchase.Status.DRAFT:
-            raise PermissionDenied("Cannot edit a purchase that has already been received.")
+            raise ValidationError("Cannot edit a purchase that has already been received.")
         serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        # Only PATCH (partial update) is supported on the purchase header; full PUT
+        # replacement has no legitimate use case here and is rejected. Note: DRF's
+        # partial_update() delegates into this same method with partial=True, so
+        # PATCH must keep flowing through to super().update() below.
+        if not kwargs.get("partial", False):
+            raise MethodNotAllowed("PUT")
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        # There's no legitimate reason to ever delete a Purchase header via this API:
+        # removing individual line items is already handled by the dedicated
+        # items/{item_id} DELETE action. Deleting the header would CASCADE-delete its
+        # PurchaseItems while leaving any stock increments a "received" purchase
+        # already caused unreversed (see final review finding #1).
+        raise MethodNotAllowed("DELETE")
 
     @action(detail=True, methods=["post"], url_path="items")
     def add_item(self, request, pk=None):
@@ -54,7 +71,10 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 purchase, data["product"], data["quantity"], data["unit_cost_paid"],
                 data["unit_cost_invoiced"], data.get("price_discrepancy_note", ""),
             )
-        return Response(PurchaseItemSerializer(item).data, status=http_status.HTTP_201_CREATED)
+        return Response(
+            PurchaseItemSerializer(item, context={"request": request}).data,
+            status=http_status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["delete"], url_path=r"items/(?P<item_id>[^/.]+)")
     def remove_item_action(self, request, pk=None, item_id=None):
@@ -67,4 +87,4 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     def receive(self, request, pk=None):
         purchase = self.get_object()
         purchase = receive_purchase(purchase)
-        return Response(PurchaseSerializer(purchase).data)
+        return Response(PurchaseSerializer(purchase, context={"request": request}).data)
