@@ -82,6 +82,15 @@ directly editable — only `storage_location` may be updated via PATCH.
 `EquipmentUnit.status` and `serial_number` are never editable via PATCH;
 status changes only via the dedicated `change-status` action.
 
+### Finance / Expenses (Phase 5b)
+
+- `GET/POST /api/expenses/` (with optional `?category=` filter)
+- `GET/PATCH/PUT/DELETE /api/expenses/{id}/`
+
+The entire Finance API is **admin-only**: every verb (GET, POST, PATCH, PUT, DELETE)
+returns 403 Forbidden for non-admin users. `recorded_by` is always server-set from
+the acting employee at creation time and remains fixed across subsequent edits.
+
 The admin dashboard and `notifications.NotificationLog`'s own direct API remain
 schema-only (models + migrations exist; no API yet) — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
