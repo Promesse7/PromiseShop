@@ -19,16 +19,21 @@ class Purchase(models.Model):
         PARTIAL = "partial", "Partial"
         UNPAID = "unpaid", "Unpaid"
 
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        RECEIVED = "received", "Received"
+
     purchase_id = models.AutoField(primary_key=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="purchases")
     employee = models.ForeignKey("accounts.Employee", on_delete=models.PROTECT, related_name="purchases")
     invoice_number = models.CharField(max_length=60, blank=True, null=True)
     purchase_date = models.DateField()
-    total_paid = models.DecimalField(max_digits=12, decimal_places=2)
-    total_invoiced = models.DecimalField(max_digits=12, decimal_places=2)
+    total_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_invoiced = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_status = models.CharField(
         max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PAID
     )
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
 
     def __str__(self):
         return f"Purchase #{self.purchase_id} - {self.supplier}"

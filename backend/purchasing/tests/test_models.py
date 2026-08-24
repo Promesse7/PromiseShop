@@ -56,3 +56,12 @@ def test_purchase_item_cannot_be_created_without_purchase(product):
             unit_cost_paid="1.00", unit_cost_invoiced="1.00",
             subtotal_paid="1.00", subtotal_invoiced="1.00",
         )
+
+
+def test_new_purchase_defaults_to_draft_status_and_zero_totals(employee, supplier):
+    purchase = Purchase.objects.create(
+        supplier=supplier, employee=employee, purchase_date=date(2026, 1, 1),
+    )
+    assert purchase.status == Purchase.Status.DRAFT
+    assert purchase.total_paid == 0
+    assert purchase.total_invoiced == 0
