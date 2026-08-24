@@ -82,7 +82,17 @@ directly editable — only `storage_location` may be updated via PATCH.
 `EquipmentUnit.status` and `serial_number` are never editable via PATCH;
 status changes only via the dedicated `change-status` action.
 
-The admin dashboard and `notifications.NotificationLog`'s own direct API remain
-schema-only (models + migrations exist; no API yet) — see
+The admin dashboard remains schema-only — see
 `docs/superpowers/specs/2026-08-23-phase1-backend-foundation-design.md` for
 what's deferred to later phases.
+
+### Notifications (Phase 5a)
+
+- `GET /api/notifications/` (with optional `?unread=true` filter)
+- `GET /api/notifications/{id}/`
+- `POST /api/notifications/{id}/mark-read/`
+
+Notifications are always scoped to the authenticated employee's own `recipient`
+rows — no endpoint lets one employee read or mark another's notifications.
+Notifications are never client-created; they are generated internally by the
+system as a side effect of certain operations (such as completing a sale).
