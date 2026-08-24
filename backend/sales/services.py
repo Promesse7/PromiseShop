@@ -79,3 +79,26 @@ def complete_sale(customer, employee, payment_method, items):
         _notify_admins(sale)
 
     return sale
+
+
+def reverse_sale(sale, new_status):
+    with transaction.atomic():
+        locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
+        if locked_sale.status != Sale.SaleStatus.COMPLETED:
+            raise ValidationError("Only a completed sale can be returned or cancelled.")
+
+        items = list(locked_sale.items.select_related("product").all())
+        quantities = {}
+        for item in items:
+            quantities[item.product_id] = quantities.get(item.product_id, 0) + item.quantity
+
+        for product_id in sorted(quantities):
+            inventory, _ = Inventory.objects.select_for_update().get_or_create(
+                product_id=product_id, defaults={"quantity_in_stock": 0}
+            )
+            inventory.quantity_in_stock += quantities[product_id]
+            inventory.save(update_fields=["quantity_in_stock"])
+
+        locked_sale.status = new_status
+        locked_sale.save(update_fields=["status"])
+    return locked_sale

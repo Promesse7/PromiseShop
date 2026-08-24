@@ -6,7 +6,7 @@ from accounts.models import Employee
 from catalog.models import Category, Product, ProductPricing
 from notifications.models import NotificationLog
 from sales.models import Customer, Sale, SaleItem
-from sales.services import complete_sale
+from sales.services import complete_sale, reverse_sale
 from stock.models import Inventory
 
 pytestmark = pytest.mark.django_db
@@ -138,3 +138,51 @@ def test_complete_sale_product_never_stocked_is_insufficient(employee, admin, ca
             items=[{"product": product, "quantity": 1}],
         )
     assert Inventory.objects.filter(product=product).exists() is False
+
+
+def test_reverse_sale_return_restores_stock_and_sets_status(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 3}],
+    )
+    assert Inventory.objects.get(product=product).quantity_in_stock == 7
+
+    updated = reverse_sale(sale, Sale.SaleStatus.RETURNED)
+
+    assert updated.status == Sale.SaleStatus.RETURNED
+    assert Inventory.objects.get(product=product).quantity_in_stock == 10
+
+
+def test_reverse_sale_cancel_restores_stock_and_sets_status(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 4}],
+    )
+    updated = reverse_sale(sale, Sale.SaleStatus.CANCELLED)
+    assert updated.status == Sale.SaleStatus.CANCELLED
+    assert Inventory.objects.get(product=product).quantity_in_stock == 10
+
+
+def test_reverse_sale_multiline_restores_each_product(employee, admin, category):
+    first = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    second = make_product_with_stock(category, "PES-AUD-00002", Decimal("50.00"), stock=5)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": first, "quantity": 2}, {"product": second, "quantity": 1}],
+    )
+    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    assert Inventory.objects.get(product=first).quantity_in_stock == 10
+    assert Inventory.objects.get(product=second).quantity_in_stock == 5
+
+
+def test_reverse_sale_rejects_non_completed_sale(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    with pytest.raises(ValidationError):
+        reverse_sale(sale, Sale.SaleStatus.RETURNED)
