@@ -107,7 +107,8 @@ The list endpoint defaults to newest-first ordering (`-expense_date`, with
 The admin dashboard endpoints provide read-only analytics. **All endpoints are
 admin-only** (`IsAdmin` permission required) and read-only — no POST/PATCH/PUT/DELETE
 actions. The `period` parameter (where present) accepts: `today` (current calendar
-day), `week` (rolling 7 days from yesterday), `month` (calendar month-to-date),
+day), `week` (today plus the preceding 6 days — a rolling 7-day window that
+includes today), `month` (calendar month-to-date),
 or `year` (calendar year-to-date). An invalid `period` value returns 400 Bad Request.
 `stock-health` is a point-in-time snapshot and does not accept a period parameter.
 
