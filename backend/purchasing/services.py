@@ -30,6 +30,9 @@ def add_existing_product_item(purchase, product, quantity, unit_cost_paid, unit_
         raise ValidationError("Cannot add items to a purchase that has already been received.")
     _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note)
     with transaction.atomic():
+        purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if purchase.status != Purchase.Status.DRAFT:
+            raise ValidationError("Cannot add items to a purchase that has already been received.")
         item = PurchaseItem.objects.create(
             purchase=purchase, product=product, quantity=quantity,
             unit_cost_paid=unit_cost_paid, unit_cost_invoiced=unit_cost_invoiced,
@@ -68,7 +71,12 @@ def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, 
 def remove_item(purchase, item):
     if purchase.status != Purchase.Status.DRAFT:
         raise ValidationError("Cannot remove items from a purchase that has already been received.")
+    if item.purchase_id != purchase.pk:
+        raise ValidationError("Item does not belong to this purchase.")
     with transaction.atomic():
+        purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if purchase.status != Purchase.Status.DRAFT:
+            raise ValidationError("Cannot remove items from a purchase that has already been received.")
         item.delete()
         _recompute_purchase_totals(purchase)
 
@@ -76,13 +84,13 @@ def remove_item(purchase, item):
 def receive_purchase(purchase):
     if purchase.status != Purchase.Status.DRAFT:
         raise ValidationError("Purchase has already been received.")
-    items = list(purchase.items.select_related("product").all())
-    if not items:
-        raise ValidationError("Cannot receive a purchase with no line items.")
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
             raise ValidationError("Purchase has already been received.")
+        items = list(purchase.items.select_related("product").all())
+        if not items:
+            raise ValidationError("Cannot receive a purchase with no line items.")
         for item in items:
             inventory, _ = Inventory.objects.select_for_update().get_or_create(
                 product=item.product, defaults={"quantity_in_stock": 0}
