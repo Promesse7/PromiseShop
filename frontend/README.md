@@ -32,7 +32,7 @@ system, built against the Django REST backend in `../backend`.
 - `app/api/proxy/[...path]/` — generic authenticated proxy to the Django API; every domain
   page's data fetching goes through this, not directly to Django.
 - `components/ui/` — the Nocturne-themed component library (Button, Card, Field, Tag, Table,
-  Dialog, SegmentedToggle) — reused across every phase.
+  Dialog, SegmentedToggle, Toast) — reused across every phase.
 - `components/layout/` — Nav and the role-gating logic.
 - `lib/` — `auth.ts` (session/cookie helpers), `api-client.ts` (fetch wrapper for TanStack
   Query), `query-client.ts`, `types.ts`.
@@ -41,5 +41,7 @@ system, built against the Django REST backend in `../backend`.
 
 Project scaffold, Nocturne design tokens ported into Tailwind, core UI component library, auth
 BFF with token-refresh retry, login screen, role-gated nav shell. Domain screens (products,
-purchases, sales/POS, stock/equipment, finance, notifications, admin dashboard) are stub
-"Coming soon" pages, built out in later phases.
+purchases, sales/POS, stock/equipment, finance, notifications, admin dashboard) are not yet
+built. The nav already links to some of their routes (`/products`, `/purchases`, `/stock`,
+`/sales`, `/employees`) — these currently 404 until a later phase adds the corresponding pages.
+Only `/checkout` and `/dashboard` exist today, as minimal "Coming soon" stubs.
