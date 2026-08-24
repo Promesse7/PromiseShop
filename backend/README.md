@@ -1,7 +1,8 @@
-# Promise Electronic Shop — Backend (Phase 1)
+# Promise Electronic Shop — Backend
 
 Django REST API: full DB schema, JWT auth, and CRUD for employees, categories,
-suppliers, customers, products, and product pricing.
+suppliers, customers, products, and product pricing (Phase 1), plus purchasing
+— draft purchases, line items, and receiving into stock (Phase 2).
 
 ## Setup
 
