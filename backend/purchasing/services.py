@@ -88,7 +88,7 @@ def receive_purchase(purchase):
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
             raise ValidationError("Purchase has already been received.")
-        items = list(purchase.items.select_related("product").all())
+        items = list(purchase.items.select_related("product").order_by("product_id"))
         if not items:
             raise ValidationError("Cannot receive a purchase with no line items.")
         for item in items:

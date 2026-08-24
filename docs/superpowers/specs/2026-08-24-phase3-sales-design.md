@@ -46,10 +46,18 @@ frontend, matching the established pattern.
 **in a consistent order (ascending by `product_id`)** across all line items in one sale, before
 checking sufficiency or writing any decrement. This avoids a cross-sale deadlock: two concurrent
 sales touching an overlapping set of products in different orders would otherwise be able to
-each hold one lock and wait on the other. Purchasing's `receive_purchase` didn't need this
-refinement (it only ever increments, one row at a time, with no sufficiency check that could
-fail mid-loop and leave things inconsistent) — sales checkout's block-on-insufficient-stock
-requirement makes consistent lock ordering the right precaution here.
+each hold one lock and wait on the other.
+
+The general invariant is: **any transaction that acquires more than one `Inventory` row lock
+must do so in ascending `product_id` order**, full stop — this holds regardless of whether the
+transaction increments or decrements, and regardless of whether it has a sufficiency check that
+can fail mid-loop. Holding two locks in inconsistent order is what creates a deadlock; increment
+vs. decrement doesn't change that. This applies uniformly across `generate_barcode`'s Category
+lock (a single lock, so ordering doesn't apply), `receive_purchase`, `complete_sale`, and
+`reverse_sale`. Phase 2's `receive_purchase` originally locked its purchase's line items in
+whatever order the database returned them; it has been corrected (as part of Phase 3's final
+review) to fetch items ordered by ascending `product_id` before locking, so it now follows the
+same discipline as the two functions below.
 
 `reverse_sale` applies the same per-product locked-increment pattern `receive_purchase`
 established, plus locks the `Sale` row itself before checking/mutating `status` (the exact
