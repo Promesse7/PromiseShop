@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from accounts.models import Employee
 from stock.models import Inventory, EquipmentUnit, EquipmentStatusHistory
 
 
@@ -48,3 +49,11 @@ class EquipmentUnitUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentUnit
         fields = ["storage_location", "condition_notes", "assigned_to"]
+
+
+class ChangeStatusSerializer(serializers.Serializer):
+    new_status = serializers.ChoiceField(choices=EquipmentUnit.UnitStatus.choices)
+    reason = serializers.CharField()
+    assigned_to = serializers.PrimaryKeyRelatedField(
+        queryset=Employee.objects.all(), required=False, allow_null=True
+    )

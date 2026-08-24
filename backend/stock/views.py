@@ -1,9 +1,14 @@
 from django.db.models import F
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from stock.models import Inventory, EquipmentUnit
-from stock.serializers import InventorySerializer, EquipmentUnitSerializer, EquipmentUnitUpdateSerializer
+from stock.serializers import (
+    InventorySerializer, EquipmentUnitSerializer, EquipmentUnitUpdateSerializer, ChangeStatusSerializer,
+)
+from stock.services import change_equipment_status
 
 
 class InventoryViewSet(viewsets.ModelViewSet):
@@ -33,3 +38,15 @@ class EquipmentUnitViewSet(viewsets.ModelViewSet):
         if self.action in ("update", "partial_update"):
             return EquipmentUnitUpdateSerializer
         return EquipmentUnitSerializer
+
+    @action(detail=True, methods=["post"], url_path="change-status")
+    def change_status(self, request, pk=None):
+        unit = self.get_object()
+        serializer = ChangeStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        updated = change_equipment_status(
+            unit, new_status=data["new_status"], reason=data["reason"],
+            changed_by=request.user, assigned_to=data.get("assigned_to"),
+        )
+        return Response(EquipmentUnitSerializer(updated, context={"request": request}).data)

@@ -119,3 +119,47 @@ def test_unauthenticated_request_gets_401():
     client = APIClient()
     response = client.get("/api/equipment-units/")
     assert response.status_code == 401
+
+
+def test_change_status_via_api_and_history_nests(employee, product):
+    unit = EquipmentUnit.objects.create(
+        product=product, serial_number="A1", status=EquipmentUnit.UnitStatus.IN_STOCK,
+    )
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/equipment-units/{unit.unit_id}/change-status/",
+        {"new_status": "under_repair", "reason": "Speaker rattling"},
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "under_repair"
+    assert len(body["status_history"]) == 1
+    assert body["status_history"][0]["previous_status"] == "in_stock"
+    assert body["status_history"][0]["new_status"] == "under_repair"
+
+
+def test_change_status_missing_reason_returns_400(employee, product):
+    unit = EquipmentUnit.objects.create(
+        product=product, serial_number="A1", status=EquipmentUnit.UnitStatus.IN_STOCK,
+    )
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/equipment-units/{unit.unit_id}/change-status/",
+        {"new_status": "under_repair"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+def test_change_status_invalid_status_returns_400(employee, product):
+    unit = EquipmentUnit.objects.create(
+        product=product, serial_number="A1", status=EquipmentUnit.UnitStatus.IN_STOCK,
+    )
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/equipment-units/{unit.unit_id}/change-status/",
+        {"new_status": "not_real", "reason": "test"},
+        format="json",
+    )
+    assert response.status_code == 400
