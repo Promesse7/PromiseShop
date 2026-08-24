@@ -1,12 +1,16 @@
+from datetime import datetime
 from decimal import Decimal
 
 from django.db.models import Sum, Count, F
+from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin
 from dashboard.services import resolve_period_range
 from finance.models import Expense
+from notifications.models import NotificationLog
+from purchasing.models import Purchase
 from sales.models import Sale, SaleItem
 from stock.models import EquipmentUnit, Inventory
 
@@ -92,3 +96,45 @@ class FinancialSnapshotView(APIView):
             "expenses_by_category": by_category,
             "net": total_revenue - total_expenses,
         })
+
+
+class ActivityFeedView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        limit = int(request.query_params.get("limit", 20))
+
+        sales = Sale.objects.order_by("-sale_date")[:limit]
+        purchases = Purchase.objects.order_by("-purchase_date", "-purchase_id")[:limit]
+        notifications = NotificationLog.objects.filter(
+            recipient=request.user
+        ).order_by("-sent_at")[:limit]
+
+        items = []
+        for sale in sales:
+            items.append({
+                "type": "sale",
+                "id": sale.sale_id,
+                "timestamp": sale.sale_date,
+                "summary": f"Sale #{sale.sale_id} - {sale.total_amount}",
+            })
+        for purchase in purchases:
+            purchase_timestamp = timezone.make_aware(
+                datetime.combine(purchase.purchase_date, datetime.min.time())
+            )
+            items.append({
+                "type": "purchase",
+                "id": purchase.purchase_id,
+                "timestamp": purchase_timestamp,
+                "summary": f"Purchase #{purchase.purchase_id} - {purchase.supplier}",
+            })
+        for notification in notifications:
+            items.append({
+                "type": "notification",
+                "id": notification.notification_id,
+                "timestamp": notification.sent_at,
+                "summary": notification.type,
+            })
+
+        items.sort(key=lambda item: item["timestamp"], reverse=True)
+        return Response(items[:limit])
