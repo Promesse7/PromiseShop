@@ -45,10 +45,26 @@ class EquipmentUnitSerializer(serializers.ModelSerializer):
         return EquipmentStatusHistorySerializer(history, many=True).data
 
 
+class EquipmentUnitListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EquipmentUnit
+        fields = [
+            "unit_id", "product", "serial_number", "status", "assigned_to",
+            "storage_location", "condition_notes", "status_changed_at",
+        ]
+        read_only_fields = ["unit_id", "status", "status_changed_at"]
+
+
 class EquipmentUnitUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = EquipmentUnit
         fields = ["storage_location", "condition_notes", "assigned_to"]
+
+    def update(self, instance, validated_data):
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save(update_fields=list(validated_data.keys()))
+        return instance
 
 
 class ChangeStatusSerializer(serializers.Serializer):

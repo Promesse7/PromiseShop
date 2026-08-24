@@ -62,12 +62,14 @@ def test_list_filtered_by_product(employee, product, category):
     body = response.json()
     assert body["count"] == 1
     assert body["results"][0]["serial_number"] == "A1"
+    assert "status_history" not in body["results"][0]
 
 
 def test_patch_storage_location_and_condition_notes(employee, product):
     unit = EquipmentUnit.objects.create(
         product=product, serial_number="A1", status=EquipmentUnit.UnitStatus.IN_STOCK,
     )
+    status_changed_at_before = unit.status_changed_at
     client = auth_client(employee, "staffpass")
     response = client.patch(
         f"/api/equipment-units/{unit.unit_id}/",
@@ -78,6 +80,25 @@ def test_patch_storage_location_and_condition_notes(employee, product):
     unit.refresh_from_db()
     assert unit.storage_location == "Shelf C3"
     assert unit.condition_notes == "Minor scuff"
+    assert unit.status_changed_at == status_changed_at_before
+
+
+def test_patch_response_contains_full_resource(employee, product):
+    unit = EquipmentUnit.objects.create(
+        product=product, serial_number="A1", status=EquipmentUnit.UnitStatus.IN_STOCK,
+    )
+    client = auth_client(employee, "staffpass")
+    response = client.patch(
+        f"/api/equipment-units/{unit.unit_id}/",
+        {"storage_location": "Shelf C3"},
+        format="json",
+    )
+    assert response.status_code == 200
+    body = response.json()
+    for key in ["unit_id", "product", "serial_number", "status", "status_changed_at", "status_history"]:
+        assert key in body
+    assert body["serial_number"] == "A1"
+    assert body["status"] == "in_stock"
 
 
 def test_patch_status_is_ignored(employee, product):

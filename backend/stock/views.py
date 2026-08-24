@@ -6,7 +6,8 @@ from rest_framework.response import Response
 
 from stock.models import Inventory, EquipmentUnit
 from stock.serializers import (
-    InventorySerializer, EquipmentUnitSerializer, EquipmentUnitUpdateSerializer, ChangeStatusSerializer,
+    InventorySerializer, EquipmentUnitSerializer, EquipmentUnitListSerializer,
+    EquipmentUnitUpdateSerializer, ChangeStatusSerializer,
 )
 from stock.services import change_equipment_status
 
@@ -37,7 +38,17 @@ class EquipmentUnitViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ("update", "partial_update"):
             return EquipmentUnitUpdateSerializer
+        if self.action == "list":
+            return EquipmentUnitListSerializer
         return EquipmentUnitSerializer
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(EquipmentUnitSerializer(instance, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=["post"], url_path="change-status")
     def change_status(self, request, pk=None):
