@@ -25,7 +25,9 @@ describe("Table", () => {
   });
 
   it("renders an empty state when rows is empty", () => {
-    render(<Table columns={columns} rows={[]} rowKey={(row) => row.name} emptyMessage="No products" />);
+    render(
+      <Table columns={columns} rows={[] as typeof rows} rowKey={(row) => row.name} emptyMessage="No products" />,
+    );
     expect(screen.getByText("No products")).toBeInTheDocument();
   });
 });
