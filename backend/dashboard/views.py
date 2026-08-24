@@ -1,12 +1,13 @@
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Sum, Count, F
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin
 from dashboard.services import resolve_period_range
 from sales.models import Sale, SaleItem
+from stock.models import EquipmentUnit, Inventory
 
 
 class SalesSummaryView(APIView):
@@ -44,4 +45,22 @@ class SalesSummaryView(APIView):
                 }
                 for row in top_products
             ],
+        })
+
+
+class StockHealthView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        low_stock_count = Inventory.objects.filter(
+            quantity_in_stock__lte=F("product__reorder_level")
+        ).count()
+
+        status_counts = {choice[0]: 0 for choice in EquipmentUnit.UnitStatus.choices}
+        for row in EquipmentUnit.objects.values("status").annotate(count=Count("unit_id")):
+            status_counts[row["status"]] = row["count"]
+
+        return Response({
+            "low_stock_count": low_stock_count,
+            "equipment_status_counts": status_counts,
         })
