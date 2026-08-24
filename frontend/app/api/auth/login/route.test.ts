@@ -44,4 +44,21 @@ describe("POST /api/auth/login", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("returns 502 when Django is unreachable", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+      new Error("fetch failed")
+    );
+
+    const request = new Request("http://localhost:3000/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username: "a.uwase", password: "adminpass" }),
+    });
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(body).toEqual({ error: "Unable to reach the backend service" });
+  });
 });

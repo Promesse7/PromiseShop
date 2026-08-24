@@ -14,11 +14,19 @@ export async function POST(request: Request) {
     password: string;
   };
 
-  const djangoResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/login/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
+  let djangoResponse: Response;
+  try {
+    djangoResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/login/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to reach the backend service" },
+      { status: 502 }
+    );
+  }
 
   if (!djangoResponse.ok) {
     return NextResponse.json(

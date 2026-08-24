@@ -23,26 +23,42 @@ async function forward(request: Request, context: RouteContext, method: string) 
   const body =
     method === "GET" || method === "DELETE" ? undefined : await request.text();
 
-  const djangoResponse = await fetch(targetUrl, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body,
-  });
+  let djangoResponse: Response;
+  try {
+    djangoResponse = await fetch(targetUrl, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to reach the backend service" },
+      { status: 502 }
+    );
+  }
 
   if (djangoResponse.status === 401) {
     const refreshed = await tryRefresh(cookieStore);
     if (refreshed) {
-      const retryResponse = await fetch(targetUrl, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${refreshed}`,
-        },
-        body,
-      });
+      let retryResponse: Response;
+      try {
+        retryResponse = await fetch(targetUrl, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${refreshed}`,
+          },
+          body,
+        });
+      } catch {
+        return NextResponse.json(
+          { error: "Unable to reach the backend service" },
+          { status: 502 }
+        );
+      }
       const retryData = await retryResponse.json().catch(() => null);
       const response = NextResponse.json(retryData, { status: retryResponse.status });
       response.cookies.set(ACCESS_TOKEN_COOKIE, refreshed, cookieOptions);
@@ -65,11 +81,16 @@ async function tryRefresh(
   const refreshToken = cookieStore.get(REFRESH_TOKEN_COOKIE)?.value;
   if (!refreshToken) return null;
 
-  const refreshResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/refresh/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh: refreshToken }),
-  });
+  let refreshResponse: Response;
+  try {
+    refreshResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/refresh/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh: refreshToken }),
+    });
+  } catch {
+    return null;
+  }
 
   if (!refreshResponse.ok) return null;
 
