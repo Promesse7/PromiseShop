@@ -1,8 +1,7 @@
-export default function CheckoutPage() {
-  return (
-    <div>
-      <h2>Checkout</h2>
-      <p className="opacity-60">Coming soon.</p>
-    </div>
-  );
+import { getSession } from "@/lib/auth";
+import { PosCheckout } from "@/components/pos/PosCheckout";
+
+export default async function CheckoutPage() {
+  const session = await getSession();
+  return <PosCheckout servedBy={session?.username ?? ""} />;
 }
