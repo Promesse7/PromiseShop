@@ -17,7 +17,7 @@ describe("getNavLinksForRole", () => {
     expect(getNavLinksForRole("technician")).toEqual(getNavLinksForRole("sales_staff"));
   });
 
-  it("returns the admin link set, with Employees appended, for admin", () => {
+  it("returns the admin link set, with Employees and Expenses appended, for admin", () => {
     expect(getNavLinksForRole("admin")).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
@@ -27,10 +27,11 @@ describe("getNavLinksForRole", () => {
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
       { href: "/employees", label: "Employees" },
+      { href: "/expenses", label: "Expenses" },
     ]);
   });
 
-  it("returns the admin link set WITHOUT Employees for manager — the backend's Employee endpoint is admin-strict, unlike the rest of this list", () => {
+  it("returns the admin link set WITHOUT Employees or Expenses for manager — both backends are admin-strict, unlike the rest of this list", () => {
     const managerLinks = getNavLinksForRole("manager");
     expect(managerLinks).toEqual([
       { href: "/dashboard", label: "Dashboard" },
@@ -42,6 +43,7 @@ describe("getNavLinksForRole", () => {
       { href: "/customers", label: "Customers" },
     ]);
     expect(managerLinks.find((l) => l.href === "/employees")).toBeUndefined();
+    expect(managerLinks.find((l) => l.href === "/expenses")).toBeUndefined();
   });
 });
 
@@ -82,5 +84,15 @@ describe("Nav", () => {
   it("hides the Notifications link for sales_staff and technician", () => {
     render(<Nav role="sales_staff" username="e.mugisha" />);
     expect(screen.queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
+  });
+
+  it("shows the Expenses link for admin but not for manager", () => {
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByRole("link", { name: "Expenses" })).toBeInTheDocument();
+  });
+
+  it("does not render the Expenses link for manager", () => {
+    render(<Nav role="manager" username="d.ishimwe" />);
+    expect(screen.queryByRole("link", { name: "Expenses" })).not.toBeInTheDocument();
   });
 });

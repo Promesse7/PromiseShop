@@ -27,15 +27,16 @@ const ADMIN_LINKS: NavLink[] = [
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
 
-// The backend's Employee endpoint (and every dashboard endpoint) is gated to role === "admin"
-// strictly — a Manager gets a hard 403, unlike the rest of this list which is admin+manager
-// shared. So the Employees link is appended only for the strict admin role, not derived from
-// ADMIN_ROLES like the rest of this array.
+// The backend's Employee and Expense endpoints (and every dashboard endpoint) are gated to
+// role === "admin" strictly — a Manager gets a hard 403, unlike the rest of this list which is
+// admin+manager shared. So the Employees/Expenses links are appended only for the strict admin
+// role, not derived from ADMIN_ROLES like the rest of this array.
 const STRICT_ADMIN_ROLES: EmployeeRole[] = ["admin"];
 
 export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
   const base = ADMIN_ROLES.includes(role) ? ADMIN_LINKS : STAFF_LINKS;
-  return STRICT_ADMIN_ROLES.includes(role) ? [...base, { href: "/employees", label: "Employees" }] : base;
+  if (!STRICT_ADMIN_ROLES.includes(role)) return base;
+  return [...base, { href: "/employees", label: "Employees" }, { href: "/expenses", label: "Expenses" }];
 }
 
 interface NavProps {
