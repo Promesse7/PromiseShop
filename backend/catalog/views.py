@@ -35,6 +35,8 @@ class ProductPricingViewSet(viewsets.ModelViewSet):
         product_id = self.request.query_params.get("product")
         if product_id:
             queryset = queryset.filter(product_id=product_id)
+        if self.request.query_params.get("is_current") == "true":
+            queryset = queryset.filter(is_current=True)
         return queryset
 
     def get_serializer_context(self):

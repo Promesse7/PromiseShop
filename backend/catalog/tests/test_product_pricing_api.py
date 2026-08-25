@@ -192,3 +192,46 @@ def test_only_one_current_price_per_product_enforced_at_db_level(product):
             product=product, wholesale_price="110000.00", retail_price="150000.00",
             effective_date=date(2026, 6, 1), is_current=True,
         )
+
+
+def test_is_current_filter_returns_only_current_rows(admin, product):
+    ProductPricing.objects.create(
+        product=product, wholesale_price="108000.00", retail_price="145000.00",
+        effective_date=date(2026, 1, 1), is_current=False,
+    )
+    ProductPricing.objects.create(
+        product=product, wholesale_price="110000.00", retail_price="150000.00",
+        effective_date=date(2026, 6, 1), is_current=True,
+    )
+    client = auth_client(admin, "adminpass")
+
+    response = client.get("/api/product-pricing/?is_current=true")
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 1
+    assert results[0]["retail_price"] == "150000.00"
+    assert results[0]["is_current"] is True
+
+
+def test_is_current_filter_combines_with_product_filter(admin, product):
+    other_category = Category.objects.create(name="Mobile", code="MOB")
+    other_product = Product.objects.create(
+        category=other_category, barcode="PES-MOB-00001", name="Anker Charger"
+    )
+    ProductPricing.objects.create(
+        product=product, wholesale_price="108000.00", retail_price="145000.00",
+        effective_date=date(2026, 1, 1), is_current=True,
+    )
+    ProductPricing.objects.create(
+        product=other_product, wholesale_price="8000.00", retail_price="12000.00",
+        effective_date=date(2026, 1, 1), is_current=True,
+    )
+    client = auth_client(admin, "adminpass")
+
+    response = client.get(f"/api/product-pricing/?is_current=true&product={product.product_id}")
+
+    assert response.status_code == 200
+    results = response.json()["results"]
+    assert len(results) == 1
+    assert results[0]["product"] == product.product_id
