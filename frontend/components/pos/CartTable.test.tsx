@@ -46,10 +46,20 @@ describe("CartTable", () => {
   it("calls onSetQuantity with 0 when quantity input is set to 0", async () => {
     const onSetQuantity = vi.fn();
     render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
+    const qtyInput = screen.getByDisplayValue("2") as HTMLInputElement;
+    qtyInput.focus();
+    await userEvent.keyboard("{Control>}a{/Control}");
+    await userEvent.keyboard("0");
+    expect(onSetQuantity).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("does not call onSetQuantity or remove the row when the quantity input is cleared", async () => {
+    const onSetQuantity = vi.fn();
+    render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
     const qtyInput = screen.getByDisplayValue("2");
     await userEvent.clear(qtyInput);
-    await userEvent.type(qtyInput, "0");
-    expect(onSetQuantity).toHaveBeenCalledWith(1, 0);
+    expect(onSetQuantity).not.toHaveBeenCalled();
+    expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
   });
 
   it("updates the quantity input value when the lines prop changes", () => {

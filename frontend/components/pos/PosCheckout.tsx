@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { usePosCatalog } from "@/lib/pos/usePosCatalog";
 import { addItem, removeItem, setQuantity, totals, type CartLine } from "@/lib/pos/cart";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
@@ -27,6 +28,7 @@ interface PosCheckoutProps {
 
 export function PosCheckout({ servedBy }: PosCheckoutProps) {
   const catalog = usePosCatalog();
+  const queryClient = useQueryClient();
   const { show } = useToast();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
@@ -58,6 +60,8 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         }),
       });
       setCompletedSale(sale);
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["product-pricing", "current"] });
       setCompletedLines(lines);
       setLines([]);
     } catch (error) {
@@ -94,7 +98,18 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
       <div>
         <h4 className="mb-4">New sale</h4>
-        {catalog.isLoading ? (
+        {catalog.isError ? (
+          <div className="mb-4 text-sm text-red-400">
+            Couldn&apos;t load the product catalog.{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => window.location.reload()}
+            >
+              Try again
+            </button>
+          </div>
+        ) : catalog.isLoading ? (
           <p className="text-sm text-text/50 mb-4">Loading catalog…</p>
         ) : (
           <ScanSearchField catalog={catalog} onAdd={handleAdd} />
@@ -121,6 +136,16 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
             options={PAYMENT_OPTIONS}
             value={paymentMethod}
             onChange={(value) => setPaymentMethod(value as PaymentMethod)}
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-text/70 mb-1">
+            Customer (optional — walk-in if blank)
+          </label>
+          <input
+            className="w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md hover:border-text/45 focus-visible:border-accent focus-visible:outline-none"
+            placeholder="Search name or phone…"
+            disabled
           />
         </div>
         <Button

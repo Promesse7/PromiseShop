@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { findByBarcode, searchCatalog } from "@/lib/pos/search";
 import type { PosCatalog } from "@/lib/pos/usePosCatalog";
@@ -13,8 +13,13 @@ interface ScanSearchFieldProps {
 
 export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
   const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [notFound, setNotFound] = useState(false);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
 
   function resolve() {
     const trimmed = query.trim();
@@ -25,6 +30,7 @@ export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
       onAdd(match);
       setQuery("");
       setNotFound(false);
+      inputRef.current?.focus();
     } else {
       setNotFound(true);
     }
@@ -37,6 +43,7 @@ export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
       </label>
       <div className="flex gap-2">
         <input
+          ref={inputRef}
           id={id}
           className="w-full max-w-[420px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md hover:border-text/45 focus-visible:border-accent focus-visible:outline-none"
           placeholder="Ready to scan…"

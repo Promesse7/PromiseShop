@@ -7,7 +7,11 @@ import type { Sale } from "@/lib/types";
 
 const sale: Sale = {
   sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
-  payment_method: "cash", total_amount: "590000.00", status: "completed", items: [],
+  payment_method: "cash", total_amount: "590000.00", status: "completed",
+  items: [
+    { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "385000.00", subtotal: "385000.00" },
+    { sale_item_id: 2, sale: 841, product: 2, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+  ],
 };
 
 const lines: CartLine[] = [

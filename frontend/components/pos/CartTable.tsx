@@ -45,9 +45,15 @@ export function CartTable({ lines, onSetQuantity, onRemove }: CartTableProps) {
               <td className="py-2 px-2 text-right">
                 <input
                   type="number"
-                  min={1}
+                  min={0}
                   value={line.quantity}
-                  onChange={(e) => onSetQuantity(line.product.product_id, Number(e.target.value))}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    if (raw === "") return;
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) return;
+                    onSetQuantity(line.product.product_id, parsed);
+                  }}
                   className="w-14 text-right min-h-9 py-1.5 px-2 border border-divider rounded-md bg-surface"
                 />
               </td>

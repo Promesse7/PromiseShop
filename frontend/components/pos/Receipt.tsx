@@ -56,14 +56,17 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
           <span>{sale.payment_method ? PAYMENT_LABELS[sale.payment_method] : "—"}</span>
         </div>
         <hr className="border-divider my-2" />
-        {lines.map((line) => (
-          <div key={line.product.product_id} className="flex justify-between text-sm">
-            <span>
-              {line.product.name} × {line.quantity}
-            </span>
-            <span>{(line.product.retail_price * line.quantity).toLocaleString()}</span>
-          </div>
-        ))}
+        {sale.items.map((item) => {
+          const line = lines.find((l) => l.product.product_id === item.product);
+          return (
+            <div key={item.sale_item_id} className="flex justify-between text-sm">
+              <span>
+                {line?.product.name ?? `Product #${item.product}`} × {item.quantity}
+              </span>
+              <span>{Number(item.subtotal).toLocaleString()}</span>
+            </div>
+          );
+        })}
         <hr className="border-divider my-2" />
         <div className="flex justify-between font-sans font-medium text-lg">
           <span>Total</span>

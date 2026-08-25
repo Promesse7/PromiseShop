@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -14,11 +14,12 @@ const jbl = {
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
+  const view = render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>{ui}</ToastProvider>
     </QueryClientProvider>
   );
+  return { ...view, queryClient };
 }
 
 describe("PosCheckout", () => {
@@ -59,12 +60,28 @@ describe("PosCheckout", () => {
     expect(screen.queryByLabelText("Scan barcode or search product")).not.toBeInTheDocument();
   });
 
+  it("shows an error message and hides the scan field when the catalog fails to load", () => {
+    vi.spyOn(usePosCatalogModule, "usePosCatalog").mockReturnValue({
+      all: [],
+      byBarcode: new Map(),
+      isLoading: false,
+      isError: true,
+    } as PosCatalog);
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    expect(screen.getByText(/Couldn't load the product catalog/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Scan barcode or search product")).not.toBeInTheDocument();
+  });
+
   it("posts to /api/proxy/sales/ and shows the receipt on success", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({
         sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
-        payment_method: "cash", total_amount: "145000.00", status: "completed", items: [],
+        payment_method: "cash", total_amount: "145000.00", status: "completed",
+        items: [
+          { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+        ],
       }),
     });
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
@@ -85,11 +102,39 @@ describe("PosCheckout", () => {
     );
   });
 
+  it("invalidates the inventory and pricing queries after a successful sale", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
+        payment_method: "cash", total_amount: "145000.00", status: "completed",
+        items: [
+          { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+        ],
+      }),
+    });
+    const { queryClient } = renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+
+    await userEvent.type(
+      screen.getByLabelText("Scan barcode or search product"),
+      "PES-AUD-00147{Enter}"
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+
+    await screen.findByText("#S-841");
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inventory"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["product-pricing", "current"] });
+  });
+
   it("shows an error toast and keeps the cart when the sale submission fails", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,
       status: 400,
-      json: async () => ({ detail: "Insufficient stock for product 1: requested 1, available 0." }),
+      json: async () => ({
+        detail: ["Insufficient stock for product 1: requested 1, available 0."],
+        code: "invalid",
+      }),
     });
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
 
@@ -111,7 +156,10 @@ describe("PosCheckout", () => {
       ok: true,
       json: async () => ({
         sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
-        payment_method: "cash", total_amount: "145000.00", status: "completed", items: [],
+        payment_method: "cash", total_amount: "145000.00", status: "completed",
+        items: [
+          { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+        ],
       }),
     });
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
@@ -133,7 +181,10 @@ describe("PosCheckout", () => {
       ok: true,
       json: async () => ({
         sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
-        payment_method: "cash", total_amount: "145000.00", status: "completed", items: [],
+        payment_method: "cash", total_amount: "145000.00", status: "completed",
+        items: [
+          { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+        ],
       }),
     });
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);

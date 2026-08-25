@@ -15,6 +15,11 @@ function makeCatalog(): PosCatalog {
 }
 
 describe("ScanSearchField", () => {
+  it("focuses the scan field on mount", () => {
+    render(<ScanSearchField catalog={makeCatalog()} onAdd={vi.fn()} />);
+    expect(screen.getByLabelText("Scan barcode or search product")).toHaveFocus();
+  });
+
   it("calls onAdd with an exact barcode match on Enter", async () => {
     const onAdd = vi.fn();
     render(<ScanSearchField catalog={makeCatalog()} onAdd={onAdd} />);
