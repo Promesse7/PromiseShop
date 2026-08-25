@@ -14,10 +14,10 @@ test.describe("Dashboard", () => {
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL("/dashboard");
 
-    await expect(page.getByText("Sales revenue")).toBeVisible();
-    await expect(page.getByText("Purchase cost")).toBeVisible();
-    await expect(page.getByText("Gross profit")).toBeVisible();
-    await expect(page.getByText("Needs reorder")).toBeVisible();
+    await expect(page.getByText("Sales revenue", { exact: true })).toBeVisible();
+    await expect(page.getByText("Purchase cost", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Gross profit", { exact: true })).toBeVisible();
+    await expect(page.getByText("Needs reorder", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Export CSV" })).toBeVisible();
   });
 });

@@ -20,8 +20,14 @@ test.describe("Notifications", () => {
     await expect(page.getByRole("heading", { name: "Notification log" })).toBeVisible();
 
     await page.getByRole("radio", { name: "Failed" }).click();
-    const rows = page.getByRole("table").getByRole("row");
-    // Header row plus zero or more failed-status rows — every remaining row (if any) must say Failed.
+    const table = page.getByRole("table");
+    // If the dev database has no failed notifications, the table shows its empty-state row
+    // instead of data rows — that's a valid outcome for this filter, not a failure.
+    const emptyState = table.getByText("No notifications yet");
+    if (await emptyState.isVisible()) {
+      return;
+    }
+    const rows = table.getByRole("row");
     const bodyRowCount = (await rows.count()) - 1;
     for (let i = 1; i <= bodyRowCount; i++) {
       await expect(rows.nth(i).getByText("Failed")).toBeVisible();

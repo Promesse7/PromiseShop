@@ -19,7 +19,7 @@ export function SegmentedToggle({ name, options, value, onChange }: SegmentedTog
         <label
           key={option.value}
           className={[
-            "px-2.5 py-1 cursor-pointer",
+            "relative px-2.5 py-1 cursor-pointer",
             value === option.value ? "bg-accent/15 text-accent" : "text-text/70",
           ].join(" ")}
         >
@@ -29,7 +29,7 @@ export function SegmentedToggle({ name, options, value, onChange }: SegmentedTog
             value={option.value}
             checked={value === option.value}
             onChange={() => onChange(option.value)}
-            className="sr-only"
+            className="absolute inset-0 opacity-0 cursor-pointer"
           />
           {option.label}
         </label>
