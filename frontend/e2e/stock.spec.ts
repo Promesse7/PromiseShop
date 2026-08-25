@@ -33,15 +33,22 @@ test.describe("Stock & Equipment", () => {
     await expect(page.getByText(/Serialized units — E2E Test Speaker/)).toBeVisible();
     await expect(page.getByText("E2E-UNIT-0001")).toBeVisible();
 
-    await page.getByRole("link", { name: "History" }).first().click();
+    await Promise.all([
+      page.waitForURL(/\/stock\/units\/\d+$/),
+      page.getByRole("link", { name: "History" }).first().click(),
+    ]);
     await expect(page.getByRole("heading", { name: /E2E-UNIT-0001/ })).toBeVisible();
 
     await page.getByRole("button", { name: "Change status" }).click();
     await page.getByLabel("Under repair").click();
     await page.getByLabel("Reason (required — goes to history)").fill("E2E: sent for repair");
     await page.getByRole("button", { name: "Save change" }).click();
+    await expect(page.getByTestId("dialog-backdrop")).not.toBeVisible();
 
-    await expect(page.getByText("under repair")).toBeVisible();
-    await expect(page.getByText("E2E: sent for repair")).toBeVisible();
+    // Scoped to the header (sibling of the unit heading) — "under repair" also legitimately
+    // appears in the freshly-written history entry below, which would otherwise be ambiguous.
+    const header = page.getByRole("heading", { name: /E2E-UNIT-0001/ }).locator("..");
+    await expect(header.getByText("under repair")).toBeVisible();
+    await expect(page.getByTestId("history-entry").first().getByText("E2E: sent for repair")).toBeVisible();
   });
 });
