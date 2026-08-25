@@ -29,9 +29,10 @@ describe("CartTable", () => {
   it("calls onSetQuantity when the quantity input changes", async () => {
     const onSetQuantity = vi.fn();
     render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
-    const qtyInput = screen.getByDisplayValue("2");
-    await userEvent.clear(qtyInput);
-    await userEvent.type(qtyInput, "5");
+    const qtyInput = screen.getByDisplayValue("2") as HTMLInputElement;
+    qtyInput.focus();
+    await userEvent.keyboard("{Control>}a{/Control}");
+    await userEvent.keyboard("5");
     expect(onSetQuantity).toHaveBeenCalledWith(1, 5);
   });
 
@@ -40,5 +41,29 @@ describe("CartTable", () => {
     render(<CartTable lines={[line]} onSetQuantity={vi.fn()} onRemove={onRemove} />);
     await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(onRemove).toHaveBeenCalledWith(1);
+  });
+
+  it("calls onSetQuantity with 0 when quantity input is set to 0", async () => {
+    const onSetQuantity = vi.fn();
+    render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
+    const qtyInput = screen.getByDisplayValue("2");
+    await userEvent.clear(qtyInput);
+    await userEvent.type(qtyInput, "0");
+    expect(onSetQuantity).toHaveBeenCalledWith(1, 0);
+  });
+
+  it("updates the quantity input value when the lines prop changes", () => {
+    const onSetQuantity = vi.fn();
+    const { rerender } = render(
+      <CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />
+    );
+    expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+
+    const updatedLine: CartLine = {
+      ...line,
+      quantity: 5,
+    };
+    rerender(<CartTable lines={[updatedLine]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
+    expect(screen.getByDisplayValue("5")).toBeInTheDocument();
   });
 });

@@ -44,16 +44,10 @@ export function CartTable({ lines, onSetQuantity, onRemove }: CartTableProps) {
               <td className="py-2 px-2 text-right">{line.product.retail_price.toLocaleString()}</td>
               <td className="py-2 px-2 text-right">
                 <input
-                  key={line.product.product_id}
                   type="number"
                   min={1}
-                  defaultValue={line.quantity}
-                  onChange={(e) => {
-                    const num = Number(e.target.value);
-                    if (num > 0) {
-                      onSetQuantity(line.product.product_id, num);
-                    }
-                  }}
+                  value={line.quantity}
+                  onChange={(e) => onSetQuantity(line.product.product_id, Number(e.target.value))}
                   className="w-14 text-right min-h-9 py-1.5 px-2 border border-divider rounded-md bg-surface"
                 />
               </td>
