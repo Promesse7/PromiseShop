@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { Nav } from "@/components/layout/Nav";
+import { Providers } from "@/components/layout/Providers";
 
 export default async function ProtectedLayout({
   children,
@@ -14,9 +15,11 @@ export default async function ProtectedLayout({
   }
 
   return (
-    <div>
-      <Nav role={session.role} username={session.username} />
-      <main className="p-4">{children}</main>
-    </div>
+    <Providers>
+      <div>
+        <Nav role={session.role} username={session.username} />
+        <main className="p-4">{children}</main>
+      </div>
+    </Providers>
   );
 }
