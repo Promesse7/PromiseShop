@@ -28,6 +28,6 @@ describe("PricingCard", () => {
         currentPricing={{ price_id: 1, product: 1, retail_price: "145000.00", effective_date: "2026-07-01", is_current: true }}
       />
     );
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getAllByText("—")).toHaveLength(2);
   });
 });

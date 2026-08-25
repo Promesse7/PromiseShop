@@ -33,7 +33,7 @@ export function PricingCard({ currentPricing }: PricingCardProps) {
       </div>
       <div className="flex justify-between text-sm">
         <span>Wholesale</span>
-        <span>{wholesale != null ? `RWF ${wholesale.toLocaleString()}` : "Not set"}</span>
+        <span>{wholesale != null ? `RWF ${wholesale.toLocaleString()}` : "—"}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span>Margin</span>
