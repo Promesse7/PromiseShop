@@ -47,6 +47,18 @@ describe("PosCheckout", () => {
     expect(screen.getByRole("button", { name: "Complete sale" })).toBeDisabled();
   });
 
+  it("shows a loading message and hides the scan field while the catalog is loading", () => {
+    vi.spyOn(usePosCatalogModule, "usePosCatalog").mockReturnValue({
+      all: [],
+      byBarcode: new Map(),
+      isLoading: true,
+      isError: false,
+    } as PosCatalog);
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    expect(screen.getByText("Loading catalog…")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Scan barcode or search product")).not.toBeInTheDocument();
+  });
+
   it("posts to /api/proxy/sales/ and shows the receipt on success", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,

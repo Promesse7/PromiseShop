@@ -94,7 +94,11 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
       <div>
         <h4 className="mb-4">New sale</h4>
-        <ScanSearchField catalog={catalog} onAdd={handleAdd} />
+        {catalog.isLoading ? (
+          <p className="text-sm text-text/50 mb-4">Loading catalog…</p>
+        ) : (
+          <ScanSearchField catalog={catalog} onAdd={handleAdd} />
+        )}
         <CartTable lines={lines} onSetQuantity={handleSetQuantity} onRemove={handleRemove} />
         <CartCards lines={lines} onSetQuantity={handleSetQuantity} />
       </div>
