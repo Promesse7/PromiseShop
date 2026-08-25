@@ -26,12 +26,12 @@ describe("ProductsPageClient", () => {
     vi.spyOn(useCatalogProductsModule, "useCatalogProducts").mockReturnValue({
       all: products,
       categories: [
-        { category_id: 10, name: "Televisions", code: "TV" },
-        { category_id: 20, name: "Audio", code: "AUD" },
+        { category_id: 10, name: "Televisions", code: "TV", description: null },
+        { category_id: 20, name: "Audio", code: "AUD", description: null },
       ],
       isLoading: false,
       isError: false,
-    } as CatalogProducts);
+    } satisfies CatalogProducts);
   });
 
   it("shows both products by default", () => {
@@ -67,7 +67,7 @@ describe("ProductsPageClient", () => {
   it("shows the loading state", () => {
     vi.spyOn(useCatalogProductsModule, "useCatalogProducts").mockReturnValue({
       all: [], categories: [], isLoading: true, isError: false,
-    } as CatalogProducts);
+    } satisfies CatalogProducts);
     renderWithProviders(<ProductsPageClient role="admin" />);
     expect(screen.getByText("Loading products…")).toBeInTheDocument();
   });
@@ -75,7 +75,7 @@ describe("ProductsPageClient", () => {
   it("shows an error state with a retry option", () => {
     vi.spyOn(useCatalogProductsModule, "useCatalogProducts").mockReturnValue({
       all: [], categories: [], isLoading: false, isError: true,
-    } as CatalogProducts);
+    } satisfies CatalogProducts);
     renderWithProviders(<ProductsPageClient role="admin" />);
     expect(screen.getByText(/Couldn't load products/)).toBeInTheDocument();
   });

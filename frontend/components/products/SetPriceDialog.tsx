@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -22,11 +23,21 @@ function today(): string {
 
 export function SetPriceDialog({ open, productId, isAdmin, onClose, onSaved }: SetPriceDialogProps) {
   const { show } = useToast();
+  const queryClient = useQueryClient();
   const [retailPrice, setRetailPrice] = useState("");
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [effectiveDate, setEffectiveDate] = useState(today());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setRetailPrice("");
+      setWholesalePrice("");
+      setEffectiveDate(today());
+      setError(null);
+    }
+  }, [open, productId]);
 
   async function handleSubmit() {
     setError(null);
@@ -41,6 +52,8 @@ export function SetPriceDialog({ open, productId, isAdmin, onClose, onSaved }: S
         payload.wholesale_price = wholesalePrice;
       }
       await apiFetch<ProductPricing>("product-pricing/", { method: "POST", body: JSON.stringify(payload) });
+      queryClient.invalidateQueries({ queryKey: ["product-pricing"] });
+      show("Price saved.", "success");
       onSaved();
     } catch (err) {
       if (err instanceof ApiError) {

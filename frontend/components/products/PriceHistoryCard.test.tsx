@@ -11,7 +11,7 @@ const history: ProductPricing[] = [
 
 describe("PriceHistoryCard", () => {
   it("renders every row with the current one tagged", () => {
-    render(<PriceHistoryCard history={history} onSetNewPrice={vi.fn()} />);
+    render(<PriceHistoryCard history={history} onSetNewPrice={vi.fn()} showWholesale={true} />);
     expect(screen.getByText("01 Jul 2026")).toBeInTheDocument();
     expect(screen.getByText("15 Feb 2026")).toBeInTheDocument();
     expect(screen.getByText("current")).toBeInTheDocument();
@@ -19,13 +19,18 @@ describe("PriceHistoryCard", () => {
 
   it("calls onSetNewPrice when the button is clicked", async () => {
     const onSetNewPrice = vi.fn();
-    render(<PriceHistoryCard history={history} onSetNewPrice={onSetNewPrice} />);
+    render(<PriceHistoryCard history={history} onSetNewPrice={onSetNewPrice} showWholesale={true} />);
     await userEvent.click(screen.getByRole("button", { name: "Set new price" }));
     expect(onSetNewPrice).toHaveBeenCalled();
   });
 
   it("shows an empty state with no history", () => {
-    render(<PriceHistoryCard history={[]} onSetNewPrice={vi.fn()} />);
+    render(<PriceHistoryCard history={[]} onSetNewPrice={vi.fn()} showWholesale={true} />);
     expect(screen.getByText("No price history yet")).toBeInTheDocument();
+  });
+
+  it("hides the Wholesale column when showWholesale is false", () => {
+    render(<PriceHistoryCard history={history} onSetNewPrice={vi.fn()} showWholesale={false} />);
+    expect(screen.queryByRole("columnheader", { name: "Wholesale" })).not.toBeInTheDocument();
   });
 });

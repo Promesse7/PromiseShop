@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
  */
 
 test.describe("Products", () => {
-  test("admin can browse, open, and edit a product", async ({ page }) => {
+  test("admin can browse, open, edit a product, and see the change reflected", async ({ page }) => {
     await page.goto("/login");
     await page.getByLabel("Username").fill("admin1");
     await page.getByLabel("Password").fill("adminpass");
@@ -22,10 +22,15 @@ test.describe("Products", () => {
     await expect(page.getByRole("heading", { name: "E2E Test Speaker" })).toBeVisible();
 
     await page.getByRole("button", { name: "Edit" }).first().click();
-    const descriptionField = page.getByLabel("Description");
-    await descriptionField.fill("Updated via e2e test");
+    const brandField = page.getByLabel("Brand");
+    await brandField.fill("UpdatedBrandE2E");
     await page.getByRole("button", { name: "Save" }).click();
 
     await expect(page.getByText("Edit product")).not.toBeVisible();
+    await expect(page.getByText(/UpdatedBrandE2E/)).toBeVisible();
+
+    await page.goto("/products");
+    await page.getByLabel("Search products").fill("E2E Test Speaker");
+    await expect(page.getByRole("table").getByText(/UpdatedBrandE2E/)).toBeVisible();
   });
 });

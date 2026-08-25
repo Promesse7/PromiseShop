@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -39,6 +40,7 @@ export function ProductFormDialog({
 }: ProductFormDialogProps) {
   const categoryId = useId();
   const { show } = useToast();
+  const queryClient = useQueryClient();
   const [values, setValues] = useState<ProductFormValues>(emptyProductFormValues());
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -51,7 +53,7 @@ export function ProductFormDialog({
       setValues(emptyProductFormValues());
     }
     setErrors({});
-  }, [mode, initialProduct, initialStorageLocation, open]);
+  }, [mode, initialProduct?.product_id, initialStorageLocation, open]);
 
   function setField<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -69,18 +71,22 @@ export function ProductFormDialog({
       const payload = buildProductPayload(values, mode);
       if (mode === "create") {
         await apiFetch<Product>("products/", { method: "POST", body: JSON.stringify(payload) });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
       } else if (initialProduct) {
         await apiFetch<Product>(`products/${initialProduct.product_id}/`, {
           method: "PATCH",
           body: JSON.stringify(payload),
         });
+        queryClient.invalidateQueries({ queryKey: ["products"] });
         if (showStorageLocation && inventoryId != null) {
           await apiFetch(`inventory/${inventoryId}/`, {
             method: "PATCH",
             body: JSON.stringify({ storage_location: values.storage_location }),
           });
+          queryClient.invalidateQueries({ queryKey: ["inventory"] });
         }
       }
+      show(mode === "create" ? "Product created." : "Product saved.", "success");
       onSaved();
     } catch (error) {
       const message =

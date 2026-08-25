@@ -24,7 +24,8 @@ system, built against the Django REST backend in `../backend`.
   `staff1`/`staffpass` and `admin1`/`adminpass` fixture employees — see Phase 1's plan for the
   exact creation command). The checkout e2e test additionally requires a fixture product
   (`PES-E2E-00001`) — see the comment at the top of `e2e/checkout.spec.ts` for the exact
-  creation command.
+  creation command. `products.spec.ts` reuses the same `PES-E2E-00001` fixture — no new fixture
+  needed.
 
 ## Architecture
 
@@ -39,6 +40,11 @@ system, built against the Django REST backend in `../backend`.
   TanStack Query client) and `ToastProvider` (app-wide toast notifications).
 - `components/pos/` — the POS checkout screen: `PosCheckout` (orchestrator), `ScanSearchField`,
   `CartTable`/`CartCards` (responsive cart views), and `Receipt`.
+- `components/products/` — the product catalog screens: `ProductTable`, six product-detail cards
+  (`StockCard`, `PricingCard`, `CatalogInfoCard`, `InfoSheetCard`, `SpecificationsCard`,
+  `PriceHistoryCard`), and two dialogs (`ProductFormDialog` for create/edit, `SetPriceDialog`).
+- `lib/products/` — `useCatalogProducts`/`useProductDetail` (data hooks, sharing the POS
+  checkout's TanStack Query cache keys) and `productForm.ts` (create/edit payload + validation).
 - `lib/` — `auth.ts` (session/cookie helpers), `api-client.ts` (fetch wrapper for TanStack
   Query), `query-client.ts`, `types.ts`.
 
@@ -51,7 +57,15 @@ BFF with token-refresh retry, login screen, role-gated nav shell.
 
 `/checkout` is a real feature: scan a barcode or search by name, build a cart, pick a payment
 method, and complete a sale against the Django API, ending on a printable receipt with a "New
-sale" reset. `/dashboard` remains a minimal "Coming soon" stub. Other domain screens (products,
-purchases, stock/equipment, finance, notifications, admin dashboard) are not yet built. The nav
-already links to some of their routes (`/products`, `/purchases`, `/stock`, `/sales`,
-`/employees`) — these currently 404 until a later phase adds the corresponding pages.
+sale" reset. `/dashboard` remains a minimal "Coming soon" stub. Other domain screens (purchases,
+stock/equipment, finance, notifications, admin dashboard) are not yet built. The nav already
+links to some of their routes (`/purchases`, `/stock`, `/sales`, `/employees`) — these currently
+404 until a later phase adds the corresponding pages.
+
+## Phase 3 (Catalog) — complete
+
+`/products` (search, category filtering, role-gated create) and `/products/[id]` (stock, pricing
+— admin only, catalog info with derived "track serials", usage info sheet with real print,
+specifications, price history, admin-gated edit) are real features. Purchases, stock/equipment,
+finance, notifications, and the admin dashboard are not yet built; the nav still links to some of
+those routes (`/purchases`, `/stock`, `/sales`, `/employees`), which currently 404.

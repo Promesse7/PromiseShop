@@ -93,7 +93,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           />
           <SpecificationsCard specifications={detail.product.specifications} />
         </div>
-        <PriceHistoryCard history={detail.priceHistory} onSetNewPrice={() => setPriceOpen(true)} />
+        <PriceHistoryCard history={detail.priceHistory} onSetNewPrice={() => setPriceOpen(true)} showWholesale={isAdmin} />
       </div>
       <ProductFormDialog
         open={editOpen}

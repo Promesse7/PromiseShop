@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { ToastProvider } from "@/components/layout/ToastProvider";
@@ -17,7 +18,14 @@ const existingProduct: Product = {
 };
 
 function renderWithToast(ui: React.ReactElement) {
-  return render(<ToastProvider>{ui}</ToastProvider>);
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
+  const utils = render(
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>{ui}</ToastProvider>
+    </QueryClientProvider>
+  );
+  return { ...utils, invalidateSpy };
 }
 
 describe("ProductFormDialog", () => {
@@ -78,7 +86,7 @@ describe("ProductFormDialog", () => {
       json: async () => ({ ...existingProduct, product_id: 5 }),
     });
     const onSaved = vi.fn();
-    renderWithToast(
+    const { invalidateSpy } = renderWithToast(
       <ProductFormDialog open={true} mode="create" categories={categories} onClose={vi.fn()} onSaved={onSaved} />
     );
     await userEvent.type(screen.getByLabelText("Name"), "New Widget");
@@ -87,6 +95,7 @@ describe("ProductFormDialog", () => {
 
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
     expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["products"] });
     const [url, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe("/api/proxy/products/");
     expect(options).toEqual(expect.objectContaining({ method: "POST" }));
@@ -101,7 +110,7 @@ describe("ProductFormDialog", () => {
   it("patches /api/proxy/products/:id/ on successful edit", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true, json: async () => existingProduct });
     const onSaved = vi.fn();
-    renderWithToast(
+    const { invalidateSpy } = renderWithToast(
       <ProductFormDialog
         open={true} mode="edit" categories={categories} initialProduct={existingProduct}
         initialStorageLocation={null} onClose={vi.fn()} onSaved={onSaved}
@@ -110,6 +119,7 @@ describe("ProductFormDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
     expect(onSaved).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith("/api/proxy/products/1/", expect.objectContaining({ method: "PATCH" }));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["products"] });
   });
 
   it("shows an error toast and keeps the dialog open when submission fails", async () => {
@@ -132,7 +142,7 @@ describe("ProductFormDialog", () => {
       .mockResolvedValueOnce({ ok: true, json: async () => existingProduct })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ inventory_id: 9, storage_location: "Shelf C1" }) });
     const onSaved = vi.fn();
-    renderWithToast(
+    const { invalidateSpy } = renderWithToast(
       <ProductFormDialog
         open={true} mode="edit" categories={categories} initialProduct={existingProduct}
         initialStorageLocation="Shelf B2" inventoryId={9} onClose={vi.fn()} onSaved={onSaved}
@@ -151,5 +161,7 @@ describe("ProductFormDialog", () => {
       "/api/proxy/inventory/9/",
       expect.objectContaining({ method: "PATCH", body: JSON.stringify({ storage_location: "Shelf C1" }) })
     );
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["products"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inventory"] });
   });
 });

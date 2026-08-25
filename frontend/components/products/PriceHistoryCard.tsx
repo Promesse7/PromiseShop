@@ -8,9 +8,10 @@ import type { ProductPricing } from "@/lib/types";
 interface PriceHistoryCardProps {
   history: ProductPricing[];
   onSetNewPrice: () => void;
+  showWholesale: boolean;
 }
 
-export function PriceHistoryCard({ history, onSetNewPrice }: PriceHistoryCardProps) {
+export function PriceHistoryCard({ history, onSetNewPrice, showWholesale }: PriceHistoryCardProps) {
   return (
     <Card elevation="sm">
       <CardKicker>Price history</CardKicker>
@@ -21,7 +22,9 @@ export function PriceHistoryCard({ history, onSetNewPrice }: PriceHistoryCardPro
           <thead>
             <tr className="border-b border-divider">
               <th className="text-left font-medium py-2 px-2 text-text/70">Effective</th>
-              <th className="text-right font-medium py-2 px-2 text-text/70">Wholesale</th>
+              {showWholesale && (
+                <th className="text-right font-medium py-2 px-2 text-text/70">Wholesale</th>
+              )}
               <th className="text-right font-medium py-2 px-2 text-text/70">Retail</th>
               <th></th>
             </tr>
@@ -32,9 +35,11 @@ export function PriceHistoryCard({ history, onSetNewPrice }: PriceHistoryCardPro
                 <td className="py-2 px-2">
                   {new Date(row.effective_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                 </td>
-                <td className="py-2 px-2 text-right">
-                  {row.wholesale_price != null ? Number(row.wholesale_price).toLocaleString() : "—"}
-                </td>
+                {showWholesale && (
+                  <td className="py-2 px-2 text-right">
+                    {row.wholesale_price != null ? Number(row.wholesale_price).toLocaleString() : "—"}
+                  </td>
+                )}
                 <td className="py-2 px-2 text-right">{Number(row.retail_price).toLocaleString()}</td>
                 <td className="py-2 px-2">{row.is_current && <Tag variant="accent">current</Tag>}</td>
               </tr>
