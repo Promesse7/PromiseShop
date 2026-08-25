@@ -120,3 +120,34 @@ export interface EquipmentUnit {
 export interface EquipmentUnitDetail extends EquipmentUnit {
   status_history: EquipmentStatusHistoryEntry[];
 }
+
+export interface Supplier {
+  supplier_id: number;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
+
+export interface Customer {
+  customer_id: number;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
+
+export type EmployeeStatus = "active" | "inactive" | "terminated";
+
+export interface Employee {
+  employee_id: number;
+  full_name: string;
+  role: EmployeeRole;
+  phone: string | null;
+  email: string | null;
+  username: string;
+  hire_date: string;
+  status: EmployeeStatus;
+  created_at: string;
+}

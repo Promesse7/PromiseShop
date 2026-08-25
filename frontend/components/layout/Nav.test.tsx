@@ -9,6 +9,7 @@ describe("getNavLinksForRole", () => {
       { href: "/products", label: "Products" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
+      { href: "/customers", label: "Customers" },
     ]);
   });
 
@@ -16,19 +17,31 @@ describe("getNavLinksForRole", () => {
     expect(getNavLinksForRole("technician")).toEqual(getNavLinksForRole("sales_staff"));
   });
 
-  it("returns the admin link set for admin", () => {
+  it("returns the admin link set, with Employees appended, for admin", () => {
     expect(getNavLinksForRole("admin")).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
       { href: "/sales", label: "Sales" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
+      { href: "/suppliers", label: "Suppliers" },
+      { href: "/customers", label: "Customers" },
       { href: "/employees", label: "Employees" },
     ]);
   });
 
-  it("returns the admin link set for manager", () => {
-    expect(getNavLinksForRole("manager")).toEqual(getNavLinksForRole("admin"));
+  it("returns the admin link set WITHOUT Employees for manager — the backend's Employee endpoint is admin-strict, unlike the rest of this list", () => {
+    const managerLinks = getNavLinksForRole("manager");
+    expect(managerLinks).toEqual([
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/products", label: "Products" },
+      { href: "/sales", label: "Sales" },
+      { href: "/purchases", label: "Purchases" },
+      { href: "/stock", label: "Stock" },
+      { href: "/suppliers", label: "Suppliers" },
+      { href: "/customers", label: "Customers" },
+    ]);
+    expect(managerLinks.find((l) => l.href === "/employees")).toBeUndefined();
   });
 });
 
@@ -47,5 +60,12 @@ describe("Nav", () => {
     expect(screen.queryByRole("link", { name: "Checkout" })).not.toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText(/a\.uwase/)).toBeInTheDocument();
+  });
+
+  it("does not render the Employees link for manager, even though manager gets the admin role tag and link set otherwise", () => {
+    render(<Nav role="manager" username="d.ishimwe" />);
+    expect(screen.queryByRole("link", { name: "Employees" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Suppliers" })).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
   });
 });
