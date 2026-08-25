@@ -17,7 +17,8 @@ test.describe("Expenses", () => {
     await page.getByLabel("Amount (RWF)").fill("15000");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByRole("table").getByText("Repairs")).toBeVisible();
+    // .first() — repeated runs against a shared dev DB accumulate same-category rows.
+    await expect(page.getByRole("table").getByText("Repairs").first()).toBeVisible();
   });
 
   test("sales staff do not see an Expenses link", async ({ page }) => {
