@@ -58,6 +58,13 @@ export function Nav({ role, username }: NavProps) {
           {link.label}
         </Link>
       ))}
+      {/* Notifications are strictly admin-only (recipients are always role="admin" employees,
+          unlike the admin+manager ADMIN_LINKS above), so it's gated here rather than in that array. */}
+      {role === "admin" && (
+        <Link href="/notifications" className="text-sm hover:text-accent">
+          Notifications
+        </Link>
+      )}
       {isAdmin && <Tag>Admin</Tag>}
       <span className="text-sm opacity-60">
         {username} · {roleLabel}

@@ -68,4 +68,19 @@ describe("Nav", () => {
     expect(screen.getByRole("link", { name: "Suppliers" })).toBeInTheDocument();
     expect(screen.getByText("Admin")).toBeInTheDocument();
   });
+
+  it("shows the Notifications link for admin", () => {
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByRole("link", { name: "Notifications" })).toBeInTheDocument();
+  });
+
+  it("hides the Notifications link for manager, since notification recipients are always role=admin", () => {
+    render(<Nav role="manager" username="d.ishimwe" />);
+    expect(screen.queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
+  });
+
+  it("hides the Notifications link for sales_staff and technician", () => {
+    render(<Nav role="sales_staff" username="e.mugisha" />);
+    expect(screen.queryByRole("link", { name: "Notifications" })).not.toBeInTheDocument();
+  });
 });

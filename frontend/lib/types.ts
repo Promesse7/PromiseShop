@@ -151,3 +151,15 @@ export interface Employee {
   status: EmployeeStatus;
   created_at: string;
 }
+
+export type NotificationStatus = "sent" | "failed";
+
+export interface NotificationLogEntry {
+  notification_id: number;
+  type: string;
+  recipient: number;
+  related_sale: number | null;
+  sent_at: string;
+  status: NotificationStatus;
+  read_at: string | null;
+}
