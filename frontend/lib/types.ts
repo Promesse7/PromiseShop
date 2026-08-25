@@ -200,3 +200,14 @@ export interface StockHealth {
   low_stock_count: number;
   equipment_status_counts: Record<string, number>;
 }
+
+export type ExpenseCategory = "rent" | "utilities" | "salaries" | "repairs" | "other";
+
+export interface Expense {
+  expense_id: number;
+  category: ExpenseCategory;
+  amount: string;
+  expense_date: string;
+  description: string | null;
+  recorded_by: number;
+}
