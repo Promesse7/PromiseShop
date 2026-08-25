@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -25,21 +25,33 @@ interface SupplierFormDialogProps {
   onSaved: () => void;
 }
 
-export function SupplierFormDialog({ open, mode, initialSupplier, onClose, onSaved }: SupplierFormDialogProps) {
+export function SupplierFormDialog({ open, onClose, ...rest }: SupplierFormDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} title={rest.mode === "create" ? "New supplier" : "Edit supplier"}>
+      {open && (
+        <SupplierFormFields
+          key={`${rest.mode}-${rest.initialSupplier?.supplier_id ?? "new"}`}
+          onClose={onClose}
+          {...rest}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function SupplierFormFields({
+  mode,
+  initialSupplier,
+  onClose,
+  onSaved,
+}: Omit<SupplierFormDialogProps, "open">) {
   const { show } = useToast();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<SupplierFormValues>(emptySupplierFormValues());
+  const [values, setValues] = useState<SupplierFormValues>(() =>
+    mode === "edit" && initialSupplier ? supplierFormValuesFromSupplier(initialSupplier) : emptySupplierFormValues()
+  );
   const [errors, setErrors] = useState<SupplierFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (mode === "edit" && initialSupplier) {
-      setValues(supplierFormValuesFromSupplier(initialSupplier));
-    } else {
-      setValues(emptySupplierFormValues());
-    }
-    setErrors({});
-  }, [mode, initialSupplier?.supplier_id, open]);
 
   function setField<K extends keyof SupplierFormValues>(key: K, value: SupplierFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -76,22 +88,20 @@ export function SupplierFormDialog({ open, mode, initialSupplier, onClose, onSav
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={mode === "create" ? "New supplier" : "Edit supplier"}>
-      <div className="flex flex-col gap-3 min-w-[360px]">
-        <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
-        <Field label="Contact person" name="contact_person" value={values.contact_person} onChange={(v) => setField("contact_person", v)} />
-        <Field label="Phone" name="phone" value={values.phone} onChange={(v) => setField("phone", v)} />
-        <Field label="Email" name="email" type="email" value={values.email} onChange={(v) => setField("email", v)} />
-        <Field label="Address" name="address" value={values.address} onChange={(v) => setField("address", v)} />
-        <div className="flex gap-2 justify-end mt-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Saving…" : "Save"}
-          </Button>
-        </div>
+    <div className="flex flex-col gap-3 min-w-[360px]">
+      <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
+      <Field label="Contact person" name="contact_person" value={values.contact_person} onChange={(v) => setField("contact_person", v)} />
+      <Field label="Phone" name="phone" value={values.phone} onChange={(v) => setField("phone", v)} />
+      <Field label="Email" name="email" type="email" value={values.email} onChange={(v) => setField("email", v)} />
+      <Field label="Address" name="address" value={values.address} onChange={(v) => setField("address", v)} />
+      <div className="flex gap-2 justify-end mt-2">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Saving…" : "Save"}
+        </Button>
       </div>
-    </Dialog>
+    </div>
   );
 }

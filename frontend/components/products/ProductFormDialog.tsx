@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -28,8 +28,21 @@ interface ProductFormDialogProps {
   onSaved: () => void;
 }
 
-export function ProductFormDialog({
-  open,
+export function ProductFormDialog({ open, onClose, ...rest }: ProductFormDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} title={rest.mode === "create" ? "New product" : "Edit product"}>
+      {open && (
+        <ProductFormFields
+          key={`${rest.mode}-${rest.initialProduct?.product_id ?? "new"}`}
+          onClose={onClose}
+          {...rest}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function ProductFormFields({
   mode,
   categories,
   initialProduct,
@@ -37,23 +50,18 @@ export function ProductFormDialog({
   inventoryId,
   onClose,
   onSaved,
-}: ProductFormDialogProps) {
+}: Omit<ProductFormDialogProps, "open">) {
   const categoryId = useId();
   const { show } = useToast();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<ProductFormValues>(emptyProductFormValues());
+  const [values, setValues] = useState<ProductFormValues>(() =>
+    mode === "edit" && initialProduct
+      ? productFormValuesFromProduct(initialProduct, initialStorageLocation ?? null)
+      : emptyProductFormValues()
+  );
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const showStorageLocation = mode === "edit" && initialStorageLocation != null;
-
-  useEffect(() => {
-    if (mode === "edit" && initialProduct) {
-      setValues(productFormValuesFromProduct(initialProduct, initialStorageLocation ?? null));
-    } else {
-      setValues(emptyProductFormValues());
-    }
-    setErrors({});
-  }, [mode, initialProduct?.product_id, initialStorageLocation, open]);
 
   function setField<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -98,7 +106,6 @@ export function ProductFormDialog({
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={mode === "create" ? "New product" : "Edit product"}>
       <div className="flex flex-col gap-3 min-w-[420px]">
         <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
         <div className="flex flex-col gap-1">
@@ -160,6 +167,5 @@ export function ProductFormDialog({
           </Button>
         </div>
       </div>
-    </Dialog>
   );
 }

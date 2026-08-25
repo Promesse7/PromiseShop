@@ -20,6 +20,13 @@ export default function NotificationsPageClient({ role }: NotificationsPageClien
   const notifications = useNotifications();
   const [filter, setFilter] = useState("all");
 
+  const filtered = useMemo(() => {
+    if (filter === "failed") {
+      return notifications.all.filter((n) => n.status === "failed");
+    }
+    return notifications.all;
+  }, [notifications.all, filter]);
+
   if (role !== "admin") {
     return (
       <div>
@@ -31,17 +38,10 @@ export default function NotificationsPageClient({ role }: NotificationsPageClien
     );
   }
 
-  const filtered = useMemo(() => {
-    if (filter === "failed") {
-      return notifications.all.filter((n) => n.status === "failed");
-    }
-    return notifications.all;
-  }, [notifications.all, filter]);
-
   if (notifications.isError) {
     return (
       <div className="text-sm text-red-400">
-        Couldn't load notifications.{" "}
+        Couldn&apos;t load notifications.{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           Try again
         </button>

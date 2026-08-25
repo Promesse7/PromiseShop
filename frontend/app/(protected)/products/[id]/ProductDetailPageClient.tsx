@@ -43,7 +43,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   if (detail.isError) {
     return (
       <div className="text-sm text-red-400">
-        Couldn't load this product.{" "}
+        Couldn&apos;t load this product.{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           Try again
         </button>

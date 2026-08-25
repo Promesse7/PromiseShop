@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -25,21 +25,33 @@ interface CustomerFormDialogProps {
   onSaved: () => void;
 }
 
-export function CustomerFormDialog({ open, mode, initialCustomer, onClose, onSaved }: CustomerFormDialogProps) {
+export function CustomerFormDialog({ open, onClose, ...rest }: CustomerFormDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} title={rest.mode === "create" ? "New customer" : "Edit customer"}>
+      {open && (
+        <CustomerFormFields
+          key={`${rest.mode}-${rest.initialCustomer?.customer_id ?? "new"}`}
+          onClose={onClose}
+          {...rest}
+        />
+      )}
+    </Dialog>
+  );
+}
+
+function CustomerFormFields({
+  mode,
+  initialCustomer,
+  onClose,
+  onSaved,
+}: Omit<CustomerFormDialogProps, "open">) {
   const { show } = useToast();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<CustomerFormValues>(emptyCustomerFormValues());
+  const [values, setValues] = useState<CustomerFormValues>(() =>
+    mode === "edit" && initialCustomer ? customerFormValuesFromCustomer(initialCustomer) : emptyCustomerFormValues()
+  );
   const [errors, setErrors] = useState<CustomerFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (mode === "edit" && initialCustomer) {
-      setValues(customerFormValuesFromCustomer(initialCustomer));
-    } else {
-      setValues(emptyCustomerFormValues());
-    }
-    setErrors({});
-  }, [mode, initialCustomer?.customer_id, open]);
 
   function setField<K extends keyof CustomerFormValues>(key: K, value: CustomerFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
@@ -76,21 +88,19 @@ export function CustomerFormDialog({ open, mode, initialCustomer, onClose, onSav
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={mode === "create" ? "New customer" : "Edit customer"}>
-      <div className="flex flex-col gap-3 min-w-[360px]">
-        <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
-        <Field label="Phone" name="phone" value={values.phone} onChange={(v) => setField("phone", v)} />
-        <Field label="Email" name="email" type="email" value={values.email} onChange={(v) => setField("email", v)} />
-        <Field label="Address" name="address" value={values.address} onChange={(v) => setField("address", v)} />
-        <div className="flex gap-2 justify-end mt-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Saving…" : "Save"}
-          </Button>
-        </div>
+    <div className="flex flex-col gap-3 min-w-[360px]">
+      <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
+      <Field label="Phone" name="phone" value={values.phone} onChange={(v) => setField("phone", v)} />
+      <Field label="Email" name="email" type="email" value={values.email} onChange={(v) => setField("email", v)} />
+      <Field label="Address" name="address" value={values.address} onChange={(v) => setField("address", v)} />
+      <div className="flex gap-2 justify-end mt-2">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Saving…" : "Save"}
+        </Button>
       </div>
-    </Dialog>
+    </div>
   );
 }

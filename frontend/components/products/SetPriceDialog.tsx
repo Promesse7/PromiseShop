@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -21,7 +21,15 @@ function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-export function SetPriceDialog({ open, productId, isAdmin, onClose, onSaved }: SetPriceDialogProps) {
+export function SetPriceDialog({ open, productId, onClose, ...rest }: SetPriceDialogProps) {
+  return (
+    <Dialog open={open} onClose={onClose} title="Set new price">
+      {open && <SetPriceFields key={productId} productId={productId} onClose={onClose} {...rest} />}
+    </Dialog>
+  );
+}
+
+function SetPriceFields({ productId, isAdmin, onClose, onSaved }: Omit<SetPriceDialogProps, "open">) {
   const { show } = useToast();
   const queryClient = useQueryClient();
   const [retailPrice, setRetailPrice] = useState("");
@@ -29,15 +37,6 @@ export function SetPriceDialog({ open, productId, isAdmin, onClose, onSaved }: S
   const [effectiveDate, setEffectiveDate] = useState(today());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setRetailPrice("");
-      setWholesalePrice("");
-      setEffectiveDate(today());
-      setError(null);
-    }
-  }, [open, productId]);
 
   async function handleSubmit() {
     setError(null);
@@ -67,23 +66,21 @@ export function SetPriceDialog({ open, productId, isAdmin, onClose, onSaved }: S
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title="Set new price">
-      <div className="flex flex-col gap-3 min-w-[320px]">
-        <Field label="Retail price" name="retail_price" type="number" value={retailPrice} onChange={setRetailPrice} />
-        {isAdmin && (
-          <Field label="Wholesale price" name="wholesale_price" type="number" value={wholesalePrice} onChange={setWholesalePrice} />
-        )}
-        <Field label="Effective date" name="effective_date" type="date" value={effectiveDate} onChange={setEffectiveDate} />
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex gap-2 justify-end mt-2">
-          <Button variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={submitting}>
-            {submitting ? "Saving…" : "Save"}
-          </Button>
-        </div>
+    <div className="flex flex-col gap-3 min-w-[320px]">
+      <Field label="Retail price" name="retail_price" type="number" value={retailPrice} onChange={setRetailPrice} />
+      {isAdmin && (
+        <Field label="Wholesale price" name="wholesale_price" type="number" value={wholesalePrice} onChange={setWholesalePrice} />
+      )}
+      <Field label="Effective date" name="effective_date" type="date" value={effectiveDate} onChange={setEffectiveDate} />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      <div className="flex gap-2 justify-end mt-2">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Saving…" : "Save"}
+        </Button>
       </div>
-    </Dialog>
+    </div>
   );
 }

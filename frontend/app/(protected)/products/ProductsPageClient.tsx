@@ -42,7 +42,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   if (catalog.isError) {
     return (
       <div className="text-sm text-red-400">
-        Couldn't load products.{" "}
+        Couldn&apos;t load products.{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           Try again
         </button>

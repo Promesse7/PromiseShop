@@ -41,7 +41,7 @@ export default function StockPageClient() {
   if (overview.isError) {
     return (
       <div className="text-sm text-red-400">
-        Couldn't load stock.{" "}
+        Couldn&apos;t load stock.{" "}
         <button type="button" className="underline" onClick={() => window.location.reload()}>
           Try again
         </button>
