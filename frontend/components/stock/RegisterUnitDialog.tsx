@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -22,15 +22,20 @@ export function RegisterUnitDialog({ open, productId, onClose, onSaved }: Regist
   const [storageLocation, setStorageLocation] = useState("");
   const [conditionNotes, setConditionNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setSerialNumber("");
-      setStorageLocation("");
-      setConditionNotes("");
-      setError(null);
-    }
-  }, [open, productId]);
+  // Reset the form when the dialog transitions to open (or opens for a different product) —
+  // adjusting state during render, not in an effect, per the react-hooks set-state-in-effect rule.
+  const openKey = open ? `${productId}` : null;
+  if (openKey !== null && openKey !== resetKey) {
+    setResetKey(openKey);
+    setSerialNumber("");
+    setStorageLocation("");
+    setConditionNotes("");
+    setError(null);
+  } else if (openKey === null && resetKey !== null) {
+    setResetKey(null);
+  }
 
   async function handleSubmit() {
     if (!serialNumber.trim()) {

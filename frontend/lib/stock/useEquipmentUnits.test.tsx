@@ -1,6 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { useEquipmentUnits } from "./useEquipmentUnits";
 
 function wrapper({ children }: { children: React.ReactNode }) {

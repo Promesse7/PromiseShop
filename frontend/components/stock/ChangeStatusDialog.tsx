@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
@@ -33,14 +33,19 @@ export function ChangeStatusDialog({ open, unitId, currentStatus, onClose, onSav
   );
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetKey, setResetKey] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setNewStatus(currentStatus || "in_stock");
-      setReason("");
-      setError(null);
-    }
-  }, [open, unitId, currentStatus]);
+  // Reset the form when the dialog transitions to open (or opens for a different unit) —
+  // adjusting state during render, not in an effect, per the react-hooks set-state-in-effect rule.
+  const openKey = open ? `${unitId}:${currentStatus}` : null;
+  if (openKey !== null && openKey !== resetKey) {
+    setResetKey(openKey);
+    setNewStatus(currentStatus || "in_stock");
+    setReason("");
+    setError(null);
+  } else if (openKey === null && resetKey !== null) {
+    setResetKey(null);
+  }
 
   async function handleSubmit() {
     if (!reason.trim()) {
