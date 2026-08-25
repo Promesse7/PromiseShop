@@ -94,3 +94,29 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export type EquipmentUnitStatus = "in_stock" | "in_use" | "damaged" | "under_repair" | "sold";
+
+export interface EquipmentStatusHistoryEntry {
+  history_id: number;
+  previous_status: EquipmentUnitStatus | "" | null;
+  new_status: EquipmentUnitStatus;
+  changed_by: number;
+  change_date: string;
+  notes: string | null;
+}
+
+export interface EquipmentUnit {
+  unit_id: number;
+  product: number;
+  serial_number: string;
+  status: EquipmentUnitStatus | "";
+  assigned_to: number | null;
+  storage_location: string | null;
+  condition_notes: string | null;
+  status_changed_at: string;
+}
+
+export interface EquipmentUnitDetail extends EquipmentUnit {
+  status_history: EquipmentStatusHistoryEntry[];
+}
