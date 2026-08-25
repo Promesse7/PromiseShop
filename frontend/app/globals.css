@@ -47,4 +47,8 @@
     left: 0;
     width: 100%;
   }
+  body:has(.info-sheet-print) .info-sheet-print,
+  body:has(.info-sheet-print) .info-sheet-print * {
+    visibility: visible;
+  }
 }
