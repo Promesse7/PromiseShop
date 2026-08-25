@@ -11,7 +11,7 @@ interface TableProps<T> {
   emptyMessage?: string;
 }
 
-export function Table<T extends Record<string, unknown>>({
+export function Table<T extends object>({
   columns,
   rows,
   rowKey,
@@ -40,7 +40,7 @@ export function Table<T extends Record<string, unknown>>({
             <tr key={rowKey(row)} className="border-b border-divider">
               {columns.map((col) => (
                 <td key={col.key} className="py-2 px-2">
-                  {col.render ? col.render(row) : String(row[col.key] ?? "")}
+                  {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
                 </td>
               ))}
             </tr>
