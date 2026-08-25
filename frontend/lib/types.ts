@@ -94,3 +94,40 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export interface PurchaseItem {
+  purchase_item_id: number;
+  purchase: number;
+  product: number;
+  quantity: number;
+  unit_cost_paid?: string;
+  unit_cost_invoiced?: string;
+  price_discrepancy_note: string | null;
+  subtotal_paid?: string;
+  subtotal_invoiced?: string;
+}
+
+export interface Purchase {
+  purchase_id: number;
+  supplier: number;
+  employee: number;
+  invoice_number: string | null;
+  purchase_date: string;
+  total_paid?: string;
+  total_invoiced?: string;
+  payment_status: "paid" | "partial" | "unpaid";
+  status: "draft" | "received";
+  items: PurchaseItem[];
+}
+
+export interface SalesSummary {
+  period: string;
+  total_revenue: string;
+  sale_count: number;
+  top_products: { product_id: number; product_name: string; revenue: string }[];
+}
+
+export interface StockHealth {
+  low_stock_count: number;
+  equipment_status_counts: Record<string, number>;
+}
