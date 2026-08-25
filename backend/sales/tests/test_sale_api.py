@@ -115,6 +115,9 @@ def test_insufficient_stock_returns_400(employee, admin, product):
         format="json",
     )
     assert response.status_code == 400
+    body = response.json()
+    assert isinstance(body["detail"], list)
+    assert "Insufficient stock" in body["detail"][0]
 
 
 def test_unauthenticated_request_gets_401():
