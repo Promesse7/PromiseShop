@@ -94,3 +94,15 @@ export interface PaginatedResponse<T> {
   previous: string | null;
   results: T[];
 }
+
+export type NotificationStatus = "sent" | "failed";
+
+export interface NotificationLogEntry {
+  notification_id: number;
+  type: string;
+  recipient: number;
+  related_sale: number | null;
+  sent_at: string;
+  status: NotificationStatus;
+  read_at: string | null;
+}
