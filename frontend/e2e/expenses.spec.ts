@@ -17,7 +17,7 @@ test.describe("Expenses", () => {
     await page.getByLabel("Amount (RWF)").fill("15000");
     await page.getByRole("button", { name: "Save" }).click();
 
-    await expect(page.getByText("Repairs")).toBeVisible();
+    await expect(page.getByRole("table").getByText("Repairs")).toBeVisible();
   });
 
   test("sales staff do not see an Expenses link", async ({ page }) => {

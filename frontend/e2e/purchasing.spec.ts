@@ -28,10 +28,13 @@ test.describe("Purchasing", () => {
     await page.getByRole("button", { name: "Create" }).click();
 
     await expect(page).toHaveURL(/\/purchases\/\d+$/);
-    await expect(page.getByText("Draft")).toBeVisible();
+    await expect(page.getByText("Draft", { exact: true })).toBeVisible();
 
     await page.getByLabel("Search catalog first — reuse if it exists…").fill("E2E Test Speaker");
-    await page.getByText(/E2E Test Speaker/).first().click();
+    // Match by barcode specifically — a loose name-only locator can also match the
+    // "+ Add ... as a new product" fallback button, which renders immediately while the
+    // product-match list is still loading and contains the same search text.
+    await page.getByRole("button", { name: /PES-E2E-00001/ }).click();
     await page.getByLabel("Quantity").fill("2");
     await page.getByLabel("Buying price — paid / unit").fill("50000");
     await page.getByLabel("Buying price — on invoice / unit").fill("50000");
