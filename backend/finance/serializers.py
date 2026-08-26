@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from finance.models import Expense
+from finance.models import Expense, ShopProfile
 
 
 class ExpenseSerializer(serializers.ModelSerializer):
@@ -21,3 +21,10 @@ class ExpenseSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["recorded_by"] = self.context["request"].user
         return super().create(validated_data)
+
+
+class ShopProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShopProfile
+        fields = ["business_name", "tin", "po_box", "phone", "email", "address"]
+        read_only_fields = fields
