@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { SerializedUnitsTable } from "./SerializedUnitsTable";
 import type { EquipmentUnit } from "@/lib/types";
 
@@ -22,5 +23,19 @@ describe("SerializedUnitsTable", () => {
   it("shows an empty message when there are no units", () => {
     render(<SerializedUnitsTable units={[]} />);
     expect(screen.getByText("No serialized units for this product")).toBeInTheDocument();
+  });
+
+  it("renders a select checkbox and calls onToggleSelect when provided", async () => {
+    const onToggleSelect = vi.fn();
+    render(<SerializedUnitsTable units={units} selectedIds={new Set()} onToggleSelect={onToggleSelect} />);
+    await userEvent.click(screen.getByLabelText("Select JBL6-KX2201"));
+    expect(onToggleSelect).toHaveBeenCalledWith(1);
+  });
+
+  it("renders a Print label action and calls onPrintLabel with the unit when provided", async () => {
+    const onPrintLabel = vi.fn();
+    render(<SerializedUnitsTable units={units} onPrintLabel={onPrintLabel} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Print label" })[0]);
+    expect(onPrintLabel).toHaveBeenCalledWith(units[0]);
   });
 });

@@ -75,4 +75,24 @@ describe("StockPageClient", () => {
     renderWithProviders(<StockPageClient />);
     expect(screen.getByRole("link", { name: /Quick status change/ })).toHaveAttribute("href", "/stock/scan");
   });
+
+  it("selecting units shows a bulk print bar and prints their labels", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderWithProviders(<StockPageClient />);
+    await userEvent.click(screen.getByRole("button", { name: "4 units" }));
+    await userEvent.click(screen.getByLabelText("Select JBL6-KX2201"));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Print 1 labels" }));
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
+  it("prints a single unit's label from its row", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderWithProviders(<StockPageClient />);
+    await userEvent.click(screen.getByRole("button", { name: "4 units" }));
+    await userEvent.click(screen.getAllByRole("button", { name: "Print label" })[0]);
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
 });

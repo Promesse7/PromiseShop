@@ -15,10 +15,29 @@ const STATUS_TAG: Record<EquipmentUnitStatus, { label: string; variant: "accent"
 
 interface SerializedUnitsTableProps {
   units: EquipmentUnit[];
+  selectedIds?: Set<number>;
+  onToggleSelect?: (unitId: number) => void;
+  onPrintLabel?: (unit: EquipmentUnit) => void;
 }
 
-export function SerializedUnitsTable({ units }: SerializedUnitsTableProps) {
+export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPrintLabel }: SerializedUnitsTableProps) {
   const columns = [
+    ...(onToggleSelect
+      ? [
+          {
+            key: "select",
+            header: "",
+            render: (unit: EquipmentUnit) => (
+              <input
+                type="checkbox"
+                aria-label={`Select ${unit.serial_number}`}
+                checked={selectedIds?.has(unit.unit_id) ?? false}
+                onChange={() => onToggleSelect(unit.unit_id)}
+              />
+            ),
+          },
+        ]
+      : []),
     {
       key: "serial_number",
       header: "Serial",
@@ -42,6 +61,23 @@ export function SerializedUnitsTable({ units }: SerializedUnitsTableProps) {
       header: "Condition notes",
       render: (unit: EquipmentUnit) => <span className="text-text/50">{unit.condition_notes ?? "—"}</span>,
     },
+    ...(onPrintLabel
+      ? [
+          {
+            key: "print",
+            header: "",
+            render: (unit: EquipmentUnit) => (
+              <button
+                type="button"
+                className="text-xs text-accent underline"
+                onClick={() => onPrintLabel(unit)}
+              >
+                Print label
+              </button>
+            ),
+          },
+        ]
+      : []),
     {
       key: "history",
       header: "",
