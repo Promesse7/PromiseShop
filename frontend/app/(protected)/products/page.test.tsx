@@ -69,7 +69,7 @@ describe("ProductsPageClient", () => {
       all: [], categories: [], isLoading: true, isError: false,
     } satisfies CatalogProducts);
     renderWithProviders(<ProductsPageClient role="admin" />);
-    expect(screen.getByText("Loading products…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading products…" })).toBeInTheDocument();
   });
 
   it("shows an error state with a retry option", () => {
@@ -78,5 +78,23 @@ describe("ProductsPageClient", () => {
     } satisfies CatalogProducts);
     renderWithProviders(<ProductsPageClient role="admin" />);
     expect(screen.getByText(/Couldn't load products/)).toBeInTheDocument();
+  });
+
+  it("selecting products shows a bulk print bar and prints their labels", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByLabelText("Select Samsung TV"));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Print 1 labels" }));
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
+  });
+
+  it("prints a single product's label from its card", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Print label" })[0]);
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
   });
 });
