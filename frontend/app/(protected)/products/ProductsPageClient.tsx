@@ -6,6 +6,7 @@ import { ProductTable } from "@/components/products/ProductTable";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -56,8 +57,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Products</h4>
+      <PageHeader title="Products">
         <input
           aria-label="Search products"
           placeholder="Search name, brand, barcode…"
@@ -71,7 +71,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
             + New product
           </Button>
         )}
-      </div>
+      </PageHeader>
       <ProductTable products={filtered} showWholesale={isAdmin} />
       <ProductFormDialog
         open={createOpen}
