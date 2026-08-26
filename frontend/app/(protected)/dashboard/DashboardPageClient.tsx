@@ -9,6 +9,7 @@ import { SlowMoversTable } from "@/components/dashboard/SlowMoversTable";
 import { AdminOnlyNotice } from "@/components/dashboard/AdminOnlyNotice";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { QuickActions } from "@/components/dashboard/QuickActions";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { EmployeeRole } from "@/lib/types";
 
 interface DashboardPageClientProps {
@@ -39,13 +40,11 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
 
   return (
     <div>
-      <div className="flex items-baseline gap-3 mb-6 flex-wrap">
-        <h3 className="m-0">Dashboard</h3>
-        <span className="text-sm text-text/50">Monthly summary</span>
+      <PageHeader title="Dashboard" subtitle="Monthly summary">
         <div className="ml-auto">
           <ExportCsvButton data={data} />
         </div>
-      </div>
+      </PageHeader>
       <QuickActions role={role} />
       <StatCards data={data} />
       <div className="grid grid-cols-[1.5fr_1fr] gap-4 mb-4">
