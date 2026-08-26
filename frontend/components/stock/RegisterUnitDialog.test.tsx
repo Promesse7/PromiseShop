@@ -12,7 +12,14 @@ function renderDialog(props: Partial<React.ComponentProps<typeof RegisterUnitDia
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <RegisterUnitDialog open productId={2} onClose={onClose} onSaved={onSaved} {...props} />
+        <RegisterUnitDialog
+          open
+          productId={2}
+          productName="JBL Flip 6 Speaker"
+          onClose={onClose}
+          onSaved={onSaved}
+          {...props}
+        />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -25,7 +32,10 @@ describe("RegisterUnitDialog", () => {
       "fetch",
       vi.fn((url: string) => {
         if (url.includes("change-status")) {
-          return Promise.resolve({ ok: true, json: async () => ({ unit_id: 9, status: "in_stock" }) });
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ unit_id: 9, product: 2, serial_number: "JBL6-NEW01", status: "in_stock" }),
+          });
         }
         return Promise.resolve({
           ok: true,
@@ -66,5 +76,39 @@ describe("RegisterUnitDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save" }));
 
     await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+
+  it("offers to print a label after a successful save, without auto-closing", async () => {
+    const { onClose } = renderDialog();
+    await userEvent.type(screen.getByLabelText("Serial number"), "JBL6-NEW01");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    // The serial number appears twice — once in the confirmation text, once in the
+    // (CSS-hidden, but still DOM-present in jsdom) printable label's barcode — so assert
+    // presence via findAllByText rather than the single-match findByText, matching the
+    // established pattern for visible+print duplicate text (see PosCheckout.test.tsx).
+    expect((await screen.findAllByText(/JBL6-NEW01/)).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Print label now" })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes the dialog when Done is clicked after saving", async () => {
+    const { onClose } = renderDialog();
+    await userEvent.type(screen.getByLabelText("Serial number"), "JBL6-NEW01");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByRole("button", { name: "Print label now" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("calls window.print when Print label now is clicked", async () => {
+    const printSpy = vi.spyOn(window, "print").mockImplementation(() => {});
+    renderDialog();
+    await userEvent.type(screen.getByLabelText("Serial number"), "JBL6-NEW01");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Print label now" }));
+    expect(printSpy).toHaveBeenCalled();
+    printSpy.mockRestore();
   });
 });
