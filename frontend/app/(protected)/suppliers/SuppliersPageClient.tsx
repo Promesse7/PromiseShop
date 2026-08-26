@@ -5,6 +5,7 @@ import { useSuppliers } from "@/lib/suppliers/useSuppliers";
 import { SupplierTable } from "@/components/suppliers/SupplierTable";
 import { SupplierFormDialog } from "@/components/suppliers/SupplierFormDialog";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Supplier } from "@/lib/types";
 
 export default function SuppliersPageClient() {
@@ -41,8 +42,7 @@ export default function SuppliersPageClient() {
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Suppliers</h4>
+      <PageHeader title="Suppliers">
         <input
           aria-label="Search suppliers"
           placeholder="Search…"
@@ -53,7 +53,7 @@ export default function SuppliersPageClient() {
         <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
           + New supplier
         </Button>
-      </div>
+      </PageHeader>
       <SupplierTable suppliers={filtered} onEdit={(supplier) => setDialog({ mode: "edit", supplier })} />
       <SupplierFormDialog
         open={dialog !== null}
