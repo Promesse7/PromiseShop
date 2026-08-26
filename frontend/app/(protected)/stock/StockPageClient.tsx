@@ -10,6 +10,7 @@ import { RegisterUnitDialog } from "@/components/stock/RegisterUnitDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
 import { CardKicker } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 type StockFilter = "all" | "low_out" | "serialized";
 
@@ -55,13 +56,12 @@ export default function StockPageClient() {
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Stock overview</h4>
+      <PageHeader title="Stock overview">
         <SegmentedToggle name="stk" options={FILTER_OPTIONS} value={filter} onChange={(v) => setFilter(v as StockFilter)} />
         <Link href="/stock/scan" className="ml-auto text-sm text-accent">
           Quick status change →
         </Link>
-      </div>
+      </PageHeader>
       <StockOverviewTable rows={filteredRows} onSelectProduct={setSelectedProductId} />
       <hr className="my-4 border-divider" />
       <div className="flex items-baseline gap-3 mb-2">
