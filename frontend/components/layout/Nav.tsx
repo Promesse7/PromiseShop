@@ -18,7 +18,7 @@ const STAFF_LINKS: NavLink[] = [
 const ADMIN_LINKS: NavLink[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/products", label: "Products" },
-  { href: "/sales", label: "Sales" },
+  { href: "/checkout", label: "Sales" },
   { href: "/purchases", label: "Purchases" },
   { href: "/stock", label: "Stock" },
   { href: "/suppliers", label: "Suppliers" },
