@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { Receipt } from "./Receipt";
+import * as useShopProfileModule from "@/lib/settings/useShopProfile";
 import type { CartLine } from "@/lib/pos/cart";
 import type { Sale } from "@/lib/types";
 
@@ -9,8 +10,8 @@ const sale: Sale = {
   sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
   payment_method: "cash", total_amount: "590000.00", status: "completed",
   items: [
-    { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "385000.00", subtotal: "385000.00" },
-    { sale_item_id: 2, sale: 841, product: 2, quantity: 1, unit_price: "145000.00", subtotal: "145000.00" },
+    { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "385000.00", subtotal: "385000.00", tax_category: "B", tax_amount: "58728.81" },
+    { sale_item_id: 2, sale: 841, product: 2, quantity: 1, unit_price: "145000.00", subtotal: "145000.00", tax_category: "B", tax_amount: "22118.64" },
   ],
 };
 
@@ -32,6 +33,17 @@ const lines: CartLine[] = [
 ];
 
 describe("Receipt", () => {
+  beforeEach(() => {
+    vi.spyOn(useShopProfileModule, "useShopProfile").mockReturnValue({
+      data: {
+        business_name: "Promise Electronic Shop", tin: "123456789", po_box: "PO Box 1",
+        phone: "+250700000000", email: "shop@example.com", address: "Kigali, Rwanda",
+      },
+      isLoading: false,
+      isError: false,
+    });
+  });
+
   it("renders the sale id, payment method, line items, and total", () => {
     render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
     expect(screen.getAllByText("#S-841").length).toBeGreaterThan(0);
@@ -40,6 +52,24 @@ describe("Receipt", () => {
     expect(screen.getByText('Samsung 43" TV × 1')).toBeInTheDocument();
     expect(screen.getByText("JBL Flip 6 × 1")).toBeInTheDocument();
     expect(screen.getByText("RWF 590,000")).toBeInTheDocument();
+  });
+
+  it("renders the business info from the shop profile", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("Promise Electronic Shop")).toBeInTheDocument();
+    expect(screen.getByText("TIN 123456789")).toBeInTheDocument();
+  });
+
+  it("renders a tax summary grouped by category", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("TOTAL B — Standard (18%)")).toBeInTheDocument();
+    expect(screen.getByText("TOTAL TAX")).toBeInTheDocument();
+  });
+
+  it("shows the sample-receipt disclaimer, never a real legal-receipt claim", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("SAMPLE RECEIPT — pending EBM/SDC certification")).toBeInTheDocument();
+    expect(screen.queryByText(/END OF LEGAL RECEIPT/)).not.toBeInTheDocument();
   });
 
   it("calls onPrint when Print receipt is clicked", async () => {
