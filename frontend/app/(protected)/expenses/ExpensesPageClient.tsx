@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Card, CardKicker } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Expense, ExpenseCategory } from "@/lib/types";
 
 interface ExpensesPageClientProps {
@@ -58,8 +59,7 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Expenses</h4>
+      <PageHeader title="Expenses">
         <Tag variant="outline">Admin only</Tag>
         <SegmentedToggle
           name="expense-filter"
@@ -70,7 +70,7 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
         <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
           + New expense
         </Button>
-      </div>
+      </PageHeader>
       <Card elevation="sm" className="mb-4 max-w-xs">
         <CardKicker>Total {filter === "all" ? "(all)" : "(filtered)"}</CardKicker>
         <span className="font-sans font-medium text-2xl">{formatRwf(totalFiltered)}</span>
