@@ -1,42 +1,48 @@
 import "@testing-library/jest-dom/vitest";
 
-// Mock canvas for jsbarcode text measurement in jsdom
-// Store the original getContext if it exists
+// Polyfill canvas for jsbarcode text measurement in jsdom
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
 
-// Create a mock context that provides the methods jsbarcode needs
-function createMockContext(): any {
-  return {
-    font: "",
-    globalAlpha: 1,
-    measureText: (text: string) => ({ width: text.length * 7 }),
-    fillRect: () => {},
-    clearRect: () => {},
-    getImageData: () => ({ data: [] }),
-    putImageData: () => {},
-    createImageData: () => [],
-    setTransform: () => {},
-    drawImage: () => {},
-    save: () => {},
-    fillText: () => {},
-    restore: () => {},
-    beginPath: () => {},
-    moveTo: () => {},
-    lineTo: () => {},
-    closePath: () => {},
-    stroke: () => {},
-    translate: () => {},
-    scale: () => {},
-    rotate: () => {},
-    arc: () => {},
-    fill: () => {},
-  };
-}
-
-// Replace getContext unconditionally
-(HTMLCanvasElement.prototype as any).getContext = function (contextType: string) {
+const mockGetContext: (
+  this: HTMLCanvasElement,
+  contextType: string
+) => CanvasRenderingContext2D | null = function (
+  contextType: string
+): CanvasRenderingContext2D | null {
   if (contextType === "2d") {
-    return createMockContext();
+    return {
+      font: "",
+      globalAlpha: 1,
+      measureText: (text: string) => ({ width: text.length * 7 }),
+      fillRect: () => {},
+      clearRect: () => {},
+      getImageData: () => ({ data: [] } as ImageData),
+      putImageData: () => {},
+      createImageData: () => [] as ImageData,
+      setTransform: () => {},
+      drawImage: () => {},
+      save: () => {},
+      fillText: () => {},
+      restore: () => {},
+      beginPath: () => {},
+      moveTo: () => {},
+      lineTo: () => {},
+      closePath: () => {},
+      stroke: () => {},
+      translate: () => {},
+      scale: () => {},
+      rotate: () => {},
+      arc: () => {},
+      fill: () => {},
+    } as unknown as CanvasRenderingContext2D;
   }
-  return null;
+  // Delegate to original implementation for other context types
+  return originalGetContext.call(this, contextType);
 };
+
+Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+  value: mockGetContext,
+  writable: true,
+  enumerable: false,
+  configurable: true,
+});
