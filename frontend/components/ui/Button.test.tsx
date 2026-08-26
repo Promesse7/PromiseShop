@@ -38,4 +38,11 @@ describe("Button", () => {
     render(<Button disabled>Save</Button>);
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
+
+  it("renders as a link with the same classes when href is set", () => {
+    render(<Button href="/checkout">New Sale</Button>);
+    const link = screen.getByRole("link", { name: "New Sale" });
+    expect(link).toHaveAttribute("href", "/checkout");
+    expect(link.className).toContain("text-accent");
+  });
 });

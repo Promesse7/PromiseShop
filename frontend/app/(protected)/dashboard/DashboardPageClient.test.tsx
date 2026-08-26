@@ -33,25 +33,25 @@ function baseData(overrides: Partial<DashboardData> = {}): DashboardData {
 describe("DashboardPageClient", () => {
   it("shows a loading state", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ isLoading: true }));
-    render(<DashboardPageClient />);
+    render(<DashboardPageClient role="admin" />);
     expect(screen.getByText("Loading dashboard…")).toBeInTheDocument();
   });
 
   it("shows the admin-only notice when forbidden", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ isForbidden: true }));
-    render(<DashboardPageClient />);
+    render(<DashboardPageClient role="admin" />);
     expect(screen.getByText("Dashboard data is limited to Admin accounts.")).toBeInTheDocument();
   });
 
   it("shows a retry option on error", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ isError: true }));
-    render(<DashboardPageClient />);
+    render(<DashboardPageClient role="admin" />);
     expect(screen.getByText("Try again")).toBeInTheDocument();
   });
 
   it("renders stat cards and an export button once loaded", () => {
     mockedUseDashboardData.mockReturnValue(baseData());
-    render(<DashboardPageClient />);
+    render(<DashboardPageClient role="admin" />);
     expect(screen.getByText("RWF 530,000")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });

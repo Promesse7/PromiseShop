@@ -8,8 +8,14 @@ import { TopSellersTable } from "@/components/dashboard/TopSellersTable";
 import { SlowMoversTable } from "@/components/dashboard/SlowMoversTable";
 import { AdminOnlyNotice } from "@/components/dashboard/AdminOnlyNotice";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import type { EmployeeRole } from "@/lib/types";
 
-export default function DashboardPageClient() {
+interface DashboardPageClientProps {
+  role: EmployeeRole;
+}
+
+export default function DashboardPageClient({ role }: DashboardPageClientProps) {
   const data = useDashboardData();
 
   if (data.isForbidden) {
@@ -40,6 +46,7 @@ export default function DashboardPageClient() {
           <ExportCsvButton data={data} />
         </div>
       </div>
+      <QuickActions role={role} />
       <StatCards data={data} />
       <div className="grid grid-cols-[1.5fr_1fr] gap-4 mb-4">
         <RevenueTrendChart points={data.trend} />
