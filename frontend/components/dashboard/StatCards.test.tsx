@@ -42,4 +42,10 @@ describe("StatCards", () => {
     render(<StatCards data={makeData()} />);
     expect(screen.getByText(/34\.7% margin/)).toBeInTheDocument();
   });
+
+  it("renders each stat as a glass-variant card", () => {
+    const { container } = render(<StatCards data={makeData()} />);
+    const cards = container.querySelectorAll(".glass");
+    expect(cards).toHaveLength(4);
+  });
 });
