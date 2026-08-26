@@ -13,7 +13,10 @@ class CustomerSerializer(serializers.ModelSerializer):
 class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleItem
-        fields = ["sale_item_id", "sale", "product", "quantity", "unit_price", "subtotal"]
+        fields = [
+            "sale_item_id", "sale", "product", "quantity", "unit_price", "subtotal",
+            "tax_category", "tax_amount",
+        ]
         read_only_fields = fields
 
 

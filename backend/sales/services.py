@@ -8,6 +8,11 @@ from notifications.models import NotificationLog
 from sales.models import Sale, SaleItem
 from stock.models import Inventory
 
+TAX_RATES = {
+    "A": Decimal("0.00"),
+    "B": Decimal("0.18"),
+}
+
 
 def _resolve_retail_price(product):
     try:
@@ -58,7 +63,8 @@ def complete_sale(customer, employee, payment_method, items):
             quantity = entry["quantity"]
             unit_price = _resolve_retail_price(product)
             subtotal = unit_price * quantity
-            resolved_items.append((product, quantity, unit_price, subtotal))
+            tax_amount = (subtotal * TAX_RATES[product.tax_category]).quantize(Decimal("0.01"))
+            resolved_items.append((product, quantity, unit_price, subtotal, tax_amount))
             total += subtotal
 
         sale = Sale.objects.create(
@@ -66,10 +72,11 @@ def complete_sale(customer, employee, payment_method, items):
             total_amount=total,
         )
 
-        for product, quantity, unit_price, subtotal in resolved_items:
+        for product, quantity, unit_price, subtotal, tax_amount in resolved_items:
             SaleItem.objects.create(
                 sale=sale, product=product, quantity=quantity,
                 unit_price=unit_price, subtotal=subtotal,
+                tax_category=product.tax_category, tax_amount=tax_amount,
             )
 
         for product_id, quantity in quantities.items():

@@ -259,3 +259,27 @@ def test_complete_sale_uses_current_price_not_stale_price(employee, admin, categ
     )
     item = SaleItem.objects.get(sale=sale)
     assert item.unit_price == Decimal("100.00")
+
+
+def test_complete_sale_computes_tax_for_standard_category(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 2}],
+    )
+    item = SaleItem.objects.get(sale=sale)
+    assert item.tax_category == "B"
+    assert item.tax_amount == Decimal("36.00")
+
+
+def test_complete_sale_computes_zero_tax_for_exempt_category(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    product.tax_category = "A"
+    product.save(update_fields=["tax_category"])
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    item = SaleItem.objects.get(sale=sale)
+    assert item.tax_category == "A"
+    assert item.tax_amount == Decimal("0.00")

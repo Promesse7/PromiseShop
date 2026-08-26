@@ -36,7 +36,8 @@ def test_sale_with_customer(employee):
 def test_sale_item_links_sale_and_product(employee, product):
     sale = Sale.objects.create(employee=employee, total_amount="145000.00")
     item = SaleItem.objects.create(
-        sale=sale, product=product, quantity=1, unit_price="145000.00", subtotal="145000.00"
+        sale=sale, product=product, quantity=1, unit_price="145000.00", subtotal="145000.00",
+        tax_category="B", tax_amount="0.00",
     )
     assert item.sale == sale
     assert item.product == product

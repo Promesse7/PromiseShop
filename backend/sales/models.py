@@ -1,5 +1,7 @@
 from django.db import models
 
+from catalog.models import Product
+
 
 class Customer(models.Model):
     customer_id = models.AutoField(primary_key=True)
@@ -47,6 +49,8 @@ class SaleItem(models.Model):
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    tax_category = models.CharField(max_length=1, choices=Product.TaxCategory.choices)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2)
 
     def __str__(self):
         return f"{self.product} x{self.quantity} (Sale #{self.sale_id})"
