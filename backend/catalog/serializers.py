@@ -22,7 +22,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "product_id", "category", "barcode", "name", "brand", "model_number",
             "description", "specifications", "usage_instructions", "warranty_months",
-            "reorder_level", "unit", "is_active", "created_at",
+            "reorder_level", "unit", "tax_category", "is_active", "created_at",
         ]
         read_only_fields = ["product_id", "barcode", "created_at"]
 

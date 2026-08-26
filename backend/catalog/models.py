@@ -12,6 +12,10 @@ class Category(models.Model):
 
 
 class Product(models.Model):
+    class TaxCategory(models.TextChoices):
+        EXEMPT = "A", "Exempt (0%)"
+        STANDARD = "B", "Standard (18%)"
+
     product_id = models.AutoField(primary_key=True)
     category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     barcode = models.CharField(max_length=50, unique=True, editable=False)
@@ -24,6 +28,7 @@ class Product(models.Model):
     warranty_months = models.PositiveIntegerField(default=0)
     reorder_level = models.PositiveIntegerField(default=5)
     unit = models.CharField(max_length=20, default="pcs")
+    tax_category = models.CharField(max_length=1, choices=TaxCategory.choices, default=TaxCategory.STANDARD)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

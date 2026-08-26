@@ -93,3 +93,21 @@ def test_updating_product_name_still_allowed(sales_staff, category):
     response = client.patch(f"/api/products/{product_id}/", {"name": "Renamed"}, format="json")
     assert response.status_code == 200
     assert response.json()["name"] == "Renamed"
+
+
+def test_product_defaults_to_standard_tax_category(sales_staff, category):
+    client = auth_client(sales_staff, "staffpass")
+    response = client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    assert response.json()["tax_category"] == "B"
+
+
+def test_product_tax_category_can_be_set_to_exempt(sales_staff, category):
+    client = auth_client(sales_staff, "staffpass")
+    response = client.post(
+        "/api/products/",
+        {"category": category.category_id, "name": "Bread", "tax_category": "A"},
+        format="json",
+    )
+    assert response.json()["tax_category"] == "A"
