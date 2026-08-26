@@ -17,6 +17,7 @@ interface BulkRow {
   unit_cost_paid: string;
   unit_cost_invoiced: string;
   selling_price: string;
+  price_discrepancy_note: string;
   status: "pending" | "failed";
   error?: string;
 }
@@ -25,6 +26,7 @@ function emptyRow(): BulkRow {
   return {
     id: crypto.randomUUID(),
     name: "", category: "", quantity: "", unit_cost_paid: "", unit_cost_invoiced: "", selling_price: "",
+    price_discrepancy_note: "",
     status: "pending",
   };
 }
@@ -44,7 +46,7 @@ function rowToFormValues(row: BulkRow, matchedProductId: number | ""): AddItemFo
     quantity: row.quantity,
     unit_cost_paid: row.unit_cost_paid,
     unit_cost_invoiced: row.unit_cost_invoiced,
-    price_discrepancy_note: "",
+    price_discrepancy_note: row.price_discrepancy_note,
   };
 }
 
@@ -138,6 +140,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
             <th className="text-right font-medium py-2 px-2 text-text/70">Buy — paid</th>
             <th className="text-right font-medium py-2 px-2 text-text/70">Buy — invoiced</th>
             <th className="text-right font-medium py-2 px-2 text-text/70">Sell price</th>
+            <th className="text-left font-medium py-2 px-2 text-text/70">Discrepancy note</th>
             <th className="text-left font-medium py-2 px-2 text-text/70">Match</th>
             <th />
           </tr>
@@ -188,6 +191,15 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
                 <td className="py-1 px-2 text-right">
                   <input aria-label="Sell price" value={row.selling_price} onChange={(e) => updateRow(row.id, { selling_price: e.target.value })} disabled={!!matched} className="min-h-8 py-1 px-2 text-sm text-right text-text bg-surface border border-divider rounded-md w-24 disabled:opacity-40" />
                 </td>
+                <td className="py-1 px-2">
+                  <input
+                    aria-label="Discrepancy note"
+                    value={row.price_discrepancy_note}
+                    onChange={(e) => updateRow(row.id, { price_discrepancy_note: e.target.value })}
+                    placeholder="Required when paid ≠ invoiced"
+                    className="min-h-8 py-1 px-2 text-sm text-text bg-surface border border-divider rounded-md w-40"
+                  />
+                </td>
                 <td className="py-1 px-2 font-mono text-xs">
                   {matched ? <span>{matched.barcode} (existing)</span> : row.name.trim() ? <span className="text-text/50">assigned on receive</span> : ""}
                 </td>
@@ -204,8 +216,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
         </tbody>
       </table>
       <p className="text-sm text-text/50 mt-3">
-        Rows with paid ≠ invoiced require a discrepancy note — add it after the item lands in
-        &quot;On this purchase&quot; via Edit product.
+        Rows with paid ≠ invoiced require a discrepancy note per line before they can be added.
       </p>
       <div className="flex gap-2 justify-end mt-3">
         <Button variant="secondary" onClick={printLabels}>

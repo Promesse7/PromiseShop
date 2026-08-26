@@ -85,4 +85,25 @@ describe("AddProductBulkTable", () => {
     await userEvent.click(screen.getByRole("button", { name: "Print all new labels" }));
     expect(window.print).toHaveBeenCalled();
   });
+
+  it("blocks a row with paid ≠ invoiced until a discrepancy note is entered, then submits it", async () => {
+    renderTable();
+    await userEvent.type(screen.getAllByLabelText("Product name")[0], "Boya BY-M1 Microphone");
+    await screen.findByText(/PES-AUD-00121/);
+    await userEvent.type(screen.getAllByLabelText("Quantity")[0], "20");
+    await userEvent.type(screen.getAllByLabelText("Buy price paid")[0], "10000");
+    await userEvent.type(screen.getAllByLabelText("Buy price invoiced")[0], "11500");
+    await userEvent.click(screen.getByRole("button", { name: "Add all rows" }));
+
+    expect(await screen.findByText("Required when paid and invoiced prices differ.")).toBeInTheDocument();
+    expect(itemPosts).toHaveLength(0);
+
+    await userEvent.type(screen.getAllByLabelText("Discrepancy note")[0], "Verbal bulk discount");
+    await userEvent.click(screen.getByRole("button", { name: "Add all rows" }));
+
+    await waitFor(() => expect(itemPosts).toHaveLength(1));
+    expect(itemPosts).toEqual([
+      { product: 3, quantity: 20, unit_cost_paid: "10000", unit_cost_invoiced: "11500", price_discrepancy_note: "Verbal bulk discount" },
+    ]);
+  });
 });
