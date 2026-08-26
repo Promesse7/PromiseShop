@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Tag } from "@/components/ui/Tag";
 import type { EmployeeRole } from "@/lib/types";
 
@@ -39,30 +42,54 @@ export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
   return [...base, { href: "/employees", label: "Employees" }, { href: "/expenses", label: "Expenses" }];
 }
 
+function isActiveLink(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function navLinkClassName(active: boolean): string {
+  return active
+    ? "text-sm text-accent bg-accent/10 rounded-sm px-2 py-1 -my-1"
+    : "text-sm hover:text-accent";
+}
+
 interface NavProps {
   role: EmployeeRole;
   username: string;
 }
 
 export function Nav({ role, username }: NavProps) {
+  const pathname = usePathname();
   const links = getNavLinksForRole(role);
   const isAdmin = ADMIN_ROLES.includes(role);
   const roleLabel = role === "admin" ? "Admin" : role === "manager" ? "Manager" : role === "sales_staff" ? "Sales Staff" : "Technician";
+  const notificationsActive = isActiveLink(pathname, "/notifications");
 
   return (
-    <nav className="flex items-center gap-4 py-2.5 px-4 border-b border-divider">
+    <nav className="sticky top-0 z-10 flex items-center gap-4 py-2.5 px-4 bg-surface/70 backdrop-blur-md border-b border-divider">
       <span className="font-sans font-medium text-base mr-auto whitespace-nowrap">
         Promise Electronic Shop
       </span>
-      {links.map((link) => (
-        <Link key={link.href} href={link.href} className="text-sm hover:text-accent">
-          {link.label}
-        </Link>
-      ))}
+      {links.map((link) => {
+        const active = isActiveLink(pathname, link.href);
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            aria-current={active ? "page" : undefined}
+            className={navLinkClassName(active)}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
       {/* Notifications are strictly admin-only (recipients are always role="admin" employees,
           unlike the admin+manager ADMIN_LINKS above), so it's gated here rather than in that array. */}
       {role === "admin" && (
-        <Link href="/notifications" className="text-sm hover:text-accent">
+        <Link
+          href="/notifications"
+          aria-current={notificationsActive ? "page" : undefined}
+          className={navLinkClassName(notificationsActive)}
+        >
           Notifications
         </Link>
       )}

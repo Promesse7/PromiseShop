@@ -1,6 +1,17 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
+import { usePathname } from "next/navigation";
 import { Nav, getNavLinksForRole } from "./Nav";
+
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(),
+}));
+
+const mockedUsePathname = vi.mocked(usePathname);
+
+beforeEach(() => {
+  mockedUsePathname.mockReturnValue("/");
+});
 
 describe("getNavLinksForRole", () => {
   it("returns the staff link set for sales_staff", () => {
@@ -94,5 +105,18 @@ describe("Nav", () => {
   it("does not render the Expenses link for manager", () => {
     render(<Nav role="manager" username="d.ishimwe" />);
     expect(screen.queryByRole("link", { name: "Expenses" })).not.toBeInTheDocument();
+  });
+
+  it("marks the current route's link as active via aria-current, and leaves others unmarked", () => {
+    mockedUsePathname.mockReturnValue("/products");
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByRole("link", { name: "Products" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("marks a link as active for a nested route under it", () => {
+    mockedUsePathname.mockReturnValue("/products/42");
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByRole("link", { name: "Products" })).toHaveAttribute("aria-current", "page");
   });
 });
