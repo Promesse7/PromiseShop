@@ -31,6 +31,7 @@ export interface Product {
   warranty_months: number | null;
   reorder_level: number;
   unit: string;
+  tax_category: "A" | "B";
   is_active: boolean;
   created_at: string;
 }
@@ -75,6 +76,8 @@ export interface SaleItem {
   quantity: number;
   unit_price: string;
   subtotal: string;
+  tax_category: "A" | "B";
+  tax_amount: string;
 }
 
 export interface Sale {
@@ -133,6 +136,15 @@ export interface Supplier {
 export interface Customer {
   customer_id: number;
   name: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
+
+export interface ShopProfile {
+  business_name: string;
+  tin: string | null;
+  po_box: string | null;
   phone: string | null;
   email: string | null;
   address: string | null;
