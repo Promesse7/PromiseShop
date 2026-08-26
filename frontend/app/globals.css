@@ -34,22 +34,22 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
   body * {
     visibility: hidden;
   }
-  .receipt-print,
-  .receipt-print * {
+  body:has(.print-target) .print-target,
+  body:has(.print-target) .print-target * {
     visibility: visible;
   }
-  .receipt-print {
+  .print-target {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
-  }
-  body:has(.info-sheet-print) .info-sheet-print,
-  body:has(.info-sheet-print) .info-sheet-print * {
-    visibility: visible;
   }
 }
 

@@ -12,7 +12,7 @@ export function InfoSheetCard({ usageInstructions, onEdit }: InfoSheetCardProps)
   return (
     <Card elevation="sm">
       <CardKicker>How it works — staff & customer info sheet</CardKicker>
-      <p className="info-sheet-print text-sm opacity-85 m-0">
+      <p className="print-target text-sm opacity-85 m-0">
         {usageInstructions ?? "No usage information yet."}
       </p>
       <div className="flex gap-2 print:hidden">

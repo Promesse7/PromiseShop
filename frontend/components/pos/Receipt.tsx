@@ -34,7 +34,7 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
         <span className="w-2 h-2 rounded-full bg-accent" />
         Sale #S-{sale.sale_id} completed — stock updated, admin notified by email.
       </div>
-      <div className="receipt-print bg-surface rounded-md p-6 shadow-sm">
+      <div className="print-target bg-surface rounded-md p-6 shadow-sm">
         <div className="text-center mb-4">
           <div className="font-sans font-medium text-lg">Promise Electronic Shop</div>
           <div className="text-xs text-text/50">[Shop Address] · [Phone] · [Email]</div>
