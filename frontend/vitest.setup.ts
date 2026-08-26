@@ -16,9 +16,9 @@ const mockGetContext: (
       measureText: (text: string) => ({ width: text.length * 7 }),
       fillRect: () => {},
       clearRect: () => {},
-      getImageData: () => ({ data: [] } as ImageData),
+      getImageData: () => ({ data: [] } as unknown as ImageData),
       putImageData: () => {},
-      createImageData: () => [] as ImageData,
+      createImageData: () => [] as unknown as ImageData,
       setTransform: () => {},
       drawImage: () => {},
       save: () => {},
@@ -37,7 +37,7 @@ const mockGetContext: (
     } as unknown as CanvasRenderingContext2D;
   }
   // Delegate to original implementation for other context types
-  return originalGetContext.call(this, contextType);
+  return originalGetContext.call(this, contextType) as unknown as CanvasRenderingContext2D | null;
 };
 
 Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
