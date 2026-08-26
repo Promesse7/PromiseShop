@@ -5,6 +5,7 @@ import { useNotifications } from "@/lib/notifications/useNotifications";
 import { NotificationsTable } from "@/components/notifications/NotificationsTable";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Tag } from "@/components/ui/Tag";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { EmployeeRole } from "@/lib/types";
 
 interface NotificationsPageClientProps {
@@ -55,13 +56,12 @@ export default function NotificationsPageClient({ role }: NotificationsPageClien
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Notification log</h4>
+      <PageHeader title="Notification log">
         <Tag>Admin only</Tag>
         <div className="ml-auto">
           <SegmentedToggle name="notification-filter" options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
         </div>
-      </div>
+      </PageHeader>
       <NotificationsTable notifications={filtered} />
     </div>
   );
