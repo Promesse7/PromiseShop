@@ -52,3 +52,12 @@
     visibility: visible;
   }
 }
+
+@layer utilities {
+  .glass {
+    @apply bg-surface/70 backdrop-blur-md border border-divider;
+  }
+  .glass-hover {
+    @apply hover:border-accent/40 hover:shadow-glow-sm transition-all duration-200;
+  }
+}

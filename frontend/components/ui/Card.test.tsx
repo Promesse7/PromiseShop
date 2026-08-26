@@ -29,4 +29,16 @@ describe("Card", () => {
     expect(container.firstChild).not.toHaveClass("shadow-md");
     expect(container.firstChild).not.toHaveClass("shadow-sm");
   });
+
+  it("applies glass variant classes when variant is glass", () => {
+    const { container } = render(<Card variant="glass">content</Card>);
+    expect(container.firstChild).toHaveClass("glass");
+    expect(container.firstChild).toHaveClass("glass-hover");
+  });
+
+  it("defaults to the solid variant (bg-surface, no glass class)", () => {
+    const { container } = render(<Card>content</Card>);
+    expect(container.firstChild).toHaveClass("bg-surface");
+    expect(container.firstChild).not.toHaveClass("glass");
+  });
 });

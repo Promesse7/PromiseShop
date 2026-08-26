@@ -65,6 +65,8 @@ const config: Config = {
         sm: "0 0 0 1px #3f424d",
         md: "0 0 0 1px #595d6c, 0 6px 18px rgba(0,0,0,0.55)",
         lg: "0 0 0 1px #9397ab, 0 16px 40px rgba(0,0,0,0.65)",
+        "glow-sm": "0 0 20px -4px rgba(145, 132, 217, 0.35)",
+        "glow-md": "0 0 32px -6px rgba(145, 132, 217, 0.45)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

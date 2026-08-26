@@ -1,7 +1,10 @@
 import type { HTMLAttributes } from "react";
 
+type CardVariant = "solid" | "glass";
+
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
   elevation?: "sm" | "md" | "lg";
+  variant?: CardVariant;
 }
 
 const elevationClasses = {
@@ -10,11 +13,17 @@ const elevationClasses = {
   lg: "shadow-lg",
 };
 
-export function Card({ elevation, className = "", children, ...props }: CardProps) {
+const variantClasses: Record<CardVariant, string> = {
+  solid: "bg-surface",
+  glass: "glass glass-hover",
+};
+
+export function Card({ elevation, variant = "solid", className = "", children, ...props }: CardProps) {
   return (
     <div
       className={[
-        "flex flex-col gap-1.5 p-3 rounded-md bg-surface",
+        "flex flex-col gap-1.5 p-3 rounded-md",
+        variantClasses[variant],
         elevation ? elevationClasses[elevation] : "",
         className,
       ]
