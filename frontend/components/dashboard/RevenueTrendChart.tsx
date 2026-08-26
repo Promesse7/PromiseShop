@@ -16,7 +16,7 @@ export function RevenueTrendChart({ points }: RevenueTrendChartProps) {
   const slotWidth = points.length > 0 ? WIDTH / points.length : WIDTH;
 
   return (
-    <Card elevation="sm">
+    <Card variant="glass">
       <CardKicker>Revenue vs purchase cost — {points.length} months</CardKicker>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}

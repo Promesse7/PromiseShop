@@ -71,7 +71,7 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
           + New expense
         </Button>
       </PageHeader>
-      <Card elevation="sm" className="mb-4 max-w-xs">
+      <Card variant="glass" className="mb-4 max-w-xs">
         <CardKicker>Total {filter === "all" ? "(all)" : "(filtered)"}</CardKicker>
         <span className="font-sans font-medium text-2xl">{formatRwf(totalFiltered)}</span>
       </Card>

@@ -119,4 +119,11 @@ describe("Nav", () => {
     render(<Nav role="admin" username="a.uwase" />);
     expect(screen.getByRole("link", { name: "Products" })).toHaveAttribute("aria-current", "page");
   });
+
+  it("marks the Notifications link as active via aria-current when it's the current route", () => {
+    mockedUsePathname.mockReturnValue("/notifications");
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
 });

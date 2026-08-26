@@ -65,7 +65,7 @@ export function Nav({ role, username }: NavProps) {
   const notificationsActive = isActiveLink(pathname, "/notifications");
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center gap-4 py-2.5 px-4 bg-surface/70 backdrop-blur-md border-b border-divider">
+    <nav className="sticky top-0 z-10 flex items-center gap-4 py-2.5 px-4 glass-bar">
       <span className="font-sans font-medium text-base mr-auto whitespace-nowrap">
         Promise Electronic Shop
       </span>

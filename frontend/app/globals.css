@@ -55,9 +55,12 @@
 
 @layer utilities {
   .glass {
-    @apply bg-surface/70 backdrop-blur-md border border-divider;
+    @apply bg-surface/85 backdrop-blur-md border border-divider;
   }
   .glass-hover {
-    @apply hover:border-accent/40 hover:shadow-glow-sm transition-all duration-200;
+    @apply hover:border-accent/40 hover:shadow-glow-sm motion-safe:transition-all duration-200;
+  }
+  .glass-bar {
+    @apply bg-surface/85 backdrop-blur-md border-b border-divider;
   }
 }

@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
+
 interface PageHeaderProps {
   title: string;
   subtitle?: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }
 
 export function PageHeader({ title, subtitle, children }: PageHeaderProps) {
