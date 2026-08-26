@@ -14,7 +14,8 @@ const categories: Category[] = [
 const existingProduct: Product = {
   product_id: 1, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6", brand: "JBL",
   model_number: "JBLFLIP6BLK", description: null, specifications: null, usage_instructions: null,
-  warranty_months: 12, reorder_level: 4, unit: "pcs", is_active: true, created_at: "2026-01-01T00:00:00Z",
+  warranty_months: 12, reorder_level: 4, unit: "pcs", tax_category: "B", is_active: true,
+  created_at: "2026-01-01T00:00:00Z",
 };
 
 function renderWithToast(ui: React.ReactElement) {
@@ -103,7 +104,7 @@ describe("ProductFormDialog", () => {
     // (Task 3, already reviewed) does not guarantee a particular key order.
     expect(JSON.parse(options.body as string)).toEqual({
       name: "New Widget", category: 20, brand: null, model_number: null,
-      description: null, specifications: null, usage_instructions: null,
+      description: null, specifications: null, usage_instructions: null, tax_category: "B",
     });
   });
 

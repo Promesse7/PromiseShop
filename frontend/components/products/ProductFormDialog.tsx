@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
+import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { useToast } from "@/components/layout/ToastProvider";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
 import {
@@ -150,6 +151,18 @@ function ProductFormFields({
         <Field label="Warranty (months)" name="warranty_months" type="number" value={values.warranty_months} onChange={(v) => setField("warranty_months", v)} />
         <Field label="Reorder level" name="reorder_level" type="number" value={values.reorder_level} onChange={(v) => setField("reorder_level", v)} />
         <Field label="Unit" name="unit" value={values.unit} onChange={(v) => setField("unit", v)} />
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs text-text/70">Tax category</label>
+          <SegmentedToggle
+            name="tax_category"
+            options={[
+              { value: "B", label: "Standard (18%)" },
+              { value: "A", label: "Exempt (0%)" },
+            ]}
+            value={values.tax_category}
+            onChange={(v) => setField("tax_category", v as "A" | "B")}
+          />
+        </div>
         {showStorageLocation && (
           <Field
             label="Storage location"

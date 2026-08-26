@@ -11,7 +11,7 @@ const product: Product = {
   product_id: 1, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6", brand: "JBL",
   model_number: "JBLFLIP6BLK", description: null, specifications: "30W RMS",
   usage_instructions: "Hold power 2s.", warranty_months: 12, reorder_level: 4, unit: "pcs",
-  is_active: true, created_at: "2026-01-01T00:00:00Z",
+  tax_category: "B", is_active: true, created_at: "2026-01-01T00:00:00Z",
 };
 
 describe("emptyProductFormValues", () => {
@@ -19,7 +19,7 @@ describe("emptyProductFormValues", () => {
     expect(emptyProductFormValues()).toEqual({
       name: "", category: "", brand: "", model_number: "", description: "",
       specifications: "", usage_instructions: "", warranty_months: "", reorder_level: "",
-      unit: "", storage_location: "",
+      unit: "", tax_category: "B", storage_location: "",
     });
   });
 });
@@ -29,7 +29,8 @@ describe("productFormValuesFromProduct", () => {
     expect(productFormValuesFromProduct(product, "Shelf B2")).toEqual({
       name: "JBL Flip 6", category: 20, brand: "JBL", model_number: "JBLFLIP6BLK",
       description: "", specifications: "30W RMS", usage_instructions: "Hold power 2s.",
-      warranty_months: "12", reorder_level: "4", unit: "pcs", storage_location: "Shelf B2",
+      warranty_months: "12", reorder_level: "4", unit: "pcs", tax_category: "B",
+      storage_location: "Shelf B2",
     });
   });
 
@@ -71,6 +72,12 @@ describe("buildProductPayload", () => {
     expect(payload.warranty_months).toBe(6);
     expect(payload.reorder_level).toBe(10);
     expect(payload.unit).toBe("box");
+  });
+
+  it("always includes tax_category in the payload", () => {
+    const values = { ...emptyProductFormValues(), name: "New Item", category: 20 as number | "", tax_category: "A" as const };
+    const payload = buildProductPayload(values, "create");
+    expect(payload.tax_category).toBe("A");
   });
 });
 

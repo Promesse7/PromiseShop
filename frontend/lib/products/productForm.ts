@@ -11,6 +11,7 @@ export interface ProductFormValues {
   warranty_months: string;
   reorder_level: string;
   unit: string;
+  tax_category: "A" | "B";
   storage_location: string;
 }
 
@@ -18,7 +19,7 @@ export function emptyProductFormValues(): ProductFormValues {
   return {
     name: "", category: "", brand: "", model_number: "", description: "",
     specifications: "", usage_instructions: "", warranty_months: "", reorder_level: "",
-    unit: "", storage_location: "",
+    unit: "", tax_category: "B", storage_location: "",
   };
 }
 
@@ -37,6 +38,7 @@ export function productFormValuesFromProduct(
     warranty_months: product.warranty_months != null ? String(product.warranty_months) : "",
     reorder_level: String(product.reorder_level),
     unit: product.unit,
+    tax_category: product.tax_category,
     storage_location: storageLocation ?? "",
   };
 }
@@ -52,6 +54,7 @@ export interface ProductPayload {
   warranty_months?: number;
   reorder_level?: number;
   unit?: string;
+  tax_category?: "A" | "B";
 }
 
 export function buildProductPayload(
@@ -65,6 +68,7 @@ export function buildProductPayload(
     description: values.description.trim() || null,
     specifications: values.specifications.trim() || null,
     usage_instructions: values.usage_instructions.trim() || null,
+    tax_category: values.tax_category,
   };
   if (mode === "create" && values.category !== "") {
     payload.category = values.category;
