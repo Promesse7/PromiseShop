@@ -12,7 +12,7 @@ const baseDetail: ProductDetail = {
     product_id: 1, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6 Speaker",
     brand: "JBL", model_number: "JBLFLIP6BLK", description: null, specifications: "30 W RMS",
     usage_instructions: "Hold power 2s.", warranty_months: 12, reorder_level: 4, unit: "pcs",
-    is_active: true, created_at: "2026-01-01T00:00:00Z",
+    tax_category: "B", is_active: true, created_at: "2026-01-01T00:00:00Z",
   },
   category: { category_id: 20, name: "Audio", code: "AUD", description: null },
   currentPricing: { price_id: 2, product: 1, wholesale_price: "112000.00", retail_price: "145000.00", effective_date: "2026-07-01", is_current: true },
