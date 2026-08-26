@@ -5,6 +5,7 @@ import { usePurchases } from "@/lib/purchasing/usePurchases";
 import { PurchaseTable } from "@/components/purchasing/PurchaseTable";
 import { NewPurchaseDialog } from "@/components/purchasing/NewPurchaseDialog";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -35,12 +36,11 @@ export default function PurchasesPageClient({ role }: PurchasesPageClientProps) 
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Purchases</h4>
+      <PageHeader title="Purchases">
         <Button onClick={() => setCreateOpen(true)} className="ml-auto">
           + New purchase
         </Button>
-      </div>
+      </PageHeader>
       <PurchaseTable rows={purchases.rows} showTotals={isAdmin} />
       <NewPurchaseDialog open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>
