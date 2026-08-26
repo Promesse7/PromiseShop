@@ -7,6 +7,7 @@ import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
 import { AdminOnlyNotice } from "@/components/employees/AdminOnlyNotice";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Employee } from "@/lib/types";
 
 interface EmployeesPageClientProps {
@@ -38,13 +39,12 @@ export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProp
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Employees</h4>
+      <PageHeader title="Employees">
         <Tag variant="outline">Admin only</Tag>
         <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
           + New employee
         </Button>
-      </div>
+      </PageHeader>
       <EmployeeTable employees={employees.all} onEdit={(employee) => setDialog({ mode: "edit", employee })} />
       <p className="text-xs text-text/50 mt-3">
         Every purchase, sale and equipment status change is stamped with the employee who did it.
