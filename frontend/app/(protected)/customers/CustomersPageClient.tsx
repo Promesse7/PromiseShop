@@ -5,6 +5,7 @@ import { useCustomers } from "@/lib/customers/useCustomers";
 import { CustomerTable } from "@/components/customers/CustomerTable";
 import { CustomerFormDialog } from "@/components/customers/CustomerFormDialog";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPageClient() {
@@ -37,8 +38,7 @@ export default function CustomersPageClient() {
 
   return (
     <div>
-      <div className="flex gap-3 items-center mb-4 flex-wrap">
-        <h4 className="m-0">Customers</h4>
+      <PageHeader title="Customers">
         <input
           aria-label="Search customers"
           placeholder="Search name or phone…"
@@ -49,7 +49,7 @@ export default function CustomersPageClient() {
         <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
           + New customer
         </Button>
-      </div>
+      </PageHeader>
       <CustomerTable customers={filtered} onEdit={(customer) => setDialog({ mode: "edit", customer })} />
       <p className="text-xs text-text/50 mt-3">
         Walk-in sales need no customer record — the sale&apos;s customer is simply blank.
