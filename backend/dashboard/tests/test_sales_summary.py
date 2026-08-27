@@ -55,6 +55,7 @@ def make_completed_sale(employee, product, sale_date, amount, quantity=1):
     SaleItem.objects.create(
         sale=sale, product=product, quantity=quantity,
         unit_price=amount / quantity, subtotal=amount,
+        tax_category="B", tax_amount=Decimal("0.00"),
     )
     return sale
 
@@ -86,6 +87,7 @@ def test_sales_summary_excludes_non_completed_sales(admin, product):
     )
     SaleItem.objects.create(
         sale=sale, product=product, quantity=1, unit_price=Decimal("9000.00"), subtotal=Decimal("9000.00"),
+        tax_category="B", tax_amount=Decimal("0.00"),
     )
     client = auth_client(admin, "adminpass")
     response = client.get("/api/dashboard/sales-summary/?period=today")
