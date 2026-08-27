@@ -1,15 +1,21 @@
 {
-  "version": 2,
   "services": {
     "frontend-ui": {
-      "root": "frontend"
+      "root": "frontend/",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend-api",
+          "format": "url",
+          "env": "BACKEND_INTERNAL_URL"
+        }
+      ]
     },
     "backend-api": {
-      "root": "backend",
-      "dockerfile": "Dockerfile.vercel"
+      "root": "backend/",
+      "runtime": "container",
+      "entrypoint": "Dockerfile.vercel"
     }
   },
-  "routes": [
-    { "src": "/(.*)", "dest": "frontend-ui" }
-  ]
+  "rewrites": [{ "source": "/(.*)", "destination": { "service": "frontend-ui" } }]
 }

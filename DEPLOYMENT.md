@@ -1,21 +1,30 @@
 # Deploying to Vercel
 
-This repo is a monorepo with two Vercel Services defined in `vercel.json`:
+This repo is a single Vercel project using [Vercel Services](https://vercel.com/docs/services),
+with two services defined in `vercel.json`:
 
-- **frontend-ui** (`frontend/`) — Next.js app, deployed normally by Vercel's framework detection.
-- **backend-api** (`backend/`) — Django/DRF API, built from `backend/Dockerfile.vercel` and run as a container.
+- **frontend-ui** (`frontend/`) — Next.js app, the only service exposed to the
+  public internet (the top-level `rewrites` rule routes all traffic to it).
+- **backend-api** (`backend/`) — Django/DRF API, built as a container from
+  `backend/Dockerfile.vercel` (`runtime: "container"`, `entrypoint`). It has no
+  rewrite of its own, so it is **not** publicly reachable at all — only
+  `frontend-ui` can reach it, over an internal service binding.
 
 The frontend never calls the backend from the browser. All API calls go through
 Next.js server routes (`frontend/app/api/proxy/**`, `frontend/app/api/auth/**`),
-which forward requests server-to-server to `DJANGO_API_URL`. Because of that,
-`vercel.json` only routes public traffic to `frontend-ui`; the backend service
-is reached via its own Vercel-assigned URL, not the custom domain.
+which forward requests server-to-server. Those routes read the backend's base
+URL from `getDjangoApiUrl()` (`frontend/lib/backend-url.ts`), which prefers
+`DJANGO_API_URL` (local dev / `.env.local`) and otherwise falls back to
+`BACKEND_INTERNAL_URL` — the URL Vercel auto-injects into `frontend-ui` via the
+`bindings` entry in `vercel.json` (a bare origin, so `/api` is appended in
+code). You never set `BACKEND_INTERNAL_URL` yourself; Vercel generates and
+injects it per-deployment (including previews) once the binding is declared.
 
 ## What changed in this pass
 
 - `backend/Dockerfile.vercel` + `backend/entrypoint.sh` — production container:
-  runs `collectstatic`, runs `migrate`, then serves with `gunicorn` bound to
-  `$PORT` (Vercel injects this at runtime).
+  runs `collectstatic`, runs `migrate` over the direct/unpooled DB connection,
+  then serves with `gunicorn` bound to `$PORT` (Vercel injects this at runtime).
 - `backend/requirements.txt` — added `gunicorn` and `whitenoise`.
 - `backend/config/settings.py`:
   - `DATABASE_URL` support (via `django-environ`) for managed Postgres,
@@ -24,7 +33,11 @@ is reached via its own Vercel-assigned URL, not the custom domain.
   - `whitenoise` for serving static/admin assets from the container.
   - `DJANGO_CSRF_TRUSTED_ORIGINS`, `SECURE_PROXY_SSL_HEADER`, and
     `USE_X_FORWARDED_HOST` for running correctly behind Vercel's TLS-terminating proxy.
-- `vercel.json` — declares both services; all public traffic routes to `frontend-ui`.
+- `vercel.json` — declares both services as one Vercel Services project;
+  `backend-api` builds as a container and is bound (not publicly routed) to
+  `frontend-ui`, which is the sole public entry point.
+- `frontend/lib/backend-url.ts` — resolves the Django API base URL from either
+  `DJANGO_API_URL` or the injected `BACKEND_INTERNAL_URL` binding.
 - Removed a stray nested git repo at `frontend/.git` (a second, out-of-date
   clone of this project) so the repo root is the single source of truth.
 
@@ -55,28 +68,37 @@ is reached via its own Vercel-assigned URL, not the custom domain.
    - Redis: e.g. [Upstash](https://upstash.com) → gives a `rediss://...` URL.
 
 3. **Import the repo in Vercel** (Add New → Project). It should detect
-   `vercel.json` and create both services.
+   `vercel.json`'s `services` key and set the project's framework to
+   "Services," creating both `frontend-ui` and `backend-api`.
 
 ## Environment variables to set in Vercel
+
+Vercel Services share one project, but env vars are still set per-service in
+the dashboard.
 
 **backend-api:**
 | Var | Value |
 |---|---|
 | `DJANGO_SECRET_KEY` | a new random secret (do not reuse the dev one) |
 | `DJANGO_DEBUG` | `False` |
-| `DJANGO_ALLOWED_HOSTS` | the backend service's `*.vercel.app` domain |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<backend-service>.vercel.app` |
+| `DJANGO_ALLOWED_HOSTS` | the project's `*.vercel.app` domain (there's only one domain now — see note below) |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<project>.vercel.app` |
 | `DATABASE_URL` | pooled connection string, Neon `production` branch (see above) |
 | `DATABASE_URL_UNPOOLED` | direct connection string, Neon `production` branch — used only for `migrate` (see `entrypoint.sh`) |
 | `REDIS_URL` | from Upstash (`rediss://...`) |
 
 **frontend-ui:**
-| Var | Value |
-|---|---|
-| `DJANGO_API_URL` | `https://<backend-service>.vercel.app/api` (find the exact URL Vercel assigns to `backend-api` in the dashboard after first deploy) |
 
-After the first deploy, check the actual URL Vercel gave `backend-api` and
-update `DJANGO_API_URL` on `frontend-ui` to match, then redeploy the frontend.
+Nothing to set. `BACKEND_INTERNAL_URL` is injected automatically by the
+`bindings` entry in `vercel.json` — do not add it manually in the dashboard,
+Vercel generates and manages this value per-deployment.
+
+> **Note on `DJANGO_ALLOWED_HOSTS`:** internal binding calls route through the
+> same layer as public requests, so the Host header should match the
+> project's own domain — but this hasn't been verified against a real
+> deployment yet. If backend calls fail with Django's `DisallowedHost` error
+> after the first deploy, check the backend-api function logs for the actual
+> Host header used and add it to `DJANGO_ALLOWED_HOSTS`.
 
 ## Known limitations (carried over from Vercel's container model)
 

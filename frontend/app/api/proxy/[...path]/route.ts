@@ -5,6 +5,7 @@ import {
   REFRESH_TOKEN_COOKIE,
   cookieOptions,
 } from "@/lib/auth";
+import { getDjangoApiUrl } from "@/lib/backend-url";
 
 type RouteContext = { params: Promise<{ path: string[] }> };
 
@@ -18,7 +19,7 @@ async function forward(request: Request, context: RouteContext, method: string) 
   }
 
   const url = new URL(request.url);
-  const targetUrl = `${process.env.DJANGO_API_URL}/${path.join("/")}/${url.search}`;
+  const targetUrl = `${getDjangoApiUrl()}/${path.join("/")}/${url.search}`;
 
   const body =
     method === "GET" || method === "DELETE" ? undefined : await request.text();
@@ -83,7 +84,7 @@ async function tryRefresh(
 
   let refreshResponse: Response;
   try {
-    refreshResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/refresh/`, {
+    refreshResponse = await fetch(`${getDjangoApiUrl()}/auth/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh: refreshToken }),

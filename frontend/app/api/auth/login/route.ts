@@ -6,6 +6,7 @@ import {
   USERNAME_COOKIE,
   cookieOptions,
 } from "@/lib/auth";
+import { getDjangoApiUrl } from "@/lib/backend-url";
 import type { LoginResponse } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
 
   let djangoResponse: Response;
   try {
-    djangoResponse = await fetch(`${process.env.DJANGO_API_URL}/auth/login/`, {
+    djangoResponse = await fetch(`${getDjangoApiUrl()}/auth/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
