@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "services": {
+    "frontend-ui": {
+      "root": "frontend"
+    },
+    "backend-api": {
+      "root": "backend",
+      "dockerfile": "Dockerfile.vercel"
+    }
+  },
+  "routes": [
+    { "src": "/(.*)", "dest": "frontend-ui" }
+  ]
+}

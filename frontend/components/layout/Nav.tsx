@@ -84,7 +84,7 @@ export function Nav({ role, username }: NavProps) {
   const notificationsActive = isActiveLink(pathname, "/notifications");
 
   return (
-    <nav className="sticky top-0 z-10 glass-bar">
+    <nav className="sticky top-0 z-10 overflow-hidden glass-bar rounded-t-lg border-b border-gray-200">
       <div className="max-w-[1400px] mx-auto flex items-center gap-4 py-2.5 px-4 md:px-6">
         <span className="flex items-center gap-1.5 font-sans font-medium text-base mr-auto whitespace-nowrap">
           <Zap className="w-4 h-4 text-accent" aria-hidden />
