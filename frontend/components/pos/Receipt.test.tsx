@@ -83,6 +83,9 @@ describe("Receipt", () => {
     // in the line-item list and once in the tax summary.
     expect(screen.getAllByText("385,000").length).toBeGreaterThan(0);
     expect(screen.getAllByText("100,000").length).toBeGreaterThan(0);
+    // Total tax is the standard item's tax alone (58,728.81); the exempt item contributes 0.
+    expect(screen.getByText("58,728.81")).toBeInTheDocument();
+    expect(screen.getByText("RWF 485,000")).toBeInTheDocument();
   });
 
   it("shows the sample-receipt disclaimer, never a real legal-receipt claim", () => {
