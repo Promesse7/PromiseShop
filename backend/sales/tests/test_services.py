@@ -269,7 +269,9 @@ def test_complete_sale_computes_tax_for_standard_category(employee, admin, categ
     )
     item = SaleItem.objects.get(sale=sale)
     assert item.tax_category == "B"
-    assert item.tax_amount == Decimal("36.00")
+    # Retail prices are VAT-inclusive: 200.00 - 200.00/1.18, the VAT portion already
+    # embedded in the price, not an additional 18% charged on top.
+    assert item.tax_amount == Decimal("30.51")
 
 
 def test_complete_sale_computes_zero_tax_for_exempt_category(employee, admin, category):

@@ -35,7 +35,11 @@ export default function StockPageClient() {
   const selectedProductUnits = useEquipmentUnits(selectedProductId);
 
   useEffect(() => {
-    if (printQueue) window.print();
+    if (!printQueue) return;
+    window.print();
+    const handleAfterPrint = () => setPrintQueue(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
   }, [printQueue]);
 
   function handleSelectProduct(productId: number) {

@@ -63,7 +63,10 @@ def complete_sale(customer, employee, payment_method, items):
             quantity = entry["quantity"]
             unit_price = _resolve_retail_price(product)
             subtotal = unit_price * quantity
-            tax_amount = (subtotal * TAX_RATES[product.tax_category]).quantize(Decimal("0.01"))
+            # Retail prices are VAT-inclusive, so tax_amount is the portion of subtotal that is
+            # tax, not an additional charge on top of it.
+            rate = TAX_RATES[product.tax_category]
+            tax_amount = (subtotal - subtotal / (1 + rate)).quantize(Decimal("0.01"))
             resolved_items.append((product, quantity, unit_price, subtotal, tax_amount))
             total += subtotal
 

@@ -14,13 +14,19 @@ export function Barcode({ value, height = 40, fontSize = 12 }: BarcodeProps) {
 
   useEffect(() => {
     if (!ref.current) return;
-    JsBarcode(ref.current, value, {
-      format: "CODE128",
-      height,
-      fontSize,
-      margin: 4,
-      displayValue: true,
-    });
+    try {
+      JsBarcode(ref.current, value, {
+        format: "CODE128",
+        height,
+        fontSize,
+        margin: 4,
+        displayValue: true,
+      });
+    } catch {
+      // JsBarcode throws for characters outside CODE128's supported set (e.g. non-ASCII
+      // text pasted into a serial number) — render nothing rather than crashing the page.
+      ref.current.replaceChildren();
+    }
   }, [value, height, fontSize]);
 
   return <svg ref={ref} role="img" aria-label={`Barcode for ${value}`} />;

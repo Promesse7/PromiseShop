@@ -38,18 +38,12 @@
     size: A4;
     margin: 10mm;
   }
-  body * {
-    visibility: hidden;
-  }
-  body:has(.print-target) .print-target,
-  body:has(.print-target) .print-target * {
-    visibility: visible;
-  }
-  .print-target {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+  /* Remove everything except the print target, its ancestors (kept so the DOM tree stays
+     intact), and its descendants — from layout entirely, not just hidden, so the target
+     flows naturally at the top of the page and multi-page content paginates correctly.
+     (An earlier visibility+position:absolute approach clipped content past one page.) */
+  body *:not(.print-target):not(.print-target *):not(:has(.print-target)) {
+    display: none !important;
   }
 }
 

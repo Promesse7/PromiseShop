@@ -36,7 +36,11 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const [printQueue, setPrintQueue] = useState<CatalogProduct[] | null>(null);
 
   useEffect(() => {
-    if (printQueue) window.print();
+    if (!printQueue) return;
+    window.print();
+    const handleAfterPrint = () => setPrintQueue(null);
+    window.addEventListener("afterprint", handleAfterPrint);
+    return () => window.removeEventListener("afterprint", handleAfterPrint);
   }, [printQueue]);
 
   function toggleSelect(productId: number) {
