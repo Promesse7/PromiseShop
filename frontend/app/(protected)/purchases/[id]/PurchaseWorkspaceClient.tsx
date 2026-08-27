@@ -12,6 +12,7 @@ import { PurchaseSummaryCard } from "@/components/purchasing/PurchaseSummaryCard
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
 
@@ -34,12 +35,7 @@ export default function PurchaseWorkspaceClient({ purchaseId }: PurchaseWorkspac
 
   if (isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load this purchase.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load this purchase." />
     );
   }
 

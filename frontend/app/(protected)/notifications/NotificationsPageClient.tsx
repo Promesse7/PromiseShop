@@ -6,6 +6,7 @@ import { NotificationsTable } from "@/components/notifications/NotificationsTabl
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Tag } from "@/components/ui/Tag";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { EmployeeRole } from "@/lib/types";
 
 interface NotificationsPageClientProps {
@@ -41,12 +42,7 @@ export default function NotificationsPageClient({ role }: NotificationsPageClien
 
   if (notifications.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load notifications.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load notifications." />
     );
   }
 

@@ -8,6 +8,7 @@ import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/layout/ToastProvider";
 import { emptyExistingProductItemValues, buildAddItemPayload, validateAddItemForm } from "@/lib/purchasing/purchaseItemForm";
 import type { Product } from "@/lib/types";
@@ -80,7 +81,7 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
   }
 
   if (isError) {
-    return <p className="text-sm text-red-400">Couldn&apos;t load this purchase.</p>;
+    return <ErrorState message="Couldn't load this purchase." />;
   }
 
   if (isLoading || !purchase) {

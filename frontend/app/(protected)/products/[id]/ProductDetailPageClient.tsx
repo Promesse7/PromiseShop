@@ -12,6 +12,7 @@ import { SpecificationsCard } from "@/components/products/SpecificationsCard";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { SetPriceDialog } from "@/components/products/SetPriceDialog";
 import { Tag } from "@/components/ui/Tag";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import type { EmployeeRole } from "@/lib/types";
 
@@ -42,12 +43,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
 
   if (detail.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load this product.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load this product." />
     );
   }
 

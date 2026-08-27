@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useCustomers } from "@/lib/customers/useCustomers";
-import { CustomerTable } from "@/components/customers/CustomerTable";
+import { CustomerCardGrid } from "@/components/customers/CustomerCardGrid";
 import { CustomerFormDialog } from "@/components/customers/CustomerFormDialog";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import type { Customer } from "@/lib/types";
 
 export default function CustomersPageClient() {
@@ -23,17 +25,12 @@ export default function CustomersPageClient() {
 
   if (customers.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load customers.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load customers." />
     );
   }
 
   if (customers.isLoading) {
-    return <p className="text-sm text-text/50">Loading customers…</p>;
+    return <CardGridSkeleton label="Loading customers…" />;
   }
 
   return (
@@ -50,7 +47,7 @@ export default function CustomersPageClient() {
           + New customer
         </Button>
       </PageHeader>
-      <CustomerTable customers={filtered} onEdit={(customer) => setDialog({ mode: "edit", customer })} />
+      <CustomerCardGrid customers={filtered} onEdit={(customer) => setDialog({ mode: "edit", customer })} />
       <p className="text-xs text-text/50 mt-3">
         Walk-in sales need no customer record — the sale&apos;s customer is simply blank.
       </p>

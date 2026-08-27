@@ -8,6 +8,7 @@ import { AdminOnlyNotice } from "@/components/employees/AdminOnlyNotice";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { Employee } from "@/lib/types";
 
 interface EmployeesPageClientProps {
@@ -24,12 +25,7 @@ export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProp
 
   if (employees.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load employees.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load employees." />
     );
   }
 

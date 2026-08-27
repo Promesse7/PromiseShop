@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { StockOverviewTable } from "./StockOverviewTable";
+import { StockOverviewCardGrid } from "./StockOverviewCardGrid";
 import type { StockOverviewRow } from "@/lib/stock/useStockOverview";
 
 const rows: StockOverviewRow[] = [
@@ -10,9 +10,9 @@ const rows: StockOverviewRow[] = [
   { product_id: 3, name: "HP 65W Laptop Charger", quantity_in_stock: 0, quantity_in_use: 0, quantity_damaged: 0, storage_location: "Drawer C4", flag: "out_of_stock", unit_count: 0 },
 ];
 
-describe("StockOverviewTable", () => {
-  it("renders each row with its flag tag", () => {
-    render(<StockOverviewTable rows={rows} onSelectProduct={vi.fn()} />);
+describe("StockOverviewCardGrid", () => {
+  it("renders each row's card with its flag tag", () => {
+    render(<StockOverviewCardGrid rows={rows} onSelectProduct={vi.fn()} />);
 
     expect(screen.getByText("Samsung 43\" Crystal UHD TV")).toBeInTheDocument();
     expect(screen.getByText("Low stock")).toBeInTheDocument();
@@ -20,18 +20,23 @@ describe("StockOverviewTable", () => {
   });
 
   it("shows 'aggregate only' for products with no serialized units", () => {
-    render(<StockOverviewTable rows={rows} onSelectProduct={vi.fn()} />);
+    render(<StockOverviewCardGrid rows={rows} onSelectProduct={vi.fn()} />);
     const aggregateOnlyLabels = screen.getAllByText("aggregate only");
     expect(aggregateOnlyLabels).toHaveLength(2);
   });
 
-  it("shows a clickable unit-count link for products with serialized units, calling onSelectProduct", async () => {
+  it("shows a clickable unit-count button for products with serialized units, calling onSelectProduct", async () => {
     const onSelectProduct = vi.fn();
-    render(<StockOverviewTable rows={rows} onSelectProduct={onSelectProduct} />);
+    render(<StockOverviewCardGrid rows={rows} onSelectProduct={onSelectProduct} />);
 
     const link = screen.getByRole("button", { name: "4 units" });
     await userEvent.click(link);
 
     expect(onSelectProduct).toHaveBeenCalledWith(2);
+  });
+
+  it("shows an empty state when there is no stock recorded", () => {
+    render(<StockOverviewCardGrid rows={[]} onSelectProduct={vi.fn()} />);
+    expect(screen.getByText("No stock recorded yet")).toBeInTheDocument();
   });
 });

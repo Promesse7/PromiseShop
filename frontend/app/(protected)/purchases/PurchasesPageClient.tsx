@@ -6,6 +6,7 @@ import { PurchaseTable } from "@/components/purchasing/PurchaseTable";
 import { NewPurchaseDialog } from "@/components/purchasing/NewPurchaseDialog";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -21,12 +22,7 @@ export default function PurchasesPageClient({ role }: PurchasesPageClientProps) 
 
   if (purchases.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load purchases.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load purchases." />
     );
   }
 

@@ -11,6 +11,7 @@ import { Tag } from "@/components/ui/Tag";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
 import type { Expense, ExpenseCategory } from "@/lib/types";
 
 interface ExpensesPageClientProps {
@@ -44,12 +45,7 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
 
   if (expenses.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load expenses.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load expenses." />
     );
   }
 

@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
-import { SupplierTable } from "@/components/suppliers/SupplierTable";
+import { SupplierCardGrid } from "@/components/suppliers/SupplierCardGrid";
 import { SupplierFormDialog } from "@/components/suppliers/SupplierFormDialog";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import type { Supplier } from "@/lib/types";
 
 export default function SuppliersPageClient() {
@@ -27,17 +29,12 @@ export default function SuppliersPageClient() {
 
   if (suppliers.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load suppliers.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load suppliers." />
     );
   }
 
   if (suppliers.isLoading) {
-    return <p className="text-sm text-text/50">Loading suppliers…</p>;
+    return <CardGridSkeleton label="Loading suppliers…" />;
   }
 
   return (
@@ -54,7 +51,7 @@ export default function SuppliersPageClient() {
           + New supplier
         </Button>
       </PageHeader>
-      <SupplierTable suppliers={filtered} onEdit={(supplier) => setDialog({ mode: "edit", supplier })} />
+      <SupplierCardGrid suppliers={filtered} onEdit={(supplier) => setDialog({ mode: "edit", supplier })} />
       <SupplierFormDialog
         open={dialog !== null}
         mode={dialog?.mode ?? "create"}

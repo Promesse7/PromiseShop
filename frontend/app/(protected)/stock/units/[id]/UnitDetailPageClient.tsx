@@ -7,6 +7,7 @@ import { StatusHistoryTimeline } from "@/components/stock/StatusHistoryTimeline"
 import { ChangeStatusDialog } from "@/components/stock/ChangeStatusDialog";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 interface UnitDetailPageClientProps {
   unitId: number;
@@ -18,12 +19,7 @@ export default function UnitDetailPageClient({ unitId }: UnitDetailPageClientPro
 
   if (isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load this unit.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load this unit." />
     );
   }
 
