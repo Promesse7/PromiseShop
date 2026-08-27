@@ -64,3 +64,34 @@
     @apply bg-surface/85 backdrop-blur-md border-b border-divider;
   }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .chart-bar {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: chart-bar-grow 0.5s ease-out backwards;
+  }
+
+  @keyframes chart-bar-grow {
+    from {
+      transform: scaleY(0);
+    }
+    to {
+      transform: scaleY(1);
+    }
+  }
+
+  .pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+}

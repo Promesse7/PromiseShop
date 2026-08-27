@@ -13,9 +13,13 @@ beforeEach(() => {
   mockedUsePathname.mockReturnValue("/");
 });
 
+function withoutIcons(links: ReturnType<typeof getNavLinksForRole>) {
+  return links.map(({ href, label }) => ({ href, label }));
+}
+
 describe("getNavLinksForRole", () => {
   it("returns the staff link set for sales_staff", () => {
-    expect(getNavLinksForRole("sales_staff")).toEqual([
+    expect(withoutIcons(getNavLinksForRole("sales_staff"))).toEqual([
       { href: "/checkout", label: "Checkout" },
       { href: "/products", label: "Products" },
       { href: "/purchases", label: "Purchases" },
@@ -28,8 +32,14 @@ describe("getNavLinksForRole", () => {
     expect(getNavLinksForRole("technician")).toEqual(getNavLinksForRole("sales_staff"));
   });
 
+  it("gives every link an icon", () => {
+    for (const link of getNavLinksForRole("admin")) {
+      expect(link.icon).toBeDefined();
+    }
+  });
+
   it("returns the admin link set, with Employees and Expenses appended, for admin", () => {
-    expect(getNavLinksForRole("admin")).toEqual([
+    expect(withoutIcons(getNavLinksForRole("admin"))).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
       { href: "/checkout", label: "Sales" },
@@ -44,7 +54,7 @@ describe("getNavLinksForRole", () => {
 
   it("returns the admin link set WITHOUT Employees or Expenses for manager — both backends are admin-strict, unlike the rest of this list", () => {
     const managerLinks = getNavLinksForRole("manager");
-    expect(managerLinks).toEqual([
+    expect(withoutIcons(managerLinks)).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
       { href: "/checkout", label: "Sales" },

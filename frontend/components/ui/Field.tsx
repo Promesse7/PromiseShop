@@ -37,7 +37,7 @@ export function Field({
         className={[
           "w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface",
           "border rounded-md",
-          "hover:border-text/45 focus-visible:border-accent focus-visible:outline-none",
+          "hover:border-text/45 focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20",
           error ? "border-red-500" : "border-divider",
         ].join(" ")}
       />

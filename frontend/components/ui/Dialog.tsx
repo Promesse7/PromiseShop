@@ -13,7 +13,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
   return (
     <div
       data-testid="dialog-backdrop"
-      className="fixed inset-0 bg-bg/70 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-neutral-900/50 backdrop-blur-sm flex items-center justify-center z-50"
       onClick={onClose}
     >
       <div

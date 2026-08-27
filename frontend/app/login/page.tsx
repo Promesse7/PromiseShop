@@ -42,8 +42,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="w-[900px] grid grid-cols-[1fr_380px] min-h-[520px] rounded-lg overflow-hidden">
-        <div className="bg-gradient-to-br from-section to-neutral-900 p-8 flex flex-col justify-between">
+      <div className="w-[900px] grid grid-cols-[1fr_380px] min-h-[520px] rounded-lg overflow-hidden shadow-lg">
+        <div className="bg-gradient-to-br from-accent-900 via-accent-700 to-accent-600 text-white p-8 flex flex-col justify-between">
           <span className="font-sans font-medium text-lg">Promise Electronic Shop</span>
           <div>
             <h3 className="max-w-[320px]">Inventory & Sales System</h3>
