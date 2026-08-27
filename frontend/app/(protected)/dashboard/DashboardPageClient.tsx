@@ -10,6 +10,8 @@ import { AdminOnlyNotice } from "@/components/dashboard/AdminOnlyNotice";
 import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import type { EmployeeRole } from "@/lib/types";
 
 interface DashboardPageClientProps {
@@ -25,22 +27,21 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
 
   if (data.isError) {
     return (
-      <div className="text-sm text-red-400">
-        Couldn&apos;t load the dashboard.{" "}
-        <button type="button" className="underline" onClick={() => window.location.reload()}>
-          Try again
-        </button>
-      </div>
+      <ErrorState message="Couldn't load the dashboard." />
     );
   }
 
   if (data.isLoading) {
-    return <p className="text-sm text-text/50">Loading dashboard…</p>;
+    return <DashboardSkeleton />;
   }
 
   return (
     <div>
       <PageHeader title="Dashboard" subtitle="Monthly summary">
+        <span className="flex items-center gap-1.5 text-xs text-emerald-600">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" aria-hidden />
+          Live
+        </span>
         <div className="ml-auto">
           <ExportCsvButton data={data} />
         </div>

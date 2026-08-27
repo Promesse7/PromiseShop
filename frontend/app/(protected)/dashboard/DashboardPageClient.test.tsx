@@ -34,7 +34,7 @@ describe("DashboardPageClient", () => {
   it("shows a loading state", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ isLoading: true }));
     render(<DashboardPageClient role="admin" />);
-    expect(screen.getByText("Loading dashboard…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading dashboard…" })).toBeInTheDocument();
   });
 
   it("shows the admin-only notice when forbidden", () => {
