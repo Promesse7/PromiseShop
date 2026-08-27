@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -96,5 +96,19 @@ describe("ProductsPageClient", () => {
     await userEvent.click(screen.getAllByRole("button", { name: "Print label" })[0]);
     expect(printSpy).toHaveBeenCalled();
     printSpy.mockRestore();
+  });
+
+  it("unmounts the label sheet once the print dialog closes", async () => {
+    vi.spyOn(window, "print").mockImplementation(() => {});
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Print label" })[0]);
+    expect(screen.getByRole("img", { name: "Barcode for PES-TV-00082" })).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new Event("afterprint"));
+    });
+
+    expect(screen.queryByRole("img", { name: "Barcode for PES-TV-00082" })).not.toBeInTheDocument();
+    vi.restoreAllMocks();
   });
 });

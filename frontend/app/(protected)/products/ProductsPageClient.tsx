@@ -37,9 +37,11 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
 
   useEffect(() => {
     if (!printQueue) return;
-    window.print();
+    // window.print() blocks until the print dialog closes, firing "afterprint" before
+    // returning — the listener must be registered before calling it, not after.
     const handleAfterPrint = () => setPrintQueue(null);
     window.addEventListener("afterprint", handleAfterPrint);
+    window.print();
     return () => window.removeEventListener("afterprint", handleAfterPrint);
   }, [printQueue]);
 
