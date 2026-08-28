@@ -30,7 +30,7 @@ export function LowStockTable({ rows }: LowStockTableProps) {
           },
           {
             key: "reorder",
-            header: "",
+            header: "Action",
             render: (r) => (
               <Link href={buildReorderUrl(r.product_id, r.name)} className="text-xs text-accent">
                 Reorder

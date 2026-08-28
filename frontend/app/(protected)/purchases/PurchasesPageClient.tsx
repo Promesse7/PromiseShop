@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePurchases } from "@/lib/purchasing/usePurchases";
 import { PurchaseTable } from "@/components/purchasing/PurchaseTable";
 import { NewPurchaseDialog } from "@/components/purchasing/NewPurchaseDialog";
@@ -17,6 +17,7 @@ interface PurchasesPageClientProps {
 }
 
 export default function PurchasesPageClient({ role }: PurchasesPageClientProps) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const purchases = usePurchases();
   const isAdmin = ADMIN_ROLES.includes(role);
@@ -41,7 +42,14 @@ export default function PurchasesPageClient({ role }: PurchasesPageClientProps) 
         </Button>
       </PageHeader>
       <PurchaseTable rows={purchases.rows} showTotals={isAdmin} />
-      <NewPurchaseDialog open={createOpen} onClose={() => setCreateOpen(false)} reorderProductName={reorderProductName} />
+      <NewPurchaseDialog
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          router.replace("/purchases");
+        }}
+        reorderProductName={reorderProductName}
+      />
     </div>
   );
 }

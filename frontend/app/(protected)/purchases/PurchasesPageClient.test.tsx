@@ -7,10 +7,12 @@ import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as usePurchasesModule from "@/lib/purchasing/usePurchases";
 import type { Purchases } from "@/lib/purchasing/usePurchases";
 
+const pushMock = vi.fn();
+const replaceMock = vi.fn();
 let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams,
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock }),
 }));
 
 const rows: Purchases["rows"] = [
@@ -33,6 +35,8 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("PurchasesPageClient", () => {
   beforeEach(() => {
     mockSearchParams = new URLSearchParams();
+    pushMock.mockClear();
+    replaceMock.mockClear();
     vi.spyOn(usePurchasesModule, "usePurchases").mockReturnValue({
       rows, isLoading: false, isError: false,
     } satisfies Purchases);
@@ -77,7 +81,17 @@ describe("PurchasesPageClient", () => {
     await screen.findByRole("option", { name: "Kigali Electronics Ltd" });
     await userEvent.selectOptions(screen.getByLabelText("Supplier"), "1");
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/proxy/purchases/", expect.objectContaining({ method: "POST" })));
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/purchases/9?prefill=Scales%2060kg")
+    );
+  });
+
+  it("clears the reorder query params from the URL when the dialog is closed", async () => {
+    mockSearchParams = new URLSearchParams("open=new&reorder_product=7&reorder_name=Scales%2060kg");
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    await screen.findByText("New purchase", { selector: "h4" });
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(replaceMock).toHaveBeenCalledWith("/purchases");
   });
 
   it("shows totals only for admin/manager", () => {

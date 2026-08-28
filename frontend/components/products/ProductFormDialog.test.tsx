@@ -63,7 +63,7 @@ describe("ProductFormDialog", () => {
         mode="create"
         categories={categories}
         existingProducts={[
-          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true } satisfies CatalogProduct,
         ]}
         onClose={vi.fn()}
         onSaved={vi.fn()}
@@ -82,7 +82,7 @@ describe("ProductFormDialog", () => {
         mode="create"
         categories={categories}
         existingProducts={[
-          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true } satisfies CatalogProduct,
         ]}
         onClose={vi.fn()}
         onSaved={vi.fn()}
@@ -101,7 +101,7 @@ describe("ProductFormDialog", () => {
         initialProduct={existingProduct}
         initialStorageLocation={null}
         existingProducts={[
-          { product_id: 99, name: "JBL Flip 6", brand: null, model_number: null, barcode: "PES-AUD-00099", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+          { product_id: 99, name: "JBL Flip 6", brand: null, model_number: null, barcode: "PES-AUD-00099", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true } satisfies CatalogProduct,
         ]}
         onClose={vi.fn()}
         onSaved={vi.fn()}
@@ -122,7 +122,7 @@ describe("ProductFormDialog", () => {
         mode="create"
         categories={categories}
         existingProducts={[
-          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true } satisfies CatalogProduct,
         ]}
         onClose={vi.fn()}
         onSaved={onSaved}

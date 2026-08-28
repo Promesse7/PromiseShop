@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPages } from "@/lib/api-client";
 import { normalizeName } from "@/lib/products/normalizeName";
@@ -39,30 +39,30 @@ export function AddProductSingleForm({ purchaseId, onAdded, initialSearch }: Add
   const [forceNew, setForceNew] = useState(false);
   const [values, setValues] = useState<AddItemFormValues>(emptyExistingProductItemValues(""));
   const [errors, setErrors] = useState<AddItemFormErrors>({});
-  const [autoSelectAttempted, setAutoSelectAttempted] = useState(false);
+  const autoSelectAttempted = useRef(false);
 
   const matches = useMemo(() => {
     // Collapse repeated whitespace on both sides so a stray double space (a very easy typo)
     // doesn't hide an existing product and cause an accidental duplicate to get created.
-    const q = search.trim().toLowerCase().replace(/\s+/g, " ");
+    const q = normalizeName(search);
     if (!q || !productsQuery.data) return [];
     return productsQuery.data
       .filter((p) => {
-        const name = p.name.toLowerCase().replace(/\s+/g, " ");
+        const name = normalizeName(p.name);
         return name.includes(q) || p.barcode.toLowerCase().includes(q);
       })
       .slice(0, 8);
   }, [productsQuery.data, search]);
 
   useEffect(() => {
-    if (autoSelectAttempted || !initialSearch || !productsQuery.data || selected || forceNew) return;
-    setAutoSelectAttempted(true);
+    if (autoSelectAttempted.current || !initialSearch || !productsQuery.data || selected || forceNew) return;
+    autoSelectAttempted.current = true;
     const target = normalizeName(initialSearch);
     const exactMatches = productsQuery.data.filter((p) => normalizeName(p.name) === target);
     if (exactMatches.length === 1) {
       selectProduct(exactMatches[0]);
     }
-  }, [autoSelectAttempted, initialSearch, productsQuery.data, selected, forceNew]);
+  }, [initialSearch, productsQuery.data, selected, forceNew]);
 
   const mode: AddItemMode | null = selected ? "existing" : forceNew ? "new" : null;
 
