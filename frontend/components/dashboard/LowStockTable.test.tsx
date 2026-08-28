@@ -34,4 +34,12 @@ describe("LowStockTable", () => {
     render(<LowStockTable rows={[]} />);
     expect(screen.getByText("Nothing low on stock")).toBeInTheDocument();
   });
+
+  it("links each row's Reorder action to a prefilled new purchase for that product", () => {
+    render(<LowStockTable rows={[makeRow()]} />);
+    expect(screen.getByRole("link", { name: "Reorder" })).toHaveAttribute(
+      "href",
+      "/purchases?open=new&reorder_product=1&reorder_name=JBL%20Flip%206%20Speaker"
+    );
+  });
 });

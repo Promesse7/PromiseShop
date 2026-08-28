@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Table } from "@/components/ui/Table";
 import { Tag } from "@/components/ui/Tag";
+import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
 import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 interface LowStockTableProps {
@@ -25,6 +27,15 @@ export function LowStockTable({ rows }: LowStockTableProps) {
               ) : (
                 <Tag variant="warning">Low stock</Tag>
               ),
+          },
+          {
+            key: "reorder",
+            header: "",
+            render: (r) => (
+              <Link href={buildReorderUrl(r.product_id, r.name)} className="text-xs text-accent">
+                Reorder
+              </Link>
+            ),
           },
         ]}
         rows={rows}
