@@ -1,8 +1,11 @@
 from django.db import transaction
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
+from accounts.permissions import IsAdminOrManager
 from catalog.models import Category, Product, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
 from catalog.services import generate_barcode
@@ -12,6 +15,18 @@ class CategoryViewSet(viewsets.ModelViewSet):
     queryset = Category.objects.all().order_by("category_id")
     serializer_class = CategorySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAdminOrManager()]
+        return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        if instance.products.exists():
+            raise ValidationError(
+                "This category still has products assigned to it and cannot be deleted."
+            )
+        instance.delete()
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -24,6 +39,17 @@ class ProductViewSet(viewsets.ModelViewSet):
             category = serializer.validated_data["category"]
             barcode = generate_barcode(category)
             serializer.save(barcode=barcode)
+
+    @action(detail=True, methods=["post"], url_path="set-active", permission_classes=[IsAdminOrManager])
+    def set_active(self, request, pk=None):
+        is_active = request.data.get("is_active")
+        if not isinstance(is_active, bool):
+            raise ValidationError({"is_active": "This field is required and must be a boolean."})
+
+        product = self.get_object()
+        product.is_active = is_active
+        product.save()
+        return Response(ProductSerializer(product).data)
 
 
 class ProductPricingViewSet(viewsets.ModelViewSet):

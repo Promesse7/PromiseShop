@@ -8,13 +8,13 @@ const products: CatalogProduct[] = [
     product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000",
     barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions",
     retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12,
-    reorder_level: 5, status: "ok",
+    reorder_level: 5, status: "ok", is_active: true,
   },
   {
     product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK",
     barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio",
     retail_price: 145000, wholesale_price: null, quantity_in_stock: 2,
-    reorder_level: 4, status: "low_stock",
+    reorder_level: 4, status: "low_stock", is_active: true,
   },
 ];
 
@@ -51,5 +51,16 @@ describe("ProductTable", () => {
   it("links each row to its product detail page", () => {
     render(<ProductTable products={products} showWholesale={false} />);
     expect(screen.getAllByRole("link", { name: "Open" })[0]).toHaveAttribute("href", "/products/1");
+  });
+
+  it("shows an Inactive tag for a product with is_active false", () => {
+    const inactiveProducts = [{ ...products[0], is_active: false }, products[1]];
+    render(<ProductTable products={inactiveProducts} showWholesale={false} />);
+    expect(screen.getByText("Inactive")).toBeInTheDocument();
+  });
+
+  it("does not show an Inactive tag for an active product", () => {
+    render(<ProductTable products={products} showWholesale={false} />);
+    expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
   });
 });

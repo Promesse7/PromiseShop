@@ -59,9 +59,10 @@ export function ProductCardGrid({
             </div>
             <div className="flex items-center gap-2 mt-auto pt-1">
               <span className="text-xs text-text/50">{p.quantity_in_stock} in stock</span>
-              <Tag variant={tag.variant} className="ml-auto">
-                {tag.label}
-              </Tag>
+              <div className="ml-auto flex items-center gap-1.5">
+                {p.is_active === false && <Tag variant="neutral">Inactive</Tag>}
+                <Tag variant={tag.variant}>{tag.label}</Tag>
+              </div>
             </div>
             <div className="flex items-center justify-between gap-2">
               <Link href={`/products/${p.product_id}`} className="text-sm text-accent">

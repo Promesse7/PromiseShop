@@ -22,9 +22,9 @@ describe("useCatalogProducts", () => {
             ok: true,
             json: async () =>
               paginated([
-                { product_id: 1, category: 10, barcode: "PES-TV-00082", name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", reorder_level: 5 },
-                { product_id: 2, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", reorder_level: 4 },
-                { product_id: 3, category: 20, barcode: "PES-AUD-00099", name: "No Stock Mic", brand: "Boya", model_number: "BY-M1", reorder_level: 5 },
+                { product_id: 1, category: 10, barcode: "PES-TV-00082", name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", reorder_level: 5, is_active: true },
+                { product_id: 2, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", reorder_level: 4, is_active: true },
+                { product_id: 3, category: 20, barcode: "PES-AUD-00099", name: "No Stock Mic", brand: "Boya", model_number: "BY-M1", reorder_level: 5, is_active: false },
               ]),
           });
         }
@@ -72,8 +72,16 @@ describe("useCatalogProducts", () => {
       product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000",
       barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions",
       retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12,
-      reorder_level: 5, status: "ok",
+      reorder_level: 5, status: "ok", is_active: true,
     });
+  });
+
+  it("threads is_active through from the product", async () => {
+    const { result } = renderHook(() => useCatalogProducts(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const inactive = result.current.all.find((p) => p.product_id === 3);
+    expect(inactive?.is_active).toBe(false);
   });
 
   it("marks a product with stock at or below reorder level as low_stock", async () => {

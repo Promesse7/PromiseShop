@@ -26,6 +26,30 @@ def sales_staff():
 
 
 @pytest.fixture
+def technician():
+    return Employee.objects.create_user(
+        username="tech1", password="techpass", full_name="Tech One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.TECHNICIAN,
+    )
+
+
+@pytest.fixture
+def admin():
+    return Employee.objects.create_user(
+        username="admin1", password="adminpass", full_name="Admin One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.ADMIN,
+    )
+
+
+@pytest.fixture
+def manager():
+    return Employee.objects.create_user(
+        username="manager1", password="managerpass", full_name="Manager One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.MANAGER,
+    )
+
+
+@pytest.fixture
 def category():
     return Category.objects.create(name="Audio", code="AUD")
 
@@ -111,3 +135,85 @@ def test_product_tax_category_can_be_set_to_exempt(sales_staff, category):
         format="json",
     )
     assert response.json()["tax_category"] == "A"
+
+
+def test_admin_can_deactivate_product(admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = admin_client.post(
+        f"/api/products/{product_id}/set-active/", {"is_active": False}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    fetch_response = admin_client.get(f"/api/products/{product_id}/")
+    assert fetch_response.json()["is_active"] is False
+
+
+def test_manager_can_reactivate_product(manager, category):
+    manager_client = auth_client(manager, "managerpass")
+    create_response = manager_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    manager_client.post(f"/api/products/{product_id}/set-active/", {"is_active": False}, format="json")
+    response = manager_client.post(
+        f"/api/products/{product_id}/set-active/", {"is_active": True}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is True
+
+    fetch_response = manager_client.get(f"/api/products/{product_id}/")
+    assert fetch_response.json()["is_active"] is True
+
+
+def test_sales_staff_forbidden_from_deactivating_product(sales_staff, category):
+    client = auth_client(sales_staff, "staffpass")
+    create_response = client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = client.post(f"/api/products/{product_id}/set-active/", {"is_active": False}, format="json")
+    assert response.status_code == 403
+
+
+def test_technician_forbidden_from_deactivating_product(technician, admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    tech_client = auth_client(technician, "techpass")
+    response = tech_client.post(f"/api/products/{product_id}/set-active/", {"is_active": False}, format="json")
+    assert response.status_code == 403
+
+
+def test_set_active_rejects_non_boolean_value(admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = admin_client.post(
+        f"/api/products/{product_id}/set-active/", {"is_active": "not-a-bool"}, format="json"
+    )
+    assert response.status_code == 400
+
+
+def test_set_active_rejects_empty_body(admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = admin_client.post(f"/api/products/{product_id}/set-active/", {}, format="json")
+    assert response.status_code == 400

@@ -92,4 +92,57 @@ describe("ProductDetailPageClient", () => {
     renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
     expect(screen.getByText(/Couldn't load this product/)).toBeInTheDocument();
   });
+
+  it("shows a Deactivate button for admin when the product is active", () => {
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.getByRole("button", { name: "Deactivate" })).toBeInTheDocument();
+  });
+
+  it("hides the Deactivate/Reactivate button for sales_staff", () => {
+    renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
+    expect(screen.queryByRole("button", { name: "Deactivate" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reactivate" })).not.toBeInTheDocument();
+  });
+
+  it("shows a Reactivate button and the Inactive tag when the product is inactive", () => {
+    vi.spyOn(useProductDetailModule, "useProductDetail").mockReturnValue({
+      ...baseDetail,
+      product: { ...baseDetail.product!, is_active: false },
+    });
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.getByRole("button", { name: "Reactivate" })).toBeInTheDocument();
+    expect(screen.getByText("Inactive")).toBeInTheDocument();
+  });
+
+  it("does not show the Inactive tag when the product is active", () => {
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
+  });
+
+  it("posts to set-active, shows a success toast, and invalidates products on Deactivate", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...baseDetail.product, is_active: false }),
+    });
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("Product deactivated.")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/proxy/products/1/set-active/",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ is_active: false }) })
+    );
+  });
+
+  it("shows an error toast when the set-active request fails", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({ detail: "You do not have permission to perform this action." }),
+    });
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Deactivate" }));
+
+    expect(await screen.findByText("You do not have permission to perform this action.")).toBeInTheDocument();
+  });
 });

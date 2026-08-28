@@ -38,16 +38,18 @@ export function usePosCatalog(): PosCatalog {
     const priceByProductId = new Map(pricing.data.map((p) => [p.product, parseFloat(p.retail_price)]));
     const stockByProductId = new Map(inventory.data.map((i) => [i.product, i.quantity_in_stock]));
 
-    return products.data.map((product) => ({
-      product_id: product.product_id,
-      barcode: product.barcode,
-      name: product.name,
-      brand: product.brand,
-      model_number: product.model_number,
-      category_name: categoryNameById.get(product.category) ?? "",
-      retail_price: priceByProductId.get(product.product_id) ?? 0,
-      quantity_in_stock: stockByProductId.get(product.product_id) ?? 0,
-    }));
+    return products.data
+      .filter((product) => product.is_active !== false)
+      .map((product) => ({
+        product_id: product.product_id,
+        barcode: product.barcode,
+        name: product.name,
+        brand: product.brand,
+        model_number: product.model_number,
+        category_name: categoryNameById.get(product.category) ?? "",
+        retail_price: priceByProductId.get(product.product_id) ?? 0,
+        quantity_in_stock: stockByProductId.get(product.product_id) ?? 0,
+      }));
   }, [products.data, categories.data, pricing.data, inventory.data]);
 
   const byBarcode = useMemo(() => new Map(all.map((p) => [p.barcode, p])), [all]);

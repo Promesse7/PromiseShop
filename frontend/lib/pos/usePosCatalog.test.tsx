@@ -25,6 +25,7 @@ describe("usePosCatalog", () => {
                 { product_id: 1, category: 10, barcode: "PES-AUD-00147", name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK" },
                 { product_id: 2, category: 20, barcode: "PES-TV-00082", name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000" },
                 { product_id: 3, category: 20, barcode: "PES-TV-00099", name: "No Price TV", brand: "Samsung", model_number: "X" },
+                { product_id: 4, category: 20, barcode: "PES-TV-00100", name: "Discontinued TV", brand: "Samsung", model_number: "Y", is_active: false },
               ]),
           });
         }
@@ -98,5 +99,15 @@ describe("usePosCatalog", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(result.current.byBarcode.get("PES-TV-00082")?.name).toBe("Samsung TV");
+  });
+
+  it("excludes products with is_active false from the catalog", async () => {
+    const { result } = renderHook(() => usePosCatalog(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.all).toHaveLength(3);
+    expect(result.current.all.find((p) => p.product_id === 4)).toBeUndefined();
+    expect(result.current.byBarcode.get("PES-TV-00100")).toBeUndefined();
   });
 });

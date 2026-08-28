@@ -16,6 +16,7 @@ export interface CatalogProduct {
   quantity_in_stock: number;
   reorder_level: number;
   status: "ok" | "low_stock" | "out_of_stock";
+  is_active: boolean;
 }
 
 export interface CatalogProducts {
@@ -83,6 +84,7 @@ export function useCatalogProducts(): CatalogProducts {
         quantity_in_stock,
         reorder_level: product.reorder_level,
         status: deriveStatus(quantity_in_stock, product.reorder_level),
+        is_active: product.is_active,
       };
     });
   }, [products.data, categories.data, pricing.data, inventory.data]);

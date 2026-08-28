@@ -17,6 +17,7 @@ function makeRow(overrides: Partial<CatalogProduct> = {}): CatalogProduct {
     quantity_in_stock: 2,
     reorder_level: 4,
     status: "low_stock",
+    is_active: true,
     ...overrides,
   };
 }

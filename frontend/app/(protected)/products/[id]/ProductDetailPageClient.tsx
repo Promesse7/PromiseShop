@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProductDetail } from "@/lib/products/useProductDetail";
 import { StockCard } from "@/components/products/StockCard";
 import { CatalogInfoCard } from "@/components/products/CatalogInfoCard";
@@ -14,7 +15,9 @@ import { SetPriceDialog } from "@/components/products/SetPriceDialog";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
-import type { EmployeeRole } from "@/lib/types";
+import { useToast } from "@/components/layout/ToastProvider";
+import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
+import type { EmployeeRole, Product } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
 
@@ -40,6 +43,30 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const isAdmin = ADMIN_ROLES.includes(role);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const queryClient = useQueryClient();
+  const { show } = useToast();
+
+  async function handleToggleActive() {
+    if (!detail.product) return;
+    const nextActive = !detail.product.is_active;
+    setTogglingActive(true);
+    try {
+      await apiFetch<Product>(`products/${productId}/set-active/`, {
+        method: "POST",
+        body: JSON.stringify({ is_active: nextActive }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["products", productId] });
+      show(nextActive ? "Product reactivated." : "Product deactivated.", "success");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
+      show(message, "error");
+    } finally {
+      setTogglingActive(false);
+    }
+  }
 
   if (detail.isError) {
     return (
@@ -62,12 +89,18 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
       <div className="flex items-center gap-3 my-4">
         <h3 className="m-0">{detail.product.name}</h3>
         <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
+        {detail.product.is_active === false && <Tag variant="neutral">Inactive</Tag>}
         <span className="font-mono text-xs text-text/50">{detail.product.barcode}</span>
         <div className="ml-auto flex gap-2">
           <Button variant="secondary" disabled>
             Reorder
           </Button>
           {isAdmin && <Button onClick={() => setEditOpen(true)}>Edit</Button>}
+          {isAdmin && (
+            <Button variant="secondary" onClick={handleToggleActive} disabled={togglingActive}>
+              {togglingActive ? "Saving…" : detail.product.is_active === false ? "Reactivate" : "Deactivate"}
+            </Button>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">

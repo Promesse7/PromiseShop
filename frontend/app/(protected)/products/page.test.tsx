@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -8,8 +8,8 @@ import * as useCatalogProductsModule from "@/lib/products/useCatalogProducts";
 import type { CatalogProducts } from "@/lib/products/useCatalogProducts";
 
 const products: CatalogProducts["all"] = [
-  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok" },
-  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock" },
+  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true },
+  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock", is_active: true },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -32,6 +32,7 @@ describe("ProductsPageClient", () => {
       isLoading: false,
       isError: false,
     } satisfies CatalogProducts);
+    vi.stubGlobal("fetch", vi.fn());
   });
 
   it("shows both products by default", () => {
@@ -125,5 +126,55 @@ describe("ProductsPageClient", () => {
 
     expect(screen.queryByRole("img", { name: "Barcode for PES-TV-00082" })).not.toBeInTheDocument();
     vi.restoreAllMocks();
+  });
+
+  it("shows the Manage categories button for admin and opens the dialog", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    const button = screen.getByRole("button", { name: "Manage categories" });
+    expect(button).toBeInTheDocument();
+    await userEvent.click(button);
+    const dialog = within(screen.getByTestId("dialog-backdrop"));
+    expect(dialog.getByText("Manage categories", { selector: "h4" })).toBeInTheDocument();
+    // "Televisions" also appears as a category filter pill in the page header behind the
+    // dialog, so this must be scoped to the dialog rather than a page-wide query.
+    expect(dialog.getByText("Televisions")).toBeInTheDocument();
+  });
+
+  it("hides the Manage categories button for sales_staff", () => {
+    renderWithProviders(<ProductsPageClient role="sales_staff" />);
+    expect(screen.queryByRole("button", { name: "Manage categories" })).not.toBeInTheDocument();
+  });
+
+  it("shows a Deactivate N products button for admin once products are selected", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByLabelText("Select Samsung TV"));
+    expect(screen.getByRole("button", { name: "Deactivate 1 products" })).toBeInTheDocument();
+  });
+
+  it("hides the bulk Deactivate button for sales_staff", async () => {
+    renderWithProviders(<ProductsPageClient role="sales_staff" />);
+    await userEvent.click(screen.getByLabelText("Select Samsung TV"));
+    expect(screen.queryByText(/Deactivate \d+ products/)).not.toBeInTheDocument();
+  });
+
+  it("bulk-deactivates the selected products, clears the selection, and shows a summary toast", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...products[0], is_active: false }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...products[1], is_active: false }) });
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByLabelText("Select Samsung TV"));
+    await userEvent.click(screen.getByLabelText("Select JBL Flip 6"));
+    await userEvent.click(screen.getByRole("button", { name: "Deactivate 2 products" }));
+
+    expect(await screen.findByText("2 products deactivated.")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/proxy/products/1/set-active/",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ is_active: false }) })
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/proxy/products/2/set-active/",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ is_active: false }) })
+    );
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
 });

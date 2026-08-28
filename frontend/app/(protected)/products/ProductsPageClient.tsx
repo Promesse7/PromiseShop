@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCatalogProducts, type CatalogProduct } from "@/lib/products/useCatalogProducts";
 import { ProductTable } from "@/components/products/ProductTable";
 import { ProductCardGrid } from "@/components/products/ProductCardGrid";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
+import { CategoryManagerDialog } from "@/components/products/CategoryManagerDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,6 +14,8 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import { LabelSheet } from "@/components/ui/LabelSheet";
 import { ProductLabel } from "@/components/products/ProductLabel";
+import { useToast } from "@/components/layout/ToastProvider";
+import { apiFetch } from "@/lib/api-client";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -49,8 +53,12 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const [sortBy, setSortBy] = useState<SortOption>("none");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [createOpen, setCreateOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [printQueue, setPrintQueue] = useState<CatalogProduct[] | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
+  const queryClient = useQueryClient();
+  const { show } = useToast();
 
   useEffect(() => {
     if (!printQueue) return;
@@ -69,6 +77,32 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
       else next.add(productId);
       return next;
     });
+  }
+
+  async function handleBulkDeactivate() {
+    const ids = Array.from(selectedIds);
+    setDeactivating(true);
+    let succeeded = 0;
+    for (const id of ids) {
+      try {
+        await apiFetch(`products/${id}/set-active/`, {
+          method: "POST",
+          body: JSON.stringify({ is_active: false }),
+        });
+        succeeded += 1;
+      } catch {
+        // continue attempting the rest; failures are reflected in the summary toast below.
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+    setSelectedIds(new Set());
+    setDeactivating(false);
+    show(
+      succeeded === ids.length
+        ? `${succeeded} products deactivated.`
+        : `${succeeded} of ${ids.length} products deactivated.`,
+      succeeded === ids.length ? "success" : "error"
+    );
   }
 
   const filtered = useMemo(() => {
@@ -132,21 +166,30 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
         </select>
         <SegmentedToggle name="view" options={VIEW_OPTIONS} value={view} onChange={(v) => setView(v as "grid" | "table")} />
         {isAdmin && (
-          <Button onClick={() => setCreateOpen(true)} className="ml-auto">
-            + New product
-          </Button>
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" onClick={() => setCategoriesOpen(true)}>
+              Manage categories
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>+ New product</Button>
+          </div>
         )}
       </PageHeader>
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-accent/10 text-sm">
           <span>{selectedIds.size} selected</span>
-          <Button
-            variant="secondary"
-            className="ml-auto"
-            onClick={() => setPrintQueue(filtered.filter((p) => selectedIds.has(p.product_id)))}
-          >
-            Print {selectedIds.size} labels
-          </Button>
+          <div className="ml-auto flex gap-2">
+            {isAdmin && (
+              <Button variant="secondary" onClick={handleBulkDeactivate} disabled={deactivating}>
+                {deactivating ? "Deactivating…" : `Deactivate ${selectedIds.size} products`}
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => setPrintQueue(filtered.filter((p) => selectedIds.has(p.product_id)))}
+            >
+              Print {selectedIds.size} labels
+            </Button>
+          </div>
         </div>
       )}
       {view === "grid" ? (
@@ -166,6 +209,11 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
         categories={catalog.categories}
         onClose={() => setCreateOpen(false)}
         onSaved={() => setCreateOpen(false)}
+      />
+      <CategoryManagerDialog
+        open={categoriesOpen}
+        categories={catalog.categories}
+        onClose={() => setCategoriesOpen(false)}
       />
       {printQueue && (
         <LabelSheet>

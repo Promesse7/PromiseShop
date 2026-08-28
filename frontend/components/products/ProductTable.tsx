@@ -62,7 +62,12 @@ export function ProductTable({ products, showWholesale }: ProductTableProps) {
       header: "Status",
       render: (p: CatalogProduct) => {
         const tag = STATUS_TAG[p.status];
-        return <Tag variant={tag.variant}>{tag.label}</Tag>;
+        return (
+          <div className="flex items-center gap-1.5">
+            {p.is_active === false && <Tag variant="neutral">Inactive</Tag>}
+            <Tag variant={tag.variant}>{tag.label}</Tag>
+          </div>
+        );
       },
     },
     {
