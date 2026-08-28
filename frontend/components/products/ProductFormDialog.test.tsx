@@ -26,7 +26,13 @@ function renderWithToast(ui: React.ReactElement) {
       <ToastProvider>{ui}</ToastProvider>
     </QueryClientProvider>
   );
-  return { ...utils, invalidateSpy };
+  const rerenderWithToast = (nextUi: React.ReactElement) =>
+    utils.rerender(
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>{nextUi}</ToastProvider>
+      </QueryClientProvider>
+    );
+  return { ...utils, invalidateSpy, rerenderWithToast };
 }
 
 describe("ProductFormDialog", () => {
@@ -164,5 +170,83 @@ describe("ProductFormDialog", () => {
     );
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["products"] });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["inventory"] });
+  });
+
+  it("reveals an inline sub-form when '+ Add new category…' is selected", async () => {
+    renderWithToast(
+      <ProductFormDialog open={true} mode="create" categories={categories} onClose={vi.fn()} onSaved={vi.fn()} />
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "__new__");
+    expect(screen.getByLabelText("Category name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category code")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+  });
+
+  it("cancels the inline category sub-form back to the normal select", async () => {
+    renderWithToast(
+      <ProductFormDialog open={true} mode="create" categories={categories} onClose={vi.fn()} onSaved={vi.fn()} />
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "__new__");
+    // Two "Cancel" buttons are on screen once the sub-form is open (this one, and the
+    // form's own Cancel-and-close); the sub-form's renders first in document order.
+    await userEvent.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+    expect(screen.getByLabelText("Category")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Category name")).not.toBeInTheDocument();
+  });
+
+  it("posts to /api/proxy/categories/ from the inline sub-form and selects the new category on success", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ category_id: 30, name: "Cameras", code: "CAM", description: null }),
+    });
+    const onSaved = vi.fn();
+    const { invalidateSpy, rerenderWithToast } = renderWithToast(
+      <ProductFormDialog open={true} mode="create" categories={categories} onClose={vi.fn()} onSaved={onSaved} />
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "__new__");
+    await userEvent.type(screen.getByLabelText("Category name"), "Cameras");
+    await userEvent.type(screen.getByLabelText("Category code"), "CAM");
+    await userEvent.click(screen.getByRole("button", { name: "Add category" }));
+
+    await vi.waitFor(() => expect(screen.getByLabelText("Category")).toBeInTheDocument());
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, options] = (global.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("/api/proxy/categories/");
+    expect(options).toEqual(expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(options.body as string)).toEqual({ name: "Cameras", code: "CAM", description: null });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["categories"] });
+
+    // In production, invalidating ["categories"] makes useCatalogProducts()'s live query refetch,
+    // which flows a `categories` prop including the new category back down to this component —
+    // simulate that parent re-render here to confirm the newly created category ends up selected.
+    const newCategory: Category = { category_id: 30, name: "Cameras", code: "CAM", description: null };
+    rerenderWithToast(
+      <ProductFormDialog
+        open={true}
+        mode="create"
+        categories={[...categories, newCategory]}
+        onClose={vi.fn()}
+        onSaved={onSaved}
+      />
+    );
+    expect(screen.getByLabelText("Category")).toHaveValue("30");
+  });
+
+  it("shows inline field errors from the backend without leaving the sub-form", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({ detail: { name: ["category with this name already exists."] }, code: "invalid" }),
+    });
+    renderWithToast(
+      <ProductFormDialog open={true} mode="create" categories={categories} onClose={vi.fn()} onSaved={vi.fn()} />
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "__new__");
+    await userEvent.type(screen.getByLabelText("Category name"), "Audio");
+    await userEvent.type(screen.getByLabelText("Category code"), "AUD2");
+    await userEvent.click(screen.getByRole("button", { name: "Add category" }));
+
+    expect(await screen.findByText("category with this name already exists.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category name")).toBeInTheDocument();
   });
 });

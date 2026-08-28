@@ -64,8 +64,70 @@ function ProductFormFields({
   const [submitting, setSubmitting] = useState(false);
   const showStorageLocation = mode === "edit" && initialStorageLocation != null;
 
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryCode, setNewCategoryCode] = useState("");
+  const [newCategoryDescription, setNewCategoryDescription] = useState("");
+  const [newCategoryErrors, setNewCategoryErrors] = useState<{ name?: string; code?: string }>({});
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   function setField<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
+  }
+
+  function resetNewCategoryForm() {
+    setAddingCategory(false);
+    setNewCategoryName("");
+    setNewCategoryCode("");
+    setNewCategoryDescription("");
+    setNewCategoryErrors({});
+  }
+
+  async function handleCreateCategory() {
+    const validationErrors: { name?: string; code?: string } = {};
+    if (!newCategoryName.trim()) validationErrors.name = "Name is required.";
+    if (!newCategoryCode.trim()) validationErrors.code = "Code is required.";
+    if (Object.keys(validationErrors).length > 0) {
+      setNewCategoryErrors(validationErrors);
+      return;
+    }
+    setNewCategoryErrors({});
+    setCreatingCategory(true);
+    try {
+      const category = await apiFetch<Category>("categories/", {
+        method: "POST",
+        body: JSON.stringify({
+          name: newCategoryName.trim(),
+          code: newCategoryCode.trim(),
+          description: newCategoryDescription.trim() || null,
+        }),
+      });
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+      setField("category", category.category_id);
+      resetNewCategoryForm();
+      show("Category created.", "success");
+    } catch (error) {
+      // The backend wraps validation errors as { detail: { field: [messages] } } —
+      // surface name/code errors inline since they map directly to fields in this sub-form.
+      const detail = error instanceof ApiError && error.body && typeof error.body === "object"
+        ? (error.body as { detail?: unknown }).detail
+        : null;
+      const fieldErrors: { name?: string; code?: string } = {};
+      if (detail && typeof detail === "object") {
+        const detailObj = detail as Record<string, unknown>;
+        if (Array.isArray(detailObj.name)) fieldErrors.name = String(detailObj.name[0]);
+        if (Array.isArray(detailObj.code)) fieldErrors.code = String(detailObj.code[0]);
+      }
+      if (Object.keys(fieldErrors).length > 0) {
+        setNewCategoryErrors(fieldErrors);
+      } else {
+        const message =
+          error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
+        show(message, "error");
+      }
+    } finally {
+      setCreatingCategory(false);
+    }
   }
 
   async function handleSubmit() {
@@ -113,20 +175,63 @@ function ProductFormFields({
           <label htmlFor={categoryId} className="block text-xs text-text/70">
             Category
           </label>
-          <select
-            id={categoryId}
-            value={values.category}
-            disabled={mode === "edit"}
-            onChange={(e) => setField("category", e.target.value === "" ? "" : Number(e.target.value))}
-            className="w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md disabled:opacity-60"
-          >
-            <option value="">Select a category…</option>
-            {categories.map((c) => (
-              <option key={c.category_id} value={c.category_id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {addingCategory ? (
+            <div className="flex flex-col gap-2 p-2 border border-divider rounded-md">
+              <Field
+                label="Category name"
+                name="new_category_name"
+                value={newCategoryName}
+                onChange={setNewCategoryName}
+                error={newCategoryErrors.name}
+              />
+              <Field
+                label="Category code"
+                name="new_category_code"
+                value={newCategoryCode}
+                onChange={(v) => setNewCategoryCode(v.slice(0, 10))}
+                placeholder="Barcode prefix, e.g. AUD"
+                error={newCategoryErrors.code}
+              />
+              <div className="flex flex-col gap-1">
+                <label className="block text-xs text-text/70">Category description</label>
+                <input
+                  value={newCategoryDescription}
+                  onChange={(e) => setNewCategoryDescription(e.target.value)}
+                  className="w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="secondary" onClick={resetNewCategoryForm} disabled={creatingCategory}>
+                  Cancel
+                </Button>
+                <Button variant="secondary" onClick={handleCreateCategory} disabled={creatingCategory}>
+                  {creatingCategory ? "Adding…" : "Add category"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <select
+              id={categoryId}
+              value={values.category}
+              disabled={mode === "edit"}
+              onChange={(e) => {
+                if (e.target.value === "__new__") {
+                  setAddingCategory(true);
+                  return;
+                }
+                setField("category", e.target.value === "" ? "" : Number(e.target.value));
+              }}
+              className="w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md disabled:opacity-60"
+            >
+              <option value="">Select a category…</option>
+              {categories.map((c) => (
+                <option key={c.category_id} value={c.category_id}>
+                  {c.name}
+                </option>
+              ))}
+              {mode === "create" && <option value="__new__">+ Add new category…</option>}
+            </select>
+          )}
           {errors.category && <p className="text-xs text-red-400">{errors.category}</p>}
         </div>
         <Field label="Brand" name="brand" value={values.brand} onChange={(v) => setField("brand", v)} />

@@ -21,6 +21,21 @@ const VIEW_OPTIONS = [
   { value: "table", label: "List" },
 ];
 
+const STOCK_OPTIONS = [
+  { value: "all", label: "All" },
+  { value: "ok", label: "In stock" },
+  { value: "low_stock", label: "Low stock" },
+  { value: "out_of_stock", label: "Out of stock" },
+];
+
+const SORT_OPTIONS = [
+  { value: "none", label: "Default" },
+  { value: "name", label: "Name (A–Z)" },
+  { value: "price", label: "Price (low–high)" },
+  { value: "stock", label: "Stock (low–high)" },
+];
+type SortOption = (typeof SORT_OPTIONS)[number]["value"];
+
 interface ProductsPageClientProps {
   role: EmployeeRole;
 }
@@ -30,6 +45,8 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const isAdmin = ADMIN_ROLES.includes(role);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<SortOption>("none");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -56,16 +73,23 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return catalog.all.filter((p) => {
+    const matched = catalog.all.filter((p) => {
       const matchesCategory = categoryFilter === "all" || String(p.category_id) === categoryFilter;
+      const matchesStock = stockFilter === "all" || p.status === stockFilter;
       const matchesSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         (p.brand ?? "").toLowerCase().includes(q) ||
         p.barcode.toLowerCase().includes(q);
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesStock && matchesSearch;
     });
-  }, [catalog.all, search, categoryFilter]);
+    if (sortBy === "none") return matched;
+    const sorted = [...matched];
+    if (sortBy === "name") sorted.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sortBy === "price") sorted.sort((a, b) => a.retail_price - b.retail_price);
+    else if (sortBy === "stock") sorted.sort((a, b) => a.quantity_in_stock - b.quantity_in_stock);
+    return sorted;
+  }, [catalog.all, search, categoryFilter, stockFilter, sortBy]);
 
   const categoryOptions = [
     { value: "all", label: "All" },
@@ -93,6 +117,19 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
           className="max-w-[300px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
         />
         <SegmentedToggle name="category" options={categoryOptions} value={categoryFilter} onChange={setCategoryFilter} />
+        <SegmentedToggle name="stock" options={STOCK_OPTIONS} value={stockFilter} onChange={setStockFilter} />
+        <select
+          aria-label="Sort by"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortOption)}
+          className="min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
+        >
+          {SORT_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <SegmentedToggle name="view" options={VIEW_OPTIONS} value={view} onChange={(v) => setView(v as "grid" | "table")} />
         {isAdmin && (
           <Button onClick={() => setCreateOpen(true)} className="ml-auto">

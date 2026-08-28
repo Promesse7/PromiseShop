@@ -54,6 +54,21 @@ describe("ProductsPageClient", () => {
     expect(screen.queryByText("JBL Flip 6")).not.toBeInTheDocument();
   });
 
+  it("filters by stock status", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByRole("radio", { name: "Low stock" }));
+    expect(screen.queryByText("Samsung TV")).not.toBeInTheDocument();
+    expect(screen.getByText("JBL Flip 6")).toBeInTheDocument();
+  });
+
+  it("sorts by price low to high", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.selectOptions(screen.getByLabelText("Sort by"), "price");
+    // "Products" (the PageHeader title) is also an h3, so it's the first heading in document order.
+    const [, ...productNames] = screen.getAllByRole("heading", { level: 3 }).map((el) => el.textContent);
+    expect(productNames).toEqual(["JBL Flip 6", "Samsung TV"]);
+  });
+
   it("shows the New product button for admin", () => {
     renderWithProviders(<ProductsPageClient role="admin" />);
     expect(screen.getByRole("button", { name: "+ New product" })).toBeInTheDocument();
