@@ -128,9 +128,9 @@ export function Nav({ role, username }: NavProps) {
             Notifications
           </Link>
         )}
-        {isAdmin && <Tag>Admin</Tag>}
+        {isAdmin && <Tag>{roleLabel}</Tag>}
         <span className="text-sm opacity-60">
-          {username} · {roleLabel}
+          {isAdmin ? username : `${username} · ${roleLabel}`}
         </span>
         <button
           type="button"

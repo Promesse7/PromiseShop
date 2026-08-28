@@ -100,11 +100,26 @@ describe("Nav", () => {
     expect(screen.getByText(/a\.uwase/)).toBeInTheDocument();
   });
 
-  it("does not render the Employees link for manager, even though manager gets the admin role tag and link set otherwise", () => {
+  it("does not render the Employees link for manager, even though manager gets the admin link set and a role tag otherwise", () => {
     render(<Nav role="manager" username="d.ishimwe" />);
     expect(screen.queryByRole("link", { name: "Employees" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Suppliers" })).toBeInTheDocument();
-    expect(screen.getByText("Admin")).toBeInTheDocument();
+    expect(screen.getByText("Manager")).toBeInTheDocument();
+  });
+
+  it("labels the role tag Manager, not Admin, for a manager — the badge must reflect the actual role", () => {
+    render(<Nav role="manager" username="d.ishimwe" />);
+    expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+  });
+
+  it("shows only the username, without a repeated role label, for admin and manager since the role tag already conveys it", () => {
+    render(<Nav role="admin" username="a.uwase" />);
+    expect(screen.getByText("a.uwase")).toBeInTheDocument();
+  });
+
+  it("shows username and role label together for sales_staff and technician, which have no role tag", () => {
+    render(<Nav role="sales_staff" username="e.mugisha" />);
+    expect(screen.getByText("e.mugisha · Sales Staff")).toBeInTheDocument();
   });
 
   it("shows the Notifications link for admin", () => {
