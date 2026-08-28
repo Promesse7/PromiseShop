@@ -27,12 +27,12 @@ def _recompute_purchase_totals(purchase):
 def add_existing_product_item(purchase, product, quantity, unit_cost_paid, unit_cost_invoiced,
                                price_discrepancy_note=""):
     if purchase.status != Purchase.Status.DRAFT:
-        raise ValidationError("Cannot add items to a purchase that has already been received.")
+        raise ValidationError("Cannot add items to a purchase that is not a draft.")
     _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note)
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
-            raise ValidationError("Cannot add items to a purchase that has already been received.")
+            raise ValidationError("Cannot add items to a purchase that is not a draft.")
         item = PurchaseItem.objects.create(
             purchase=purchase, product=product, quantity=quantity,
             unit_cost_paid=unit_cost_paid, unit_cost_invoiced=unit_cost_invoiced,
@@ -49,7 +49,7 @@ def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, 
                           usage_instructions="", warranty_months=0, reorder_level=5,
                           price_discrepancy_note=""):
     if purchase.status != Purchase.Status.DRAFT:
-        raise ValidationError("Cannot add items to a purchase that has already been received.")
+        raise ValidationError("Cannot add items to a purchase that is not a draft.")
     _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note)
     with transaction.atomic():
         barcode = generate_barcode(category)
@@ -70,24 +70,69 @@ def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, 
 
 def remove_item(purchase, item):
     if purchase.status != Purchase.Status.DRAFT:
-        raise ValidationError("Cannot remove items from a purchase that has already been received.")
+        raise ValidationError("Cannot remove items from a purchase that is not a draft.")
     if item.purchase_id != purchase.pk:
         raise ValidationError("Item does not belong to this purchase.")
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
-            raise ValidationError("Cannot remove items from a purchase that has already been received.")
+            raise ValidationError("Cannot remove items from a purchase that is not a draft.")
         item.delete()
         _recompute_purchase_totals(purchase)
 
 
+def cancel_purchase(purchase):
+    with transaction.atomic():
+        locked = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if locked.status == Purchase.Status.CANCELLED:
+            raise ValidationError("This purchase is already cancelled.")
+
+        if locked.status == Purchase.Status.RECEIVED:
+            items = list(locked.items.select_related("product").order_by("product_id"))
+            quantities = {}
+            products = {}
+            for item in items:
+                quantities[item.product_id] = quantities.get(item.product_id, 0) + item.quantity
+                products[item.product_id] = item.product
+
+            # Lock every affected inventory row up front and verify the stock this
+            # purchase brought in hasn't already moved on (e.g. been sold) before
+            # reversing anything — a partial reversal would desync stock silently.
+            inventories = {}
+            shortfalls = []
+            for product_id, quantity in quantities.items():
+                inventory, _ = Inventory.objects.select_for_update().get_or_create(
+                    product=products[product_id], defaults={"quantity_in_stock": 0}
+                )
+                inventories[product_id] = inventory
+                if inventory.quantity_in_stock < quantity:
+                    shortfalls.append(
+                        f"{products[product_id].name} (only {inventory.quantity_in_stock} left, "
+                        f"{quantity} would need to be reversed)"
+                    )
+            if shortfalls:
+                raise ValidationError(
+                    "Cannot cancel: stock from this purchase has already moved for "
+                    + "; ".join(shortfalls)
+                )
+
+            for product_id, quantity in quantities.items():
+                inventory = inventories[product_id]
+                inventory.quantity_in_stock -= quantity
+                inventory.save(update_fields=["quantity_in_stock"])
+
+        locked.status = Purchase.Status.CANCELLED
+        locked.save(update_fields=["status"])
+    return locked
+
+
 def receive_purchase(purchase):
     if purchase.status != Purchase.Status.DRAFT:
-        raise ValidationError("Purchase has already been received.")
+        raise ValidationError("Only a draft purchase can be received.")
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
-            raise ValidationError("Purchase has already been received.")
+            raise ValidationError("Only a draft purchase can be received.")
         items = list(purchase.items.select_related("product").order_by("product_id"))
         if not items:
             raise ValidationError("Cannot receive a purchase with no line items.")

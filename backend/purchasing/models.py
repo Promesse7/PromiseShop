@@ -22,6 +22,7 @@ class Purchase(models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         RECEIVED = "received", "Received"
+        CANCELLED = "cancelled", "Cancelled"
 
     purchase_id = models.AutoField(primary_key=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="purchases")

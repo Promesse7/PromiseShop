@@ -8,7 +8,7 @@ import * as usePurchaseDetailModule from "@/lib/purchasing/usePurchaseDetail";
 import * as useSuppliersModule from "@/lib/suppliers/useSuppliers";
 import type { PurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import type { Suppliers } from "@/lib/suppliers/useSuppliers";
-import type { Purchase } from "@/lib/types";
+import type { EmployeeRole, Purchase } from "@/lib/types";
 
 const pushMock = vi.fn();
 vi.mock("next/navigation", () => ({
@@ -27,12 +27,12 @@ function draftPurchase(overrides: Partial<Purchase> = {}): Purchase {
   };
 }
 
-function renderWorkspace() {
+function renderWorkspace(role: EmployeeRole = "admin") {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <PurchaseWorkspaceClient purchaseId={7} />
+        <PurchaseWorkspaceClient purchaseId={7} role={role} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -52,6 +52,9 @@ describe("PurchaseWorkspaceClient", () => {
         if (url.includes("/categories/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
         if (url.includes("/receive/")) {
           return Promise.resolve({ ok: true, json: async () => draftPurchase({ status: "received" }) });
+        }
+        if (url.includes("/cancel/")) {
+          return Promise.resolve({ ok: true, json: async () => draftPurchase({ status: "cancelled" }) });
         }
         throw new Error(`Unexpected URL: ${url}`);
       })
@@ -139,5 +142,64 @@ describe("PurchaseWorkspaceClient", () => {
     } satisfies PurchaseDetail);
     renderWorkspace();
     expect(screen.getByText(/Couldn't load this purchase/)).toBeInTheDocument();
+  });
+
+  it("shows a Cancel purchase button for admin on a draft purchase", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("admin");
+    expect(screen.getByRole("button", { name: "Cancel purchase" })).toBeInTheDocument();
+  });
+
+  it("shows a Cancel purchase button for manager on a received purchase", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase({ status: "received" }), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("manager");
+    expect(screen.getByRole("button", { name: "Cancel purchase" })).toBeInTheDocument();
+  });
+
+  it("hides the Cancel purchase button for sales_staff", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("sales_staff");
+    expect(screen.queryByRole("button", { name: "Cancel purchase" })).not.toBeInTheDocument();
+  });
+
+  it("hides the Cancel purchase button once already cancelled", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase({ status: "cancelled" }), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("admin");
+    expect(screen.getByText("Cancelled")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel purchase" })).not.toBeInTheDocument();
+  });
+
+  it("confirms then cancels the purchase when Cancel purchase is clicked", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("admin");
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel purchase" }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith("/api/proxy/purchases/7/cancel/", expect.objectContaining({ method: "POST" }))
+    );
+  });
+
+  it("does not cancel when the confirmation is dismissed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("admin");
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel purchase" }));
+
+    expect(fetch).not.toHaveBeenCalledWith("/api/proxy/purchases/7/cancel/", expect.anything());
   });
 });

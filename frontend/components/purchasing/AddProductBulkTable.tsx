@@ -22,6 +22,12 @@ interface BulkRow {
   error?: string;
 }
 
+// Collapse repeated whitespace so a stray double space doesn't hide an existing
+// product from this exact-name match and cause an accidental duplicate to get created.
+function normalizeName(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 function emptyRow(): BulkRow {
   return {
     id: crypto.randomUUID(),
@@ -65,7 +71,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
 
   const productByName = useMemo(() => {
     const map = new Map<string, Product>();
-    for (const p of productsQuery.data ?? []) map.set(p.name.trim().toLowerCase(), p);
+    for (const p of productsQuery.data ?? []) map.set(normalizeName(p.name), p);
     return map;
   }, [productsQuery.data]);
 
@@ -91,7 +97,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
     const remaining: BulkRow[] = [];
 
     for (const row of candidateRows) {
-      const matched = productByName.get(row.name.trim().toLowerCase());
+      const matched = productByName.get(normalizeName(row.name));
       const mode = matched ? "existing" : "new";
       const values = rowToFormValues(row, matched ? matched.product_id : "");
       const validationErrors = validateAddItemForm(values, mode);
@@ -148,7 +154,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
         </thead>
         <tbody>
           {rows.map((row) => {
-            const matched = productByName.get(row.name.trim().toLowerCase());
+            const matched = productByName.get(normalizeName(row.name));
             return (
               <tr key={row.id} className="border-b border-divider">
                 <td className="py-1 px-2">

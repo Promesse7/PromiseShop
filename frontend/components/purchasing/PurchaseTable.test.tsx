@@ -48,4 +48,14 @@ describe("PurchaseTable", () => {
     render(<PurchaseTable rows={rows} showTotals={false} />);
     expect(screen.getAllByRole("link", { name: "Open" })[0]).toHaveAttribute("href", "/purchases/1");
   });
+
+  it("renders a Cancelled status tag for a cancelled purchase", () => {
+    render(
+      <PurchaseTable
+        rows={[{ ...rows[0], status: "cancelled" }]}
+        showTotals={false}
+      />
+    );
+    expect(screen.getByText("Cancelled")).toBeInTheDocument();
+  });
 });

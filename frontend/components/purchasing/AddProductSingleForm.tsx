@@ -39,11 +39,16 @@ export function AddProductSingleForm({ purchaseId, onAdded }: AddProductSingleFo
   const [errors, setErrors] = useState<AddItemFormErrors>({});
 
   const matches = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    // Collapse repeated whitespace on both sides so a stray double space (a very easy typo)
+    // doesn't hide an existing product and cause an accidental duplicate to get created.
+    const q = search.trim().toLowerCase().replace(/\s+/g, " ");
     if (!q || !productsQuery.data) return [];
     return productsQuery.data
-      .filter((p) => p.name.toLowerCase().includes(q) || p.barcode.toLowerCase().includes(q))
-      .slice(0, 5);
+      .filter((p) => {
+        const name = p.name.toLowerCase().replace(/\s+/g, " ");
+        return name.includes(q) || p.barcode.toLowerCase().includes(q);
+      })
+      .slice(0, 8);
   }, [productsQuery.data, search]);
 
   const mode: AddItemMode | null = selected ? "existing" : forceNew ? "new" : null;
@@ -120,6 +125,12 @@ export function AddProductSingleForm({ purchaseId, onAdded }: AddProductSingleFo
                 </button>
               ))}
             </div>
+          )}
+          {search.trim() && matches.length === 0 && (
+            <p className="text-sm text-text/50">
+              No matches for &quot;{search.trim()}&quot; in the catalog — double-check the spelling
+              before adding it as new, to avoid creating a duplicate.
+            </p>
           )}
           {search.trim() && (
             <button type="button" onClick={startNewProduct} className="text-left text-sm text-accent">

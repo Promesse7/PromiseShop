@@ -6,9 +6,16 @@ from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework import status as http_status
 
+from accounts.permissions import IsAdminOrManager
 from purchasing.models import Supplier, Purchase, PurchaseItem
 from purchasing.serializers import SupplierSerializer, PurchaseSerializer, AddPurchaseItemSerializer, PurchaseItemSerializer
-from purchasing.services import add_existing_product_item, add_new_product_item, remove_item, receive_purchase
+from purchasing.services import (
+    add_existing_product_item,
+    add_new_product_item,
+    remove_item,
+    receive_purchase,
+    cancel_purchase,
+)
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
@@ -87,4 +94,10 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     def receive(self, request, pk=None):
         purchase = self.get_object()
         purchase = receive_purchase(purchase)
+        return Response(PurchaseSerializer(purchase, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrManager])
+    def cancel(self, request, pk=None):
+        purchase = self.get_object()
+        purchase = cancel_purchase(purchase)
         return Response(PurchaseSerializer(purchase, context={"request": request}).data)

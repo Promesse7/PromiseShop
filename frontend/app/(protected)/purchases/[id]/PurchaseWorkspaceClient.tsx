@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
 import { useReceivePurchase } from "@/lib/purchasing/useReceivePurchase";
+import { useCancelPurchase } from "@/lib/purchasing/useCancelPurchase";
 import { AddProductSingleForm } from "@/components/purchasing/AddProductSingleForm";
 import { AddProductBulkTable } from "@/components/purchasing/AddProductBulkTable";
 import { PurchaseItemsList } from "@/components/purchasing/PurchaseItemsList";
@@ -15,23 +16,35 @@ import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
+import type { EmployeeRole } from "@/lib/types";
 
 const ADD_MODE_OPTIONS = [
   { value: "single", label: "Single" },
   { value: "bulk", label: "Bulk" },
 ];
 
+const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
+
+const STATUS_TAG = {
+  draft: { label: "Draft", variant: "outline" as const },
+  received: { label: "Received", variant: "accent" as const },
+  cancelled: { label: "Cancelled", variant: "neutral" as const },
+};
+
 interface PurchaseWorkspaceClientProps {
   purchaseId: number;
+  role: EmployeeRole;
 }
 
-export default function PurchaseWorkspaceClient({ purchaseId }: PurchaseWorkspaceClientProps) {
+export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWorkspaceClientProps) {
   const router = useRouter();
   const { show } = useToast();
   const { purchase, isLoading, isError } = usePurchaseDetail(purchaseId);
   const suppliers = useSuppliers();
   const receivePurchase = useReceivePurchase();
+  const cancelPurchase = useCancelPurchase();
   const [addMode, setAddMode] = useState<"single" | "bulk">("single");
+  const isAdmin = ADMIN_ROLES.includes(role);
 
   if (isError) {
     return (
@@ -45,12 +58,29 @@ export default function PurchaseWorkspaceClient({ purchaseId }: PurchaseWorkspac
 
   const supplierName = suppliers.all.find((s) => s.supplier_id === purchase.supplier)?.name ?? `Supplier #${purchase.supplier}`;
   const isDraft = purchase.status === "draft";
+  const isCancelled = purchase.status === "cancelled";
+  const statusTag = STATUS_TAG[purchase.status];
 
   async function handleReceive() {
     if (!window.confirm("Receive this purchase? Stock will increase and this can't be undone.")) return;
     try {
       await receivePurchase.mutateAsync(purchaseId);
       show("Purchase received — stock updated.", "success");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
+      show(message, "error");
+    }
+  }
+
+  async function handleCancel() {
+    const warning = isDraft
+      ? "Cancel this draft purchase? This can't be undone."
+      : "Cancel this purchase? Stock it brought in will be reversed, and this can't be undone.";
+    if (!window.confirm(warning)) return;
+    try {
+      await cancelPurchase.mutateAsync(purchaseId);
+      show("Purchase cancelled.", "success");
     } catch (error) {
       const message =
         error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
@@ -65,7 +95,7 @@ export default function PurchaseWorkspaceClient({ purchaseId }: PurchaseWorkspac
         <span className="text-sm text-text/50">
           #P-{purchase.purchase_id} · {purchase.invoice_number ?? "no invoice #"} · {purchase.purchase_date}
         </span>
-        <Tag variant={isDraft ? "outline" : "accent"}>{isDraft ? "Draft" : "Received"}</Tag>
+        <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
       </div>
 
       {isDraft && (
@@ -100,6 +130,11 @@ export default function PurchaseWorkspaceClient({ purchaseId }: PurchaseWorkspac
                 Save draft
               </Button>
             </>
+          )}
+          {isAdmin && !isCancelled && (
+            <Button variant="secondary" onClick={handleCancel} disabled={cancelPurchase.isPending} block>
+              {cancelPurchase.isPending ? "Cancelling…" : "Cancel purchase"}
+            </Button>
           )}
         </div>
       </div>

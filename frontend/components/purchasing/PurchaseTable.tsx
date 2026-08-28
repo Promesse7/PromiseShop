@@ -5,9 +5,10 @@ import { Table } from "@/components/ui/Table";
 import { Tag } from "@/components/ui/Tag";
 import type { PurchaseListRow } from "@/lib/purchasing/usePurchases";
 
-const STATUS_TAG: Record<PurchaseListRow["status"], { label: string; variant: "accent" | "outline" }> = {
+const STATUS_TAG: Record<PurchaseListRow["status"], { label: string; variant: "accent" | "outline" | "neutral" }> = {
   draft: { label: "Draft", variant: "outline" },
   received: { label: "Received", variant: "accent" },
+  cancelled: { label: "Cancelled", variant: "neutral" },
 };
 
 const PAYMENT_LABEL: Record<PurchaseListRow["payment_status"], string> = {

@@ -37,6 +37,14 @@ def admin():
 
 
 @pytest.fixture
+def manager():
+    return Employee.objects.create_user(
+        username="manager1", password="managerpass", full_name="Manager One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.MANAGER,
+    )
+
+
+@pytest.fixture
 def supplier():
     return Supplier.objects.create(name="Kigali Electronics Ltd")
 
@@ -371,3 +379,77 @@ def test_purchase_employee_is_set_server_side_ignoring_client_value(employee, ad
     purchase = Purchase.objects.get(pk=response.json()["purchase_id"])
     assert purchase.employee_id == employee.employee_id
     assert purchase.employee_id != admin.employee_id
+
+
+def test_admin_can_cancel_a_draft_purchase(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 3, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert not Inventory.objects.filter(product=product).exists()
+
+
+def test_manager_can_cancel_a_received_purchase_and_stock_is_reversed(manager, draft_purchase, product):
+    client = auth_client(manager, "managerpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 5, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/receive/")
+    assert Inventory.objects.get(product=product).quantity_in_stock == 5
+
+    response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert Inventory.objects.get(product=product).quantity_in_stock == 0
+
+
+def test_sales_staff_forbidden_from_cancelling_a_purchase(employee, draft_purchase):
+    client = auth_client(employee, "staffpass")
+    response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    assert response.status_code == 403
+
+
+def test_cancelling_an_already_cancelled_purchase_returns_400(admin, draft_purchase):
+    client = auth_client(admin, "adminpass")
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    second_response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    assert second_response.status_code == 400
+
+
+def test_cancelling_a_received_purchase_blocked_when_stock_already_sold(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 5, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/receive/")
+
+    inventory = Inventory.objects.get(product=product)
+    inventory.quantity_in_stock = 2  # simulates 3 of the 5 already having been sold
+    inventory.save(update_fields=["quantity_in_stock"])
+
+    response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    assert response.status_code == 400
+    assert Inventory.objects.get(product=product).quantity_in_stock == 2
+    purchase = Purchase.objects.get(pk=draft_purchase.purchase_id)
+    assert purchase.status == "received"
+
+
+def test_cannot_receive_a_cancelled_purchase(admin, draft_purchase, product):
+    client = auth_client(admin, "adminpass")
+    client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 1, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00"},
+        format="json",
+    )
+    client.post(f"/api/purchases/{draft_purchase.purchase_id}/cancel/")
+    response = client.post(f"/api/purchases/{draft_purchase.purchase_id}/receive/")
+    assert response.status_code == 400

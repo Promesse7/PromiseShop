@@ -197,7 +197,7 @@ export interface Purchase {
   total_paid?: string;
   total_invoiced?: string;
   payment_status: "paid" | "partial" | "unpaid";
-  status: "draft" | "received";
+  status: "draft" | "received" | "cancelled";
   items: PurchaseItem[];
 }
 
