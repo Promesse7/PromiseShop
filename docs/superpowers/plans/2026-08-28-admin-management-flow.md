@@ -663,14 +663,62 @@ git commit -m "feat(purchasing): NewPurchaseDialog carries a reorder target's na
 ### Task 6: `PurchasesPageClient` opens the dialog and forwards reorder context from the URL
 
 **Files:**
+- Create: `frontend/lib/purchasing/reorderUrl.ts`
+- Create: `frontend/lib/purchasing/reorderUrl.test.ts`
 - Modify: `frontend/app/(protected)/purchases/PurchasesPageClient.tsx`
 - Modify: `frontend/app/(protected)/purchases/PurchasesPageClient.test.tsx`
 
 **Interfaces:**
 - Consumes: `NewPurchaseDialogProps.reorderProductName` from Task 5.
-- Produces: the URL contract other tasks build links to — `/purchases?open=new` (auto-opens the dialog), plus `&reorder_product=<id>&reorder_name=<encoded name>` (only `reorder_name` is actually read here and forwarded; `reorder_product` is accepted in the URL for whoever builds the link — Tasks 8/9 — to identify *which* product this is about, but this page itself has no use for the id, only the name).
+- Produces: `buildReorderUrl(productId: number, name: string): string` — the one place the `/purchases?open=new&reorder_product=<id>&reorder_name=<encoded name>` URL shape is built. Tasks 8 and 9 both import and call this rather than inlining the template themselves — the same query-string expression appearing twice in two different components would be exactly the kind of verbatim duplication a review flags, so it's a shared helper from the start. This page itself only reads `open`/`reorder_name` back off the URL (via `useSearchParams`, not via this helper) — it has no use for the id, only the name; the id exists in the URL purely for whoever builds the link (Tasks 8/9) to identify which product it's about.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write the failing test for the URL helper**
+
+```typescript
+// frontend/lib/purchasing/reorderUrl.test.ts
+import { describe, expect, it } from "vitest";
+import { buildReorderUrl } from "./reorderUrl";
+
+describe("buildReorderUrl", () => {
+  it("builds a purchases URL that opens the dialog prefilled for the given product", () => {
+    expect(buildReorderUrl(1, "JBL Flip 6 Speaker")).toBe(
+      "/purchases?open=new&reorder_product=1&reorder_name=JBL%20Flip%206%20Speaker"
+    );
+  });
+
+  it("URL-encodes special characters in the name", () => {
+    expect(buildReorderUrl(7, "Scales 60kg")).toBe(
+      "/purchases?open=new&reorder_product=7&reorder_name=Scales%2060kg"
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run (from `frontend/`): `npx vitest run lib/purchasing/reorderUrl.test.ts`
+Expected: FAIL — `Cannot find module './reorderUrl'`
+
+- [ ] **Step 3: Write minimal implementation**
+
+```typescript
+// frontend/lib/purchasing/reorderUrl.ts
+// The one place the Reorder-action URL shape is built (dashboard low-stock
+// table, product detail page) — a purchases-page link that auto-opens
+// "New purchase" and, once a supplier is picked and it's created, prefills
+// the add-item search with this product's name. See PurchasesPageClient
+// (reads open/reorder_name) and PurchaseWorkspaceClient (reads prefill).
+export function buildReorderUrl(productId: number, name: string): string {
+  return `/purchases?open=new&reorder_product=${productId}&reorder_name=${encodeURIComponent(name)}`;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `npx vitest run lib/purchasing/reorderUrl.test.ts`
+Expected: PASS (2 tests)
+
+- [ ] **Step 5: Write the failing tests for `PurchasesPageClient`**
 
 `frontend/app/(protected)/purchases/PurchasesPageClient.test.tsx` currently has no `next/navigation` mock at all. Add one at the top, with a helper to change it per test:
 
@@ -721,12 +769,12 @@ Add new tests after `"shows the + New purchase button for every role..."`:
 
 This file needs two new imports added at the top: `import userEvent from "@testing-library/user-event";` and `import { waitFor } from "@testing-library/react";` — merge into the existing `import { render, screen } from "@testing-library/react";` line to become `import { render, screen, waitFor } from "@testing-library/react";`.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [ ] **Step 6: Run tests to verify they fail**
 
 Run (from `frontend/`): `npx vitest run "app/(protected)/purchases/PurchasesPageClient.test.tsx"`
 Expected: FAIL — `next/navigation` mock doesn't affect anything yet since `PurchasesPageClient` doesn't call `useSearchParams`.
 
-- [ ] **Step 3: Implement in `PurchasesPageClient.tsx`**
+- [ ] **Step 7: Implement in `PurchasesPageClient.tsx`**
 
 Current full file:
 
@@ -800,15 +848,15 @@ And the final `NewPurchaseDialog` render call to:
 
 Every other line (the `isError`/`isLoading` guards, `PageHeader`, `PurchaseTable`) is unchanged.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 8: Run tests to verify they pass**
 
 Run: `npx vitest run "app/(protected)/purchases/PurchasesPageClient.test.tsx"`
 Expected: PASS (all tests, including the 3 new ones)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add "frontend/app/(protected)/purchases/PurchasesPageClient.tsx" "frontend/app/(protected)/purchases/PurchasesPageClient.test.tsx"
+git add frontend/lib/purchasing/reorderUrl.ts frontend/lib/purchasing/reorderUrl.test.ts "frontend/app/(protected)/purchases/PurchasesPageClient.tsx" "frontend/app/(protected)/purchases/PurchasesPageClient.test.tsx"
 git commit -m "feat(purchasing): open+prefill New purchase from a ?open=new&reorder_name= URL"
 ```
 
@@ -916,7 +964,7 @@ git commit -m "feat(purchasing): PurchaseWorkspaceClient forwards ?prefill= into
 - Modify: `frontend/app/(protected)/products/[id]/page.test.tsx`
 
 **Interfaces:**
-- Consumes: the `/purchases?open=new&reorder_product=<id>&reorder_name=<name>` URL contract from Task 6.
+- Consumes: `buildReorderUrl` from Task 6 (`@/lib/purchasing/reorderUrl`).
 - Produces: nothing consumed by later tasks.
 
 - [ ] **Step 1: Update the failing test**
@@ -951,6 +999,12 @@ Expected: FAIL — the button is still disabled, no `href`.
 
 - [ ] **Step 3: Implement in `ProductDetailPageClient.tsx`**
 
+Add the import:
+
+```typescript
+import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
+```
+
 Change:
 
 ```typescript
@@ -962,10 +1016,7 @@ Change:
 to:
 
 ```typescript
-          <Button
-            variant="secondary"
-            href={`/purchases?open=new&reorder_product=${detail.product.product_id}&reorder_name=${encodeURIComponent(detail.product.name)}`}
-          >
+          <Button variant="secondary" href={buildReorderUrl(detail.product.product_id, detail.product.name)}>
             Reorder
           </Button>
 ```
@@ -991,7 +1042,7 @@ git commit -m "feat(products): wire the Reorder button to a prefilled new purcha
 - Modify: `frontend/components/dashboard/LowStockTable.test.tsx`
 
 **Interfaces:**
-- Consumes: the same URL contract as Task 8.
+- Consumes: `buildReorderUrl` from Task 6 (`@/lib/purchasing/reorderUrl`) — same helper Task 8 uses, not a second inline copy of the URL template.
 - Produces: nothing consumed by later tasks.
 
 - [ ] **Step 1: Write the failing test**
@@ -1015,10 +1066,11 @@ Expected: FAIL — no "Reorder" link exists.
 
 - [ ] **Step 3: Implement in `LowStockTable.tsx`**
 
-Add the import:
+Add the imports:
 
 ```typescript
 import Link from "next/link";
+import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
 ```
 
 Add a new column after `"status"`:
@@ -1028,10 +1080,7 @@ Add a new column after `"status"`:
             key: "reorder",
             header: "",
             render: (r) => (
-              <Link
-                href={`/purchases?open=new&reorder_product=${r.product_id}&reorder_name=${encodeURIComponent(r.name)}`}
-                className="text-xs text-accent"
-              >
+              <Link href={buildReorderUrl(r.product_id, r.name)} className="text-xs text-accent">
                 Reorder
               </Link>
             ),
@@ -1348,4 +1397,4 @@ git push origin main
 
 - **Spec coverage:** Section 1 (setup checklist) → Task 10. Section 2 (nav order) → Task 2. Section 3 (reorder wiring) → Tasks 4–9 (single-form prefill, dialog redirect, page-level URL handling, workspace forwarding, both entry points). Section 4 (duplicate-name warning on Products) → Task 3. Testing section's items are folded into each task's own steps rather than a separate task, since the plan's task-per-file granularity already produces one commit per touched test file.
 - **Placeholder scan:** none — every step has real code, real assertions, real commands.
-- **Type consistency:** `normalizeName(name: string): string` (Task 1) is the same signature used in Tasks 3 and 4. `AddProductSingleFormProps.initialSearch?: string` (Task 4) matches what Task 7 passes. `NewPurchaseDialogProps.reorderProductName?: string` (Task 5) matches what Task 6 passes. The `/purchases?open=new&reorder_product=<id>&reorder_name=<name>` URL shape is identical across Tasks 6, 8, and 9. `DashboardData`'s three new fields (Task 10) are read with the exact names `SetupChecklistProps` expects.
+- **Type consistency:** `normalizeName(name: string): string` (Task 1) is the same signature used in Tasks 3 and 4. `AddProductSingleFormProps.initialSearch?: string` (Task 4) matches what Task 7 passes. `NewPurchaseDialogProps.reorderProductName?: string` (Task 5) matches what Task 6 passes. `buildReorderUrl(productId: number, name: string): string` (Task 6) is called identically by Tasks 8 and 9 — added during pre-flight review to replace what would otherwise have been the exact same URL-template expression duplicated verbatim in two components. `DashboardData`'s three new fields (Task 10) are read with the exact names `SetupChecklistProps` expects.
