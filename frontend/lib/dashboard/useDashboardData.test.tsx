@@ -90,6 +90,31 @@ describe("useDashboardData", () => {
     expect(result.current.grossMarginPct).toBeCloseTo(330000 / 530000);
   });
 
+  it("reports hasReceivedPurchase, categoryCount, and productCount from the fetched data", async () => {
+    vi.stubGlobal("fetch", mockFetchImpl());
+    const { result } = renderHook(() => useDashboardData(NOW), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.hasReceivedPurchase).toBe(true);
+    expect(result.current.categoryCount).toBe(2);
+    expect(result.current.productCount).toBe(3);
+  });
+
+  it("reports hasReceivedPurchase false when every purchase is still a draft", async () => {
+    const fetchMock = mockFetchImpl({
+      "/purchases/": () =>
+        Promise.resolve({
+          ok: true,
+          json: async () => ({ count: 1, next: null, previous: null, results: [{ ...PURCHASES[0], status: "draft" }] }),
+        } as Response),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useDashboardData(NOW), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.hasReceivedPurchase).toBe(false);
+  });
+
   it("flags isForbidden and skips further fetches when sales-summary 403s", async () => {
     const fetchMock = mockFetchImpl({
       "/dashboard/sales-summary/": () => Promise.resolve({ ok: false, status: 403, json: async () => ({ detail: "Forbidden" }) } as Response),

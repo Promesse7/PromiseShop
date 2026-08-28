@@ -31,6 +31,9 @@ export interface DashboardData {
   isLoading: boolean;
   isError: boolean;
   isForbidden: boolean;
+  hasReceivedPurchase: boolean;
+  categoryCount: number;
+  productCount: number;
   salesRevenue: number;
   saleCount: number;
   purchaseCost: number;
@@ -68,6 +71,9 @@ function isForbiddenError(error: unknown): boolean {
 }
 
 const emptyData: Omit<DashboardData, "isLoading" | "isError" | "isForbidden"> = {
+  hasReceivedPurchase: false,
+  categoryCount: 0,
+  productCount: 0,
   salesRevenue: 0,
   saleCount: 0,
   purchaseCost: 0,
@@ -197,6 +203,9 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
     }));
 
     return {
+      hasReceivedPurchase: purchases.data.some((p) => p.status === "received"),
+      categoryCount: catalog.categories.length,
+      productCount: catalog.all.length,
       salesRevenue,
       saleCount,
       purchaseCost,
