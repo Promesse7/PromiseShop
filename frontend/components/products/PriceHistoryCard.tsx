@@ -18,6 +18,7 @@ export function PriceHistoryCard({ history, onSetNewPrice, showWholesale }: Pric
       {history.length === 0 ? (
         <p className="text-sm text-text/50">No price history yet</p>
       ) : (
+        <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="border-b border-divider">
@@ -46,6 +47,7 @@ export function PriceHistoryCard({ history, onSetNewPrice, showWholesale }: Pric
             ))}
           </tbody>
         </table>
+        </div>
       )}
       <Button variant="secondary" onClick={onSetNewPrice} className="mt-2">
         Set new price

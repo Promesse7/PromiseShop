@@ -26,7 +26,7 @@ export function Dialog({ open, onClose, title, children }: DialogProps) {
         visible effect there.
       */}
       <div
-        className="bg-surface rounded-lg shadow-lg p-4 min-w-[320px] max-w-[90vw] print:shadow-none print:max-w-none print:p-0"
+        className="bg-surface rounded-lg shadow-lg p-4 min-w-[320px] max-w-[90vw] max-h-[90vh] overflow-y-auto print:shadow-none print:max-w-none print:max-h-none print:overflow-visible print:p-0"
         onClick={(e) => e.stopPropagation()}
       >
         <h4 className="m-0 mb-2">{title}</h4>

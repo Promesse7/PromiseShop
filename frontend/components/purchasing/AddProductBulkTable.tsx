@@ -131,6 +131,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
 
   return (
     <div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="border-b border-divider">
@@ -215,6 +216,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
           })}
         </tbody>
       </table>
+      </div>
       <p className="text-sm text-text/50 mt-3">
         Rows with paid ≠ invoiced require a discrepancy note per line before they can be added.
       </p>

@@ -17,10 +17,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body>
-        <div className="m-5  shadow-lg rounded-lg flex h-[95vh] flex-col">
+        <div className="m-5 shadow-lg rounded-lg flex h-[95vh] flex-col overflow-y-auto overflow-x-hidden">
           {children}
         </div>
-        </body>
+      </body>
     </html>
   );
 }

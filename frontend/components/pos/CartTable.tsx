@@ -11,7 +11,8 @@ interface CartTableProps {
 
 export function CartTable({ lines, onSetQuantity, onRemove }: CartTableProps) {
   return (
-    <table className="hidden lg:table w-full text-sm border-collapse">
+    <div className="hidden lg:block overflow-x-auto">
+    <table className="w-full text-sm border-collapse">
       <thead>
         <tr className="border-b border-divider">
           <th className="text-left font-medium py-2 px-2 text-text/70">Product</th>
@@ -68,5 +69,6 @@ export function CartTable({ lines, onSetQuantity, onRemove }: CartTableProps) {
         )}
       </tbody>
     </table>
+    </div>
   );
 }
