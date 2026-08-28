@@ -8,7 +8,13 @@ python manage.py collectstatic --noinput
 # docker-compose Postgres, which isn't pooled to begin with).
 DATABASE_URL="${DATABASE_URL_UNPOOLED:-$DATABASE_URL}" python manage.py migrate --noinput
 
-exec gunicorn config.wsgi:application \
+# WSGI can't read a chunked-transfer request body without an upfront
+# Content-Length, which Vercel's internal service-binding proxy strips in
+# favor of Transfer-Encoding: chunked — so requests routed through it (e.g.
+# the frontend's server-side fetch to this service) arrive with an empty
+# body under gunicorn's sync WSGI worker. ASGI streams the body instead.
+exec gunicorn config.asgi:application \
+    -k uvicorn_worker.UvicornWorker \
     --bind "0.0.0.0:${PORT:-8000}" \
     --workers "${WEB_CONCURRENCY:-3}" \
     --timeout 120

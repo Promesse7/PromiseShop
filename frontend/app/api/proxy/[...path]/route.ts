@@ -22,7 +22,9 @@ async function forward(request: Request, context: RouteContext, method: string) 
   const targetUrl = `${getDjangoApiUrl()}/${path.join("/")}/${url.search}`;
 
   const body =
-    method === "GET" || method === "DELETE" ? undefined : await request.text();
+    method === "GET" || method === "DELETE"
+      ? undefined
+      : Buffer.from(await request.arrayBuffer());
 
   let djangoResponse: Response;
   try {
@@ -33,6 +35,8 @@ async function forward(request: Request, context: RouteContext, method: string) 
         Authorization: `Bearer ${accessToken}`,
       },
       body,
+      // @ts-expect-error -- Node fetch requires this when sending a body
+      duplex: body ? "half" : undefined,
     });
   } catch {
     return NextResponse.json(
@@ -53,6 +57,8 @@ async function forward(request: Request, context: RouteContext, method: string) 
             Authorization: `Bearer ${refreshed}`,
           },
           body,
+          // @ts-expect-error -- Node fetch requires this when sending a body
+          duplex: body ? "half" : undefined,
         });
       } catch {
         return NextResponse.json(
@@ -87,7 +93,9 @@ async function tryRefresh(
     refreshResponse = await fetch(`${getDjangoApiUrl()}/auth/refresh/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh: refreshToken }),
+      body: Buffer.from(JSON.stringify({ refresh: refreshToken }), "utf-8"),
+      // @ts-expect-error -- Node fetch requires this when sending a body
+      duplex: "half",
     });
   } catch {
     return null;

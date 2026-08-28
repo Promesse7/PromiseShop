@@ -17,10 +17,13 @@ export async function POST(request: Request) {
 
   let djangoResponse: Response;
   try {
+    const outgoingBody = Buffer.from(JSON.stringify({ username, password }), "utf-8");
     djangoResponse = await fetch(`${getDjangoApiUrl()}/auth/login/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: outgoingBody,
+      // @ts-expect-error -- Node fetch requires this when sending a body
+      duplex: "half",
     });
   } catch {
     return NextResponse.json(
