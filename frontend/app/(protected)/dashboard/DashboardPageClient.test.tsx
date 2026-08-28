@@ -14,6 +14,9 @@ function baseData(overrides: Partial<DashboardData> = {}): DashboardData {
     isLoading: false,
     isError: false,
     isForbidden: false,
+    hasReceivedPurchase: true,
+    categoryCount: 3,
+    productCount: 10,
     salesRevenue: 530000,
     saleCount: 2,
     purchaseCost: 200000,
@@ -53,6 +56,20 @@ describe("DashboardPageClient", () => {
     mockedUseDashboardData.mockReturnValue(baseData());
     render(<DashboardPageClient role="admin" />);
     expect(screen.getByText("RWF 530,000")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+  });
+
+  it("shows the setup checklist instead of the KPI dashboard when no purchase has been received yet", () => {
+    mockedUseDashboardData.mockReturnValue(baseData({ hasReceivedPurchase: false, categoryCount: 0, productCount: 0 }));
+    render(<DashboardPageClient role="admin" />);
+    expect(screen.getByText("Let's get your shop set up")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+  });
+
+  it("shows the normal KPI dashboard once a purchase has been received", () => {
+    mockedUseDashboardData.mockReturnValue(baseData());
+    render(<DashboardPageClient role="admin" />);
+    expect(screen.queryByText("Let's get your shop set up")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 });

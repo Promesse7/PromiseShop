@@ -1,6 +1,7 @@
 "use client";
 
 import { useDashboardData } from "@/lib/dashboard/useDashboardData";
+import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { StatCards } from "@/components/dashboard/StatCards";
 import { RevenueTrendChart } from "@/components/dashboard/RevenueTrendChart";
 import { LowStockTable } from "@/components/dashboard/LowStockTable";
@@ -33,6 +34,15 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
 
   if (data.isLoading) {
     return <DashboardSkeleton />;
+  }
+
+  if (!data.hasReceivedPurchase) {
+    return (
+      <div>
+        <PageHeader title="Dashboard" subtitle="Let's get set up" />
+        <SetupChecklist categoryCount={data.categoryCount} productCount={data.productCount} />
+      </div>
+    );
   }
 
   return (
