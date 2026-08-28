@@ -14,12 +14,12 @@ function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function renderDialog(open = true) {
+function renderDialog(open = true, reorderProductName?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <NewPurchaseDialog open={open} onClose={() => {}} />
+        <NewPurchaseDialog open={open} onClose={() => {}} reorderProductName={reorderProductName} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -68,5 +68,16 @@ describe("NewPurchaseDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
 
     await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/purchases/42"));
+  });
+
+  it("redirects with a prefill query param when a reorder product name was given", async () => {
+    renderDialog(true, "Scales 60kg");
+    await screen.findByText("Kigali Electronics Ltd");
+    await userEvent.selectOptions(screen.getByLabelText("Supplier"), "1");
+    await userEvent.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() =>
+      expect(pushMock).toHaveBeenCalledWith("/purchases/42?prefill=Scales%2060kg")
+    );
   });
 });

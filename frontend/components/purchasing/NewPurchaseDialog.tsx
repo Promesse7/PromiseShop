@@ -27,17 +27,24 @@ const PAYMENT_STATUS_OPTIONS = [
 interface NewPurchaseDialogProps {
   open: boolean;
   onClose: () => void;
+  reorderProductName?: string;
 }
 
-export function NewPurchaseDialog({ open, onClose }: NewPurchaseDialogProps) {
+export function NewPurchaseDialog({ open, onClose, reorderProductName }: NewPurchaseDialogProps) {
   return (
     <Dialog open={open} onClose={onClose} title="New purchase">
-      {open && <NewPurchaseFields key={open ? "open" : "closed"} onClose={onClose} />}
+      {open && <NewPurchaseFields key={open ? "open" : "closed"} onClose={onClose} reorderProductName={reorderProductName} />}
     </Dialog>
   );
 }
 
-function NewPurchaseFields({ onClose }: { onClose: () => void }) {
+function NewPurchaseFields({
+  onClose,
+  reorderProductName,
+}: {
+  onClose: () => void;
+  reorderProductName?: string;
+}) {
   const supplierId = useId();
   const router = useRouter();
   const { show } = useToast();
@@ -60,7 +67,11 @@ function NewPurchaseFields({ onClose }: { onClose: () => void }) {
     try {
       const created = await createPurchase.mutateAsync(buildPurchasePayload(values));
       onClose();
-      router.push(`/purchases/${created.purchase_id}`);
+      router.push(
+        reorderProductName
+          ? `/purchases/${created.purchase_id}?prefill=${encodeURIComponent(reorderProductName)}`
+          : `/purchases/${created.purchase_id}`
+      );
     } catch (error) {
       const message =
         error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
