@@ -55,9 +55,12 @@ describe("ProductDetailPageClient", () => {
     expect(screen.queryByText("Current pricing · Admin only")).not.toBeInTheDocument();
   });
 
-  it("has a disabled Reorder button", () => {
+  it("has a Reorder link that opens a prefilled new purchase for this product", () => {
     renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
-    expect(screen.getByRole("button", { name: "Reorder" })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "Reorder" })).toHaveAttribute(
+      "href",
+      "/purchases?open=new&reorder_product=1&reorder_name=JBL%20Flip%206%20Speaker"
+    );
   });
 
   it("hides Edit for sales_staff", () => {

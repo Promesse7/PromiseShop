@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProductDetail } from "@/lib/products/useProductDetail";
+import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
 import { StockCard } from "@/components/products/StockCard";
 import { CatalogInfoCard } from "@/components/products/CatalogInfoCard";
 import { PricingCard } from "@/components/products/PricingCard";
@@ -92,7 +93,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         {detail.product.is_active === false && <Tag variant="neutral">Inactive</Tag>}
         <span className="font-mono text-xs text-text/50">{detail.product.barcode}</span>
         <div className="ml-auto flex gap-2">
-          <Button variant="secondary" disabled>
+          <Button variant="secondary" href={buildReorderUrl(detail.product.product_id, detail.product.name)}>
             Reorder
           </Button>
           {isAdmin && <Button onClick={() => setEditOpen(true)}>Edit</Button>}
