@@ -1,8 +1,9 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPages } from "@/lib/api-client";
+import { normalizeName } from "@/lib/products/normalizeName";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
@@ -23,20 +24,22 @@ import type { Category, Product } from "@/lib/types";
 interface AddProductSingleFormProps {
   purchaseId: number;
   onAdded: () => void;
+  initialSearch?: string;
 }
 
-export function AddProductSingleForm({ purchaseId, onAdded }: AddProductSingleFormProps) {
+export function AddProductSingleForm({ purchaseId, onAdded, initialSearch }: AddProductSingleFormProps) {
   const categoryId = useId();
   const { show } = useToast();
   const addItem = useAddPurchaseItem();
   const productsQuery = useQuery({ queryKey: ["products"], queryFn: () => fetchAllPages<Product>("products/") });
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchAllPages<Category>("categories/") });
 
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch ?? "");
   const [selected, setSelected] = useState<Product | null>(null);
   const [forceNew, setForceNew] = useState(false);
   const [values, setValues] = useState<AddItemFormValues>(emptyExistingProductItemValues(""));
   const [errors, setErrors] = useState<AddItemFormErrors>({});
+  const [autoSelectAttempted, setAutoSelectAttempted] = useState(false);
 
   const matches = useMemo(() => {
     // Collapse repeated whitespace on both sides so a stray double space (a very easy typo)
@@ -50,6 +53,16 @@ export function AddProductSingleForm({ purchaseId, onAdded }: AddProductSingleFo
       })
       .slice(0, 8);
   }, [productsQuery.data, search]);
+
+  useEffect(() => {
+    if (autoSelectAttempted || !initialSearch || !productsQuery.data || selected || forceNew) return;
+    setAutoSelectAttempted(true);
+    const target = normalizeName(initialSearch);
+    const exactMatches = productsQuery.data.filter((p) => normalizeName(p.name) === target);
+    if (exactMatches.length === 1) {
+      selectProduct(exactMatches[0]);
+    }
+  }, [autoSelectAttempted, initialSearch, productsQuery.data, selected, forceNew]);
 
   const mode: AddItemMode | null = selected ? "existing" : forceNew ? "new" : null;
 

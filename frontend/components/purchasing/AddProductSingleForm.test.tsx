@@ -9,12 +9,12 @@ function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function renderForm(onAdded = vi.fn()) {
+function renderForm(onAdded = vi.fn(), initialSearch?: string) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <AddProductSingleForm purchaseId={7} onAdded={onAdded} />
+        <AddProductSingleForm purchaseId={7} onAdded={onAdded} initialSearch={initialSearch} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -97,5 +97,23 @@ describe("AddProductSingleForm", () => {
 
     expect(await screen.findByText("Required when paid and invoiced prices differ.")).toBeInTheDocument();
     expect(addItemCalls).toHaveLength(0);
+  });
+
+  it("seeds the search box from initialSearch", async () => {
+    renderForm(vi.fn(), "Boya BY-M1 Microphone");
+    expect(screen.getByLabelText("Search catalog first — reuse if it exists…")).toHaveValue("Boya BY-M1 Microphone");
+  });
+
+  it("auto-selects when initialSearch exactly matches one existing product", async () => {
+    renderForm(vi.fn(), "Boya BY-M1 Microphone");
+    expect(await screen.findByLabelText("Quantity")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Search catalog first — reuse if it exists…")).not.toBeInTheDocument();
+  });
+
+  it("does not auto-select on a partial initialSearch match, leaving the box prefilled", async () => {
+    renderForm(vi.fn(), "Boya");
+    await screen.findByText(/Boya BY-M1 Microphone/);
+    expect(screen.getByLabelText("Search catalog first — reuse if it exists…")).toHaveValue("Boya");
+    expect(screen.queryByLabelText("Quantity")).not.toBeInTheDocument();
   });
 });
