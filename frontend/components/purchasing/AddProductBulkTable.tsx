@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
 import { useToast } from "@/components/layout/ToastProvider";
 import { buildAddItemPayload, validateAddItemForm, type AddItemFormValues } from "@/lib/purchasing/purchaseItemForm";
+import { normalizeName } from "@/lib/products/normalizeName";
 import type { Category, Product } from "@/lib/types";
 
 interface BulkRow {
@@ -20,12 +21,6 @@ interface BulkRow {
   price_discrepancy_note: string;
   status: "pending" | "failed";
   error?: string;
-}
-
-// Collapse repeated whitespace so a stray double space doesn't hide an existing
-// product from this exact-name match and cause an accidental duplicate to get created.
-function normalizeName(name: string): string {
-  return name.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function emptyRow(): BulkRow {
