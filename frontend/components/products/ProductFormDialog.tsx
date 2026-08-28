@@ -16,12 +16,15 @@ import {
   type ProductFormValues,
   type ProductFormErrors,
 } from "@/lib/products/productForm";
+import { normalizeName } from "@/lib/products/normalizeName";
 import type { Category, Product } from "@/lib/types";
+import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 interface ProductFormDialogProps {
   open: boolean;
   mode: "create" | "edit";
   categories: Category[];
+  existingProducts?: CatalogProduct[];
   initialProduct?: Product;
   initialStorageLocation?: string | null;
   inventoryId?: number;
@@ -46,6 +49,7 @@ export function ProductFormDialog({ open, onClose, ...rest }: ProductFormDialogP
 function ProductFormFields({
   mode,
   categories,
+  existingProducts = [],
   initialProduct,
   initialStorageLocation,
   inventoryId,
@@ -63,6 +67,10 @@ function ProductFormFields({
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const showStorageLocation = mode === "edit" && initialStorageLocation != null;
+  const similarProduct =
+    mode === "create" && values.name.trim()
+      ? existingProducts.find((p) => normalizeName(p.name) === normalizeName(values.name))
+      : undefined;
 
   const [addingCategory, setAddingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
@@ -171,6 +179,11 @@ function ProductFormFields({
   return (
       <div className="flex flex-col gap-3 min-w-[420px]">
         <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
+        {similarProduct && (
+          <p className="text-xs text-text/50">
+            A similar product already exists: {similarProduct.name} ({similarProduct.barcode})
+          </p>
+        )}
         <div className="flex flex-col gap-1">
           <label htmlFor={categoryId} className="block text-xs text-text/70">
             Category

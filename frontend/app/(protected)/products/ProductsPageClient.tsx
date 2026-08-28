@@ -207,6 +207,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
         open={createOpen}
         mode="create"
         categories={catalog.categories}
+        existingProducts={catalog.all}
         onClose={() => setCreateOpen(false)}
         onSaved={() => setCreateOpen(false)}
       />

@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { ProductFormDialog } from "./ProductFormDialog";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import type { Category, Product } from "@/lib/types";
+import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 const categories: Category[] = [
   { category_id: 20, name: "Audio", code: "AUD", description: null },
@@ -53,6 +54,84 @@ describe("ProductFormDialog", () => {
     );
     expect(screen.getByLabelText("Category")).toBeInTheDocument();
     expect(screen.queryByLabelText("Storage location")).not.toBeInTheDocument();
+  });
+
+  it("shows a similar-product warning in create mode when the typed name matches an existing product", async () => {
+    renderWithToast(
+      <ProductFormDialog
+        open={true}
+        mode="create"
+        categories={categories}
+        existingProducts={[
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+        ]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />
+    );
+    await userEvent.type(screen.getByLabelText("Name"), "Scales 60kg");
+    expect(
+      await screen.findByText("A similar product already exists: Scales 60kg (PES-SCL-00001)")
+    ).toBeInTheDocument();
+  });
+
+  it("does not show the similar-product warning when there is no match", async () => {
+    renderWithToast(
+      <ProductFormDialog
+        open={true}
+        mode="create"
+        categories={categories}
+        existingProducts={[
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+        ]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />
+    );
+    await userEvent.type(screen.getByLabelText("Name"), "Bluetooth Speaker");
+    expect(screen.queryByText(/A similar product already exists/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the similar-product warning in edit mode", async () => {
+    renderWithToast(
+      <ProductFormDialog
+        open={true}
+        mode="edit"
+        categories={categories}
+        initialProduct={existingProduct}
+        initialStorageLocation={null}
+        existingProducts={[
+          { product_id: 99, name: "JBL Flip 6", brand: null, model_number: null, barcode: "PES-AUD-00099", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+        ]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/A similar product already exists/)).not.toBeInTheDocument();
+  });
+
+  it("does not block submission when the warning is showing", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ ...existingProduct, product_id: 5 }),
+    });
+    const onSaved = vi.fn();
+    renderWithToast(
+      <ProductFormDialog
+        open={true}
+        mode="create"
+        categories={categories}
+        existingProducts={[
+          { product_id: 99, name: "Scales 60kg", brand: null, model_number: null, barcode: "PES-SCL-00001", category_id: 20, category_name: "Audio", retail_price: 5000, wholesale_price: null, quantity_in_stock: 3, reorder_level: 2, status: "ok", is_active: true },
+        ]}
+        onClose={vi.fn()}
+        onSaved={onSaved}
+      />
+    );
+    await userEvent.type(screen.getByLabelText("Name"), "Scales 60kg");
+    await userEvent.selectOptions(screen.getByLabelText("Category"), "20");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalled());
   });
 
   it("pre-fills fields and disables category in edit mode", () => {

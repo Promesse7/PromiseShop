@@ -80,6 +80,15 @@ describe("ProductsPageClient", () => {
     expect(screen.queryByRole("button", { name: "+ New product" })).not.toBeInTheDocument();
   });
 
+  it("wires the catalog through to the New product dialog so it can warn about duplicate names", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "+ New product" }));
+    await userEvent.type(screen.getByLabelText("Name"), "Samsung TV");
+    expect(
+      await screen.findByText("A similar product already exists: Samsung TV (PES-TV-00082)")
+    ).toBeInTheDocument();
+  });
+
   it("shows the loading state", () => {
     vi.spyOn(useCatalogProductsModule, "useCatalogProducts").mockReturnValue({
       all: [], categories: [], isLoading: true, isError: false,
