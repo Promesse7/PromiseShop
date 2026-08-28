@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Zap,
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
   UserCog,
   Receipt,
   Bell,
+  LogOut,
   type LucideIcon,
 } from "lucide-react";
 import { Tag } from "@/components/ui/Tag";
@@ -78,10 +80,19 @@ interface NavProps {
 
 export function Nav({ role, username }: NavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const links = getNavLinksForRole(role);
   const isAdmin = ADMIN_ROLES.includes(role);
   const roleLabel = role === "admin" ? "Admin" : role === "manager" ? "Manager" : role === "sales_staff" ? "Sales Staff" : "Technician";
   const notificationsActive = isActiveLink(pathname, "/notifications");
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
 
   return (
     <nav className="sticky top-0 z-10 overflow-hidden glass-bar rounded-t-lg border-b border-gray-200">
@@ -121,6 +132,15 @@ export function Nav({ role, username }: NavProps) {
         <span className="text-sm opacity-60">
           {username} · {roleLabel}
         </span>
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex items-center gap-1.5 text-sm hover:text-accent disabled:opacity-50"
+        >
+          <LogOut className="w-4 h-4" aria-hidden />
+          {loggingOut ? "Signing out…" : "Sign out"}
+        </button>
       </div>
     </nav>
   );

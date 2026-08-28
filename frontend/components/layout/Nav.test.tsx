@@ -1,16 +1,31 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Nav, getNavLinksForRole } from "./Nav";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
+  useRouter: vi.fn(),
 }));
 
 const mockedUsePathname = vi.mocked(usePathname);
+const mockedUseRouter = vi.mocked(useRouter);
+const mockRouterPush = vi.fn();
+const mockRouterRefresh = vi.fn();
 
 beforeEach(() => {
   mockedUsePathname.mockReturnValue("/");
+  mockRouterPush.mockReset();
+  mockRouterRefresh.mockReset();
+  mockedUseRouter.mockReturnValue({
+    push: mockRouterPush,
+    refresh: mockRouterRefresh,
+  } as unknown as ReturnType<typeof useRouter>);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: true } as Response)
+  );
 });
 
 function withoutIcons(links: ReturnType<typeof getNavLinksForRole>) {
@@ -135,5 +150,16 @@ describe("Nav", () => {
     render(<Nav role="admin" username="a.uwase" />);
     expect(screen.getByRole("link", { name: "Notifications" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveAttribute("aria-current");
+  });
+
+  it("posts to the logout endpoint and redirects to /login when Sign out is clicked", async () => {
+    const user = userEvent.setup();
+    render(<Nav role="admin" username="a.uwase" />);
+
+    await user.click(screen.getByRole("button", { name: /sign out/i }));
+
+    expect(fetch).toHaveBeenCalledWith("/api/auth/logout", { method: "POST" });
+    expect(mockRouterPush).toHaveBeenCalledWith("/login");
+    expect(mockRouterRefresh).toHaveBeenCalled();
   });
 });
