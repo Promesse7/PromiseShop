@@ -11,8 +11,10 @@ import type { Suppliers } from "@/lib/suppliers/useSuppliers";
 import type { EmployeeRole, Purchase } from "@/lib/types";
 
 const pushMock = vi.fn();
+let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: pushMock }),
+  useSearchParams: () => mockSearchParams,
 }));
 
 function paginated<T>(results: T[]) {
@@ -41,6 +43,7 @@ function renderWorkspace(role: EmployeeRole = "admin") {
 describe("PurchaseWorkspaceClient", () => {
   beforeEach(() => {
     pushMock.mockClear();
+    mockSearchParams = new URLSearchParams();
     vi.spyOn(useSuppliersModule, "useSuppliers").mockReturnValue({
       all: [{ supplier_id: 1, name: "Kigali Electronics Ltd", contact_person: null, phone: null, email: null, address: null }],
       isLoading: false, isError: false,
@@ -79,6 +82,15 @@ describe("PurchaseWorkspaceClient", () => {
     expect(screen.getByPlaceholderText("Search catalog first — reuse if it exists…")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Bulk" }));
     expect(screen.getByRole("button", { name: "Print all new labels" })).toBeInTheDocument();
+  });
+
+  it("passes ?prefill= through to the single-add form's search box", () => {
+    mockSearchParams = new URLSearchParams("prefill=Scales%2060kg");
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace();
+    expect(screen.getByLabelText("Search catalog first — reuse if it exists…")).toHaveValue("Scales 60kg");
   });
 
   it("disables Receive with zero items", () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
 import { useReceivePurchase } from "@/lib/purchasing/useReceivePurchase";
@@ -38,6 +38,8 @@ interface PurchaseWorkspaceClientProps {
 
 export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWorkspaceClientProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefill = searchParams.get("prefill") ?? undefined;
   const { show } = useToast();
   const { purchase, isLoading, isError } = usePurchaseDetail(purchaseId);
   const suppliers = useSuppliers();
@@ -106,7 +108,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
           </div>
           <div className="mb-6">
             {addMode === "single" ? (
-              <AddProductSingleForm purchaseId={purchaseId} onAdded={() => {}} />
+              <AddProductSingleForm purchaseId={purchaseId} onAdded={() => {}} initialSearch={prefill} />
             ) : (
               <AddProductBulkTable purchaseId={purchaseId} onAdded={() => {}} />
             )}
