@@ -38,9 +38,9 @@ const STAFF_LINKS: NavLink[] = [
 const ADMIN_LINKS: NavLink[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/products", label: "Products", icon: Package },
-  { href: "/checkout", label: "Sales", icon: ShoppingCart },
   { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/stock", label: "Stock", icon: Boxes },
+  { href: "/checkout", label: "Sales", icon: ShoppingCart },
   { href: "/suppliers", label: "Suppliers", icon: Building2 },
   { href: "/customers", label: "Customers", icon: Users },
 ];

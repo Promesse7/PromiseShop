@@ -57,9 +57,9 @@ describe("getNavLinksForRole", () => {
     expect(withoutIcons(getNavLinksForRole("admin"))).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
-      { href: "/checkout", label: "Sales" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
+      { href: "/checkout", label: "Sales" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
       { href: "/employees", label: "Employees" },
@@ -72,9 +72,9 @@ describe("getNavLinksForRole", () => {
     expect(withoutIcons(managerLinks)).toEqual([
       { href: "/dashboard", label: "Dashboard" },
       { href: "/products", label: "Products" },
-      { href: "/checkout", label: "Sales" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
+      { href: "/checkout", label: "Sales" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
     ]);
