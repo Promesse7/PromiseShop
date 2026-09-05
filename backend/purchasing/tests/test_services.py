@@ -73,6 +73,37 @@ def test_add_new_product_item_creates_product_with_barcode_and_initial_pricing(d
     assert pricing.retail_price == Decimal("145000.00")
 
 
+def test_add_new_product_item_links_existing_product_by_name_instead_of_duplicating(
+    draft_purchase, product, category
+):
+    # Same name modulo case and stray whitespace — must reuse the catalog product, not
+    # create a duplicate, and must not touch the existing product's pricing.
+    item = add_new_product_item(
+        draft_purchase, category=category, name="  jbl   FLIP 6 ", quantity=2,
+        unit_cost_paid=Decimal("100.00"), unit_cost_invoiced=Decimal("100.00"),
+        selling_price=Decimal("150.00"),
+    )
+    assert item.product_id == product.product_id
+    assert Product.objects.count() == 1
+    assert not ProductPricing.objects.filter(product=product).exists()
+    draft_purchase.refresh_from_db()
+    assert draft_purchase.total_paid == Decimal("200.00")
+
+
+def test_add_new_product_item_links_oldest_when_catalog_already_has_duplicates(
+    draft_purchase, product, category
+):
+    newer_duplicate = Product.objects.create(category=category, barcode="PES-AUD-00099", name="JBL Flip 6")
+    item = add_new_product_item(
+        draft_purchase, category=category, name="JBL Flip 6", quantity=1,
+        unit_cost_paid=Decimal("100.00"), unit_cost_invoiced=Decimal("100.00"),
+        selling_price=Decimal("150.00"),
+    )
+    assert item.product_id == product.product_id
+    assert item.product_id != newer_duplicate.product_id
+    assert Product.objects.count() == 2
+
+
 def test_discrepancy_note_required_when_costs_differ(draft_purchase, product):
     with pytest.raises(ValidationError):
         add_existing_product_item(

@@ -44,6 +44,12 @@ def add_existing_product_item(purchase, product, quantity, unit_cost_paid, unit_
     return item
 
 
+def _find_existing_product_by_name(name):
+    # Case- and whitespace-insensitive, oldest first so a catalog that already
+    # holds duplicates resolves deterministically instead of by chance.
+    return Product.objects.filter(name__iexact=name).order_by("product_id").first()
+
+
 def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, unit_cost_invoiced,
                           selling_price, brand="", model_number="", specifications="",
                           usage_instructions="", warranty_months=0, reorder_level=5,
@@ -51,6 +57,18 @@ def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, 
     if purchase.status != Purchase.Status.DRAFT:
         raise ValidationError("Cannot add items to a purchase that is not a draft.")
     _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note)
+    name = " ".join(name.split())
+
+    # A "new product" whose name is already in the catalog is almost always the
+    # same product typed by hand (bulk entry, slow catalog load, a second client).
+    # Link to it rather than creating a duplicate; the existing product keeps its
+    # own pricing, so the selling_price sent for the would-be new product is ignored.
+    existing = _find_existing_product_by_name(name)
+    if existing is not None:
+        return add_existing_product_item(
+            purchase, existing, quantity, unit_cost_paid, unit_cost_invoiced, price_discrepancy_note
+        )
+
     with transaction.atomic():
         barcode = generate_barcode(category)
         product = Product.objects.create(

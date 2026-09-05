@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPages } from "@/lib/api-client";
 import { normalizeName } from "@/lib/products/normalizeName";
+import { searchProducts } from "@/lib/products/searchProducts";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
@@ -41,18 +42,10 @@ export function AddProductSingleForm({ purchaseId, onAdded, initialSearch }: Add
   const [errors, setErrors] = useState<AddItemFormErrors>({});
   const autoSelectAttempted = useRef(false);
 
-  const matches = useMemo(() => {
-    // Collapse repeated whitespace on both sides so a stray double space (a very easy typo)
-    // doesn't hide an existing product and cause an accidental duplicate to get created.
-    const q = normalizeName(search);
-    if (!q || !productsQuery.data) return [];
-    return productsQuery.data
-      .filter((p) => {
-        const name = normalizeName(p.name);
-        return name.includes(q) || p.barcode.toLowerCase().includes(q);
-      })
-      .slice(0, 8);
-  }, [productsQuery.data, search]);
+  const matches = useMemo(
+    () => searchProducts(productsQuery.data ?? [], search),
+    [productsQuery.data, search]
+  );
 
   useEffect(() => {
     if (autoSelectAttempted.current || !initialSearch || !productsQuery.data || selected || forceNew) return;

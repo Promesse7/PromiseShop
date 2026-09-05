@@ -1,18 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAllPages, ApiError, extractErrorMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
-import { useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
+import { invalidatePurchaseItemQueries, useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
 import { useToast } from "@/components/layout/ToastProvider";
 import { buildAddItemPayload, validateAddItemForm, type AddItemFormValues } from "@/lib/purchasing/purchaseItemForm";
-import { normalizeName } from "@/lib/products/normalizeName";
+import { findExactProduct, searchProducts } from "@/lib/products/searchProducts";
 import type { Category, Product } from "@/lib/types";
 
 interface BulkRow {
   id: string;
   name: string;
+  // Locked catalog product, set by picking a suggestion, typing the full name, or
+  // scanning a barcode. Stored explicitly rather than re-derived from the name at
+  // submit time, so two same-named catalog entries can't swap under the user.
+  productId: number | null;
   category: number | "";
   quantity: string;
   unit_cost_paid: string;
@@ -26,15 +30,15 @@ interface BulkRow {
 function emptyRow(): BulkRow {
   return {
     id: crypto.randomUUID(),
-    name: "", category: "", quantity: "", unit_cost_paid: "", unit_cost_invoiced: "", selling_price: "",
-    price_discrepancy_note: "",
+    name: "", productId: null, category: "", quantity: "", unit_cost_paid: "", unit_cost_invoiced: "",
+    selling_price: "", price_discrepancy_note: "",
     status: "pending",
   };
 }
 
-function rowToFormValues(row: BulkRow, matchedProductId: number | ""): AddItemFormValues {
+function rowToFormValues(row: BulkRow): AddItemFormValues {
   return {
-    product: matchedProductId,
+    product: row.productId ?? "",
     category: row.category,
     name: row.name,
     brand: "",
@@ -58,17 +62,19 @@ interface AddProductBulkTableProps {
 
 export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTableProps) {
   const { show } = useToast();
+  const queryClient = useQueryClient();
   const addItem = useAddPurchaseItem();
   const productsQuery = useQuery({ queryKey: ["products"], queryFn: () => fetchAllPages<Product>("products/") });
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchAllPages<Category>("categories/") });
   const [rows, setRows] = useState<BulkRow[]>([emptyRow()]);
+  const [activeRowId, setActiveRowId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const productByName = useMemo(() => {
-    const map = new Map<string, Product>();
-    for (const p of productsQuery.data ?? []) map.set(normalizeName(p.name), p);
-    return map;
-  }, [productsQuery.data]);
+  const products = useMemo(() => productsQuery.data ?? [], [productsQuery.data]);
+  // Until every page of the catalog is in, nothing can be trusted as "not in the
+  // catalog" — so rows aren't classified and the batch can't be submitted.
+  const catalogLoading = productsQuery.isLoading;
+  const productById = useMemo(() => new Map(products.map((p) => [p.product_id, p])), [products]);
 
   function updateRow(id: string, patch: Partial<BulkRow>) {
     setRows((current) => {
@@ -79,11 +85,21 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
     });
   }
 
+  function setRowName(id: string, name: string) {
+    const exact = findExactProduct(products, name);
+    updateRow(id, { name, productId: exact?.product_id ?? null, error: undefined });
+  }
+
+  function pickProduct(id: string, product: Product) {
+    updateRow(id, { name: product.name, productId: product.product_id, error: undefined });
+  }
+
   function removeRow(id: string) {
     setRows((current) => current.filter((r) => r.id !== id));
   }
 
   async function handleSubmit() {
+    if (catalogLoading) return;
     const candidateRows = rows.filter((r) => r.name.trim() !== "");
     if (candidateRows.length === 0) return;
 
@@ -92,9 +108,8 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
     const remaining: BulkRow[] = [];
 
     for (const row of candidateRows) {
-      const matched = productByName.get(normalizeName(row.name));
-      const mode = matched ? "existing" : "new";
-      const values = rowToFormValues(row, matched ? matched.product_id : "");
+      const mode = row.productId != null ? "existing" : "new";
+      const values = rowToFormValues(row);
       const validationErrors = validateAddItemForm(values, mode);
       const firstError = Object.values(validationErrors)[0];
       if (firstError) {
@@ -102,7 +117,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
         continue;
       }
       try {
-        await addItem.mutateAsync({ purchaseId, payload: buildAddItemPayload(values, mode) });
+        await addItem.mutateAsync({ purchaseId, payload: buildAddItemPayload(values, mode), invalidate: false });
         succeeded += 1;
       } catch (error) {
         const message =
@@ -114,6 +129,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
     setRows(remaining.length > 0 ? [...remaining, emptyRow()] : [emptyRow()]);
     setSubmitting(false);
     if (succeeded > 0) {
+      invalidatePurchaseItemQueries(queryClient, purchaseId);
       onAdded();
     }
     show(
@@ -132,6 +148,7 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
 
   return (
     <div>
+      {catalogLoading && <p className="text-sm text-text/50 mb-2">Loading catalog…</p>}
       <div className="overflow-x-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
@@ -149,17 +166,34 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
         </thead>
         <tbody>
           {rows.map((row) => {
-            const matched = productByName.get(normalizeName(row.name));
+            const matched = row.productId != null ? productById.get(row.productId) : undefined;
+            const suggestions =
+              !matched && !catalogLoading && activeRowId === row.id ? searchProducts(products, row.name) : [];
             return (
-              <tr key={row.id} className="border-b border-divider">
+              <tr key={row.id} className="border-b border-divider align-top">
                 <td className="py-1 px-2">
                   <input
                     aria-label="Product name"
                     value={row.name}
-                    onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                    placeholder="Type to add or pick from catalog…"
+                    onFocus={() => setActiveRowId(row.id)}
+                    onChange={(e) => setRowName(row.id, e.target.value)}
+                    placeholder="Type a name or scan a barcode…"
                     className="min-h-8 py-1 px-2 text-sm text-text bg-surface border border-divider rounded-md w-full"
                   />
+                  {suggestions.length > 0 && (
+                    <div className="flex flex-col gap-0.5 mt-1">
+                      {suggestions.map((p) => (
+                        <button
+                          key={p.product_id}
+                          type="button"
+                          onClick={() => pickProduct(row.id, p)}
+                          className="text-left text-sm py-1 px-2 hover:bg-text/[0.07] rounded-md"
+                        >
+                          {p.name} <span className="text-xs font-mono text-text/50">{p.barcode}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {row.error && <p className="text-xs text-red-400 mt-1">{row.error}</p>}
                 </td>
                 <td className="py-1 px-2">
@@ -202,8 +236,14 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
                     className="min-h-8 py-1 px-2 text-sm text-text bg-surface border border-divider rounded-md w-40"
                   />
                 </td>
-                <td className="py-1 px-2 font-mono text-xs">
-                  {matched ? <span>{matched.barcode} (existing)</span> : row.name.trim() ? <span className="text-text/50">assigned on receive</span> : ""}
+                <td className="py-1 px-2 text-xs">
+                  {matched ? (
+                    <span className="font-mono">Existing · {matched.barcode}</span>
+                  ) : row.name.trim() && !catalogLoading ? (
+                    <span className="text-text/50">New product</span>
+                  ) : (
+                    ""
+                  )}
                 </td>
                 <td className="py-1 px-2">
                   {row.name.trim() && (
@@ -219,13 +259,14 @@ export function AddProductBulkTable({ purchaseId, onAdded }: AddProductBulkTable
       </table>
       </div>
       <p className="text-sm text-text/50 mt-3">
-        Rows with paid ≠ invoiced require a discrepancy note per line before they can be added.
+        Pick from the catalog as you type, or scan a barcode. Names not in the catalog are added as new
+        products. Rows with paid ≠ invoiced need a discrepancy note per line.
       </p>
       <div className="flex gap-2 justify-end mt-3">
         <Button variant="secondary" onClick={printLabels}>
           Print all new labels
         </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
+        <Button onClick={handleSubmit} disabled={submitting || catalogLoading}>
           {submitting ? "Adding…" : "Add all rows"}
         </Button>
       </div>

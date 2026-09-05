@@ -109,6 +109,23 @@ def test_add_new_product_item_via_api_returns_generated_barcode(employee, draft_
     assert Product.objects.get(pk=product_id).barcode == "PES-AUD-00001"
 
 
+def test_add_new_product_item_with_existing_name_links_instead_of_duplicating(
+    employee, draft_purchase, product, category
+):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {
+            "category": category.category_id, "name": "jbl flip 6", "selling_price": "145000.00",
+            "quantity": 1, "unit_cost_paid": "100.00", "unit_cost_invoiced": "100.00",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.json()["product"] == product.product_id
+    assert Product.objects.count() == 1
+
+
 def test_discrepancy_note_missing_returns_400(employee, draft_purchase, product):
     client = auth_client(employee, "staffpass")
     response = client.post(
