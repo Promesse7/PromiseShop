@@ -63,6 +63,7 @@ describe("useStockOverview", () => {
     const jbl = result.current.rows.find((r) => r.product_id === 2);
     expect(jbl).toEqual({
       product_id: 2,
+      inventory_id: 2,
       name: "JBL Flip 6 Speaker",
       quantity_in_stock: 2,
       quantity_in_use: 1,

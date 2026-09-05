@@ -8,8 +8,9 @@ import * as useCatalogProductsModule from "@/lib/products/useCatalogProducts";
 import type { CatalogProducts } from "@/lib/products/useCatalogProducts";
 
 const products: CatalogProducts["all"] = [
-  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true },
-  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock", is_active: true },
+  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true, has_price: true, has_inventory: true },
+  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock", is_active: true, has_price: true, has_inventory: true },
+  { product_id: 3, name: "Old Radio", brand: "Sony", model_number: "ICF-P26", barcode: "PES-AUD-00001", category_id: 20, category_name: "Audio", retail_price: 15000, wholesale_price: 9000, quantity_in_stock: 0, reorder_level: 2, status: "out_of_stock", is_active: false, has_price: true, has_inventory: true },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -35,10 +36,17 @@ describe("ProductsPageClient", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("shows both products by default", () => {
+  it("shows both active products by default and hides inactive ones", () => {
     renderWithProviders(<ProductsPageClient role="admin" />);
     expect(screen.getByText("Samsung TV")).toBeInTheDocument();
     expect(screen.getByText("JBL Flip 6")).toBeInTheDocument();
+    expect(screen.queryByText("Old Radio")).not.toBeInTheDocument();
+  });
+
+  it("shows inactive products when the toggle is switched on", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.click(screen.getByRole("checkbox", { name: "Show inactive" }));
+    expect(screen.getByText("Old Radio")).toBeInTheDocument();
   });
 
   it("filters by search text across name, brand, and barcode", async () => {
@@ -46,6 +54,13 @@ describe("ProductsPageClient", () => {
     await userEvent.type(screen.getByLabelText("Search products"), "jbl");
     expect(screen.queryByText("Samsung TV")).not.toBeInTheDocument();
     expect(screen.getByText("JBL Flip 6")).toBeInTheDocument();
+  });
+
+  it("matches the model number when searching", async () => {
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    await userEvent.type(screen.getByLabelText("Search products"), "ua43");
+    expect(screen.getByText("Samsung TV")).toBeInTheDocument();
+    expect(screen.queryByText("JBL Flip 6")).not.toBeInTheDocument();
   });
 
   it("filters by category tab", async () => {

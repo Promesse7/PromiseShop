@@ -50,6 +50,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  const [showInactive, setShowInactive] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("none");
   const [view, setView] = useState<"grid" | "table">("grid");
   const [createOpen, setCreateOpen] = useState(false);
@@ -108,14 +109,16 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const matched = catalog.all.filter((p) => {
+      const matchesActive = showInactive || p.is_active;
       const matchesCategory = categoryFilter === "all" || String(p.category_id) === categoryFilter;
       const matchesStock = stockFilter === "all" || p.status === stockFilter;
       const matchesSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         (p.brand ?? "").toLowerCase().includes(q) ||
+        (p.model_number ?? "").toLowerCase().includes(q) ||
         p.barcode.toLowerCase().includes(q);
-      return matchesCategory && matchesStock && matchesSearch;
+      return matchesActive && matchesCategory && matchesStock && matchesSearch;
     });
     if (sortBy === "none") return matched;
     const sorted = [...matched];
@@ -123,7 +126,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
     else if (sortBy === "price") sorted.sort((a, b) => a.retail_price - b.retail_price);
     else if (sortBy === "stock") sorted.sort((a, b) => a.quantity_in_stock - b.quantity_in_stock);
     return sorted;
-  }, [catalog.all, search, categoryFilter, stockFilter, sortBy]);
+  }, [catalog.all, search, categoryFilter, stockFilter, showInactive, sortBy]);
 
   const categoryOptions = [
     { value: "all", label: "All" },
@@ -145,13 +148,22 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
       <PageHeader title="Products">
         <input
           aria-label="Search products"
-          placeholder="Search name, brand, barcode…"
+          placeholder="Search name, brand, model, barcode…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-[300px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
         />
         <SegmentedToggle name="category" options={categoryOptions} value={categoryFilter} onChange={setCategoryFilter} />
         <SegmentedToggle name="stock" options={STOCK_OPTIONS} value={stockFilter} onChange={setStockFilter} />
+        <label className="flex items-center gap-1.5 text-sm text-text/70">
+          <input
+            type="checkbox"
+            aria-label="Show inactive"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+          />
+          Show inactive
+        </label>
         <select
           aria-label="Sort by"
           value={sortBy}

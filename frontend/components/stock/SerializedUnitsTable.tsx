@@ -18,9 +18,15 @@ interface SerializedUnitsTableProps {
   selectedIds?: Set<number>;
   onToggleSelect?: (unitId: number) => void;
   onPrintLabel?: (unit: EquipmentUnit) => void;
+  // Resolves assigned_to ids to names; without it the id is shown.
+  employeeNames?: Map<number, string>;
 }
 
-export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPrintLabel }: SerializedUnitsTableProps) {
+function formatDate(value: string): string {
+  return new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPrintLabel, employeeNames }: SerializedUnitsTableProps) {
   const columns = [
     ...(onToggleSelect
       ? [
@@ -52,6 +58,12 @@ export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPri
       },
     },
     {
+      key: "assigned_to",
+      header: "Assigned to",
+      render: (unit: EquipmentUnit) =>
+        unit.assigned_to == null ? "—" : employeeNames?.get(unit.assigned_to) ?? `Employee #${unit.assigned_to}`,
+    },
+    {
       key: "storage_location",
       header: "Location",
       render: (unit: EquipmentUnit) => unit.storage_location ?? "—",
@@ -60,6 +72,11 @@ export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPri
       key: "condition_notes",
       header: "Condition notes",
       render: (unit: EquipmentUnit) => <span className="text-text/50">{unit.condition_notes ?? "—"}</span>,
+    },
+    {
+      key: "status_changed_at",
+      header: "Changed",
+      render: (unit: EquipmentUnit) => <span className="text-xs">{formatDate(unit.status_changed_at)}</span>,
     },
     ...(onPrintLabel
       ? [

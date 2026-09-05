@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from accounts.models import Employee
-from stock.models import Inventory, EquipmentUnit, EquipmentStatusHistory
+from stock.models import Inventory, InventoryAdjustment, EquipmentUnit, EquipmentStatusHistory
 
 
 class InventorySerializer(serializers.ModelSerializer):
@@ -20,6 +20,25 @@ class InventorySerializer(serializers.ModelSerializer):
 
     def get_is_low_stock(self, obj):
         return obj.quantity_in_stock <= obj.product.reorder_level
+
+
+class InventoryAdjustmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryAdjustment
+        fields = [
+            "adjustment_id", "inventory", "adjustment_type", "quantity", "reason",
+            "before_in_stock", "after_in_stock", "before_in_use", "after_in_use",
+            "before_damaged", "after_damaged", "changed_by", "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AdjustInventorySerializer(serializers.Serializer):
+    adjustment_type = serializers.ChoiceField(choices=InventoryAdjustment.AdjustmentType.choices)
+    # 0 is a valid count correction ("we have none left"); moves must be >= 1,
+    # which the service enforces.
+    quantity = serializers.IntegerField(min_value=0)
+    reason = serializers.CharField()
 
 
 class EquipmentStatusHistorySerializer(serializers.ModelSerializer):

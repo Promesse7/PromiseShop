@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardTitle, CardMeta } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
 import type { StockOverviewRow } from "@/lib/stock/useStockOverview";
@@ -11,9 +12,10 @@ const FLAG_TAG: Record<StockOverviewRow["flag"], { label: string; variant: "acce
 interface StockOverviewCardGridProps {
   rows: StockOverviewRow[];
   onSelectProduct: (productId: number) => void;
+  onAdjust?: (productId: number) => void;
 }
 
-export function StockOverviewCardGrid({ rows, onSelectProduct }: StockOverviewCardGridProps) {
+export function StockOverviewCardGrid({ rows, onSelectProduct, onAdjust }: StockOverviewCardGridProps) {
   if (rows.length === 0) {
     return <p className="text-sm text-text/50">No stock recorded yet</p>;
   }
@@ -25,7 +27,9 @@ export function StockOverviewCardGrid({ rows, onSelectProduct }: StockOverviewCa
         return (
           <Card key={row.product_id} elevation="sm" className="h-full">
             <div className="flex items-start gap-2">
-              <CardTitle>{row.name}</CardTitle>
+              <CardTitle>
+                <Link href={`/products/${row.product_id}`}>{row.name}</Link>
+              </CardTitle>
               {tag && (
                 <Tag variant={tag.variant} className="ml-auto">
                   {tag.label}
@@ -38,7 +42,7 @@ export function StockOverviewCardGrid({ rows, onSelectProduct }: StockOverviewCa
               <span>{row.quantity_in_use} in use</span>
               <span>{row.quantity_damaged} damaged</span>
             </div>
-            <div className="mt-auto pt-1">
+            <div className="mt-auto pt-1 flex items-center gap-3">
               {row.unit_count > 0 ? (
                 <button
                   type="button"
@@ -49,6 +53,15 @@ export function StockOverviewCardGrid({ rows, onSelectProduct }: StockOverviewCa
                 </button>
               ) : (
                 <span className="text-xs text-text/50">aggregate only</span>
+              )}
+              {onAdjust && (
+                <button
+                  type="button"
+                  className="text-xs text-accent underline ml-auto"
+                  onClick={() => onAdjust(row.product_id)}
+                >
+                  Adjust
+                </button>
               )}
             </div>
           </Card>

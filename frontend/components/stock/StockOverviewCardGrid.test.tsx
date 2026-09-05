@@ -5,9 +5,9 @@ import { StockOverviewCardGrid } from "./StockOverviewCardGrid";
 import type { StockOverviewRow } from "@/lib/stock/useStockOverview";
 
 const rows: StockOverviewRow[] = [
-  { product_id: 1, name: "Samsung 43\" Crystal UHD TV", quantity_in_stock: 12, quantity_in_use: 1, quantity_damaged: 0, storage_location: "Shelf A1", flag: "ok", unit_count: 0 },
-  { product_id: 2, name: "JBL Flip 6 Speaker", quantity_in_stock: 2, quantity_in_use: 1, quantity_damaged: 1, storage_location: "Shelf B2", flag: "low_stock", unit_count: 4 },
-  { product_id: 3, name: "HP 65W Laptop Charger", quantity_in_stock: 0, quantity_in_use: 0, quantity_damaged: 0, storage_location: "Drawer C4", flag: "out_of_stock", unit_count: 0 },
+  { product_id: 1, inventory_id: 11, name: "Samsung 43\" Crystal UHD TV", quantity_in_stock: 12, quantity_in_use: 1, quantity_damaged: 0, storage_location: "Shelf A1", flag: "ok", unit_count: 0 },
+  { product_id: 2, inventory_id: 12, name: "JBL Flip 6 Speaker", quantity_in_stock: 2, quantity_in_use: 1, quantity_damaged: 1, storage_location: "Shelf B2", flag: "low_stock", unit_count: 4 },
+  { product_id: 3, inventory_id: 13, name: "HP 65W Laptop Charger", quantity_in_stock: 0, quantity_in_use: 0, quantity_damaged: 0, storage_location: "Drawer C4", flag: "out_of_stock", unit_count: 0 },
 ];
 
 describe("StockOverviewCardGrid", () => {
@@ -17,6 +17,22 @@ describe("StockOverviewCardGrid", () => {
     expect(screen.getByText("Samsung 43\" Crystal UHD TV")).toBeInTheDocument();
     expect(screen.getByText("Low stock")).toBeInTheDocument();
     expect(screen.getByText("Out of stock")).toBeInTheDocument();
+  });
+
+  it("links each product name to its catalog page", () => {
+    render(<StockOverviewCardGrid rows={rows} onSelectProduct={vi.fn()} />);
+    expect(screen.getByRole("link", { name: "JBL Flip 6 Speaker" })).toHaveAttribute("href", "/products/2");
+  });
+
+  it("offers an Adjust action per card when a handler is given, and none otherwise", async () => {
+    const onAdjust = vi.fn();
+    const { unmount } = render(<StockOverviewCardGrid rows={rows} onSelectProduct={vi.fn()} onAdjust={onAdjust} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Adjust" })[1]);
+    expect(onAdjust).toHaveBeenCalledWith(2);
+    unmount();
+
+    render(<StockOverviewCardGrid rows={rows} onSelectProduct={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Adjust" })).not.toBeInTheDocument();
   });
 
   it("shows 'aggregate only' for products with no serialized units", () => {

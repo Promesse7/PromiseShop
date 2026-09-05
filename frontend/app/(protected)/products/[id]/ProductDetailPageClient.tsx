@@ -11,6 +11,8 @@ import { StockCard } from "@/components/products/StockCard";
 import { CatalogInfoCard } from "@/components/products/CatalogInfoCard";
 import { PricingCard } from "@/components/products/PricingCard";
 import { CostMarginCard } from "@/components/products/CostMarginCard";
+import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
+import { useInventoryAdjustments } from "@/lib/stock/useInventoryAdjustments";
 import { PriceHistoryCard } from "@/components/products/PriceHistoryCard";
 import { InfoSheetCard } from "@/components/products/InfoSheetCard";
 import { SpecificationsCard } from "@/components/products/SpecificationsCard";
@@ -46,6 +48,8 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const detail = useProductDetail(productId);
   const isAdmin = ADMIN_ROLES.includes(role);
   const profitability = useProductProfitability(productId, isAdmin);
+  const adjustments = useInventoryAdjustments(detail.inventory?.inventory_id, isAdmin);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
@@ -137,8 +141,12 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        <StockCard inventory={detail.inventory} />
-        {isAdmin && <PricingCard currentPricing={detail.currentPricing} />}
+        <StockCard
+          inventory={detail.inventory}
+          reorderLevel={detail.product.reorder_level}
+          onAdjust={isAdmin && detail.inventory ? () => setAdjustOpen(true) : undefined}
+        />
+        {isAdmin && <PricingCard currentPricing={detail.currentPricing} onSetPrice={() => setPriceOpen(true)} />}
         {isAdmin && (
           <CostMarginCard
             row={profitability.row}
@@ -147,13 +155,37 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           />
         )}
         <CatalogInfoCard
+          productId={detail.product.product_id}
           category={detail.category}
           brand={detail.product.brand}
           modelNumber={detail.product.model_number}
           warrantyMonths={detail.product.warranty_months ?? 0}
-          hasTrackedSerials={detail.hasTrackedSerials}
+          unitCount={detail.trackedSerialCount}
+          description={detail.product.description}
+          unit={detail.product.unit}
+          taxCategory={detail.product.tax_category}
+          createdAt={detail.product.created_at}
         />
       </div>
+      {isAdmin && adjustments.adjustments.length > 0 && (
+        <div className="mb-4 text-sm">
+          <span className="text-xs uppercase tracking-wide text-accent">Recent stock adjustments</span>
+          <ul className="mt-1 flex flex-col gap-0.5 list-none m-0 p-0">
+            {adjustments.adjustments.slice(0, 5).map((a) => (
+              <li key={a.adjustment_id} className="flex gap-3 text-text/70">
+                <span className="w-24 shrink-0 text-xs">
+                  {new Date(a.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                </span>
+                <span>
+                  {a.adjustment_type.replace(/_/g, " ")} · {a.quantity} · stock {a.before_in_stock}→{a.after_in_stock}
+                  {" · "}
+                  <span className="text-text/50">{a.reason}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
         <div className="flex flex-col gap-4">
           <InfoSheetCard
@@ -174,6 +206,20 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         onClose={() => setEditOpen(false)}
         onSaved={() => setEditOpen(false)}
       />
+      {detail.inventory && (
+        <AdjustStockDialog
+          open={adjustOpen}
+          inventoryId={detail.inventory.inventory_id}
+          productName={detail.product.name}
+          quantities={{
+            in_stock: detail.inventory.quantity_in_stock,
+            in_use: detail.inventory.quantity_in_use,
+            damaged: detail.inventory.quantity_damaged,
+          }}
+          onClose={() => setAdjustOpen(false)}
+          onSaved={() => setAdjustOpen(false)}
+        />
+      )}
       <SetPriceDialog
         open={priceOpen}
         productId={productId}

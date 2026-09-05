@@ -6,7 +6,7 @@ import type { EquipmentUnit } from "@/lib/types";
 
 const units: EquipmentUnit[] = [
   { unit_id: 1, product: 2, serial_number: "JBL6-KX2201", status: "in_stock", assigned_to: null, storage_location: "Shelf B2", condition_notes: null, status_changed_at: "2026-08-18T00:00:00Z" },
-  { unit_id: 2, product: 2, serial_number: "JBL6-KX2093", status: "damaged", assigned_to: null, storage_location: "Repair shelf", condition_notes: "USB-C port loose", status_changed_at: "2026-08-21T00:00:00Z" },
+  { unit_id: 2, product: 2, serial_number: "JBL6-KX2093", status: "in_use", assigned_to: 7, storage_location: "Repair shelf", condition_notes: "USB-C port loose", status_changed_at: "2026-08-21T00:00:00Z" },
 ];
 
 describe("SerializedUnitsTable", () => {
@@ -18,6 +18,20 @@ describe("SerializedUnitsTable", () => {
     const links = screen.getAllByRole("link", { name: "History" });
     expect(links).toHaveLength(2);
     expect(links[1]).toHaveAttribute("href", "/stock/units/2");
+  });
+
+  it("shows who a unit is assigned to and when its status last changed", () => {
+    render(<SerializedUnitsTable units={units} employeeNames={new Map([[7, "Eric Mugisha"]])} />);
+    expect(screen.getByRole("columnheader", { name: "Assigned to" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Changed" })).toBeInTheDocument();
+    expect(screen.getByText("Eric Mugisha")).toBeInTheDocument();
+    expect(screen.getByText("18 Aug 2026")).toBeInTheDocument();
+    expect(screen.getByText("21 Aug 2026")).toBeInTheDocument();
+  });
+
+  it("falls back to the employee id when the name is unknown", () => {
+    render(<SerializedUnitsTable units={units} />);
+    expect(screen.getByText("Employee #7")).toBeInTheDocument();
   });
 
   it("shows an empty message when there are no units", () => {

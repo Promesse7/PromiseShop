@@ -1,19 +1,25 @@
 from django.db.models import F
+from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.permissions import IsAdminOrManager
 from stock.models import Inventory, EquipmentUnit
 from stock.serializers import (
-    InventorySerializer, EquipmentUnitSerializer, EquipmentUnitListSerializer,
+    InventorySerializer, InventoryAdjustmentSerializer, AdjustInventorySerializer,
+    EquipmentUnitSerializer, EquipmentUnitListSerializer,
     EquipmentUnitUpdateSerializer, ChangeStatusSerializer,
 )
-from stock.services import change_equipment_status
+from stock.services import adjust_inventory, change_equipment_status
 
 
 class InventoryViewSet(viewsets.ModelViewSet):
-    http_method_names = ["get", "patch", "head", "options"]
+    # "post" is only here for the adjust action; creating Inventory rows directly
+    # stays disallowed (they are created when a purchase is received).
+    http_method_names = ["get", "post", "patch", "head", "options"]
     serializer_class = InventorySerializer
     permission_classes = [IsAuthenticated]
 
@@ -26,6 +32,23 @@ class InventoryViewSet(viewsets.ModelViewSet):
             # Lets a product page read its one row instead of walking the whole collection.
             queryset = queryset.filter(product_id=product_id)
         return queryset
+
+    def create(self, request, *args, **kwargs):
+        raise MethodNotAllowed("POST")
+
+    @action(detail=True, methods=["post"], url_path="adjust", permission_classes=[IsAdminOrManager])
+    def adjust(self, request, pk=None):
+        inventory = self.get_object()
+        serializer = AdjustInventorySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        adjustment = adjust_inventory(inventory, changed_by=request.user, **serializer.validated_data)
+        return Response(InventoryAdjustmentSerializer(adjustment).data, status=http_status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="adjustments")
+    def adjustments(self, request, pk=None):
+        inventory = self.get_object()
+        rows = inventory.adjustments.order_by("-created_at", "-adjustment_id")
+        return Response(InventoryAdjustmentSerializer(rows, many=True).data)
 
 
 class EquipmentUnitViewSet(viewsets.ModelViewSet):

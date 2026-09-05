@@ -6,6 +6,7 @@ import ProductDetailPageClient from "./ProductDetailPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useProductDetailModule from "@/lib/products/useProductDetail";
 import * as useProductProfitabilityModule from "@/lib/products/useProductProfitability";
+import * as useInventoryAdjustmentsModule from "@/lib/stock/useInventoryAdjustments";
 import type { ProductDetail } from "@/lib/products/useProductDetail";
 
 const pushMock = vi.fn();
@@ -25,6 +26,7 @@ const baseDetail: ProductDetail = {
   priceHistory: [{ price_id: 2, product: 1, wholesale_price: "112000.00", retail_price: "145000.00", effective_date: "2026-07-01", is_current: true }],
   inventory: { inventory_id: 9, product: 1, quantity_in_stock: 2, quantity_in_use: 1, quantity_damaged: 1, storage_location: "Shelf B2", last_updated: "2026-08-01T00:00:00Z", is_low_stock: true },
   hasTrackedSerials: true,
+  trackedSerialCount: 1,
   isLoading: false,
   isError: false,
 };
@@ -54,7 +56,30 @@ describe("ProductDetailPageClient", () => {
       isLoading: false,
       isError: false,
     });
+    // Mocked like the other data hooks so the page's own fetch stubs only see the
+    // action under test (deactivate / delete), not the adjustment-history query.
+    vi.spyOn(useInventoryAdjustmentsModule, "useInventoryAdjustments").mockReturnValue({
+      adjustments: [],
+      isLoading: false,
+      isError: false,
+    });
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("lets an admin open the Adjust stock dialog from the stock card, but not sales_staff", async () => {
+    const { unmount } = renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Adjust stock" }));
+    expect(screen.getByRole("heading", { name: "Adjust stock — JBL Flip 6 Speaker" })).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
+    expect(screen.queryByRole("button", { name: "Adjust stock" })).not.toBeInTheDocument();
+  });
+
+  it("shows the reorder level and links tracked serials to the stock page", () => {
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.getByText("reorder at 4")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "On → 1 units" })).toHaveAttribute("href", "/stock?product=1");
   });
 
   it("renders the Cost & margin card for admin and manager, not for sales_staff", () => {

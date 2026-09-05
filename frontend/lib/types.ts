@@ -56,6 +56,31 @@ export interface Inventory {
   is_low_stock: boolean;
 }
 
+export type InventoryAdjustmentType =
+  | "count_correction"
+  | "to_damaged"
+  | "from_damaged"
+  | "to_in_use"
+  | "from_in_use";
+
+// Audit row written by POST inventory/<id>/adjust/: who moved what, why, and the
+// three buckets before and after.
+export interface InventoryAdjustment {
+  adjustment_id: number;
+  inventory: number;
+  adjustment_type: InventoryAdjustmentType;
+  quantity: number;
+  reason: string;
+  before_in_stock: number;
+  after_in_stock: number;
+  before_in_use: number;
+  after_in_use: number;
+  before_damaged: number;
+  after_damaged: number;
+  changed_by: number;
+  created_at: string;
+}
+
 export interface PosProduct {
   product_id: number;
   barcode: string;

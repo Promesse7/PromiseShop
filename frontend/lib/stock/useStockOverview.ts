@@ -5,6 +5,7 @@ import type { Product, Inventory, EquipmentUnit } from "@/lib/types";
 
 export interface StockOverviewRow {
   product_id: number;
+  inventory_id: number;
   name: string;
   quantity_in_stock: number;
   quantity_in_use: number;
@@ -58,6 +59,7 @@ export function useStockOverview(): StockOverview {
         if (!product) return null;
         return {
           product_id: product.product_id,
+          inventory_id: inv.inventory_id,
           name: product.name,
           quantity_in_stock: inv.quantity_in_stock,
           quantity_in_use: inv.quantity_in_use,

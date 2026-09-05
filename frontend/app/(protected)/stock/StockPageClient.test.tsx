@@ -8,9 +8,14 @@ import * as useStockOverviewModule from "@/lib/stock/useStockOverview";
 import * as useEquipmentUnitsModule from "@/lib/stock/useEquipmentUnits";
 import type { StockOverview } from "@/lib/stock/useStockOverview";
 
+let mockSearchParams = new URLSearchParams();
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => mockSearchParams,
+}));
+
 const rows: StockOverview["rows"] = [
-  { product_id: 1, name: "Samsung 43\" Crystal UHD TV", quantity_in_stock: 12, quantity_in_use: 1, quantity_damaged: 0, storage_location: "Shelf A1", flag: "ok", unit_count: 0 },
-  { product_id: 2, name: "JBL Flip 6 Speaker", quantity_in_stock: 2, quantity_in_use: 1, quantity_damaged: 1, storage_location: "Shelf B2", flag: "low_stock", unit_count: 4 },
+  { product_id: 1, inventory_id: 11, name: "Samsung 43\" Crystal UHD TV", quantity_in_stock: 12, quantity_in_use: 1, quantity_damaged: 0, storage_location: "Shelf A1", flag: "ok", unit_count: 0 },
+  { product_id: 2, inventory_id: 12, name: "JBL Flip 6 Speaker", quantity_in_stock: 2, quantity_in_use: 1, quantity_damaged: 1, storage_location: "Shelf B2", flag: "low_stock", unit_count: 4 },
 ];
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -24,6 +29,11 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe("StockPageClient", () => {
   beforeEach(() => {
+    // Employees (for resolving "Assigned to") load through fetch for admin viewers.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve({ ok: true, json: async () => ({ count: 0, next: null, previous: null, results: [] }) }))
+    );
     vi.spyOn(useStockOverviewModule, "useStockOverview").mockReturnValue({
       rows,
       isLoading: false,
@@ -39,9 +49,36 @@ describe("StockPageClient", () => {
   });
 
   it("shows both rows by default", () => {
+    mockSearchParams = new URLSearchParams();
     renderWithProviders(<StockPageClient />);
     expect(screen.getByText("Samsung 43\" Crystal UHD TV")).toBeInTheDocument();
     expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
+  });
+
+  it("filters rows by a search box", async () => {
+    mockSearchParams = new URLSearchParams();
+    renderWithProviders(<StockPageClient />);
+    await userEvent.type(screen.getByLabelText("Search stock"), "jbl");
+    expect(screen.queryByText("Samsung 43\" Crystal UHD TV")).not.toBeInTheDocument();
+    expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
+  });
+
+  it("preselects the product named in the URL so the catalog can deep-link to its units", () => {
+    mockSearchParams = new URLSearchParams("product=2");
+    renderWithProviders(<StockPageClient />);
+    expect(screen.getByText(/Serialized units — JBL Flip 6 Speaker/)).toBeInTheDocument();
+    expect(screen.getByText("JBL6-KX2201")).toBeInTheDocument();
+  });
+
+  it("lets an admin open the Adjust stock dialog from a card, but not sales staff", async () => {
+    mockSearchParams = new URLSearchParams();
+    const { unmount } = renderWithProviders(<StockPageClient role="admin" />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Adjust" })[1]);
+    expect(screen.getByRole("heading", { name: "Adjust stock — JBL Flip 6 Speaker" })).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<StockPageClient role="sales_staff" />);
+    expect(screen.queryByRole("button", { name: "Adjust" })).not.toBeInTheDocument();
   });
 
   it("filters to low/out-of-stock rows", async () => {
