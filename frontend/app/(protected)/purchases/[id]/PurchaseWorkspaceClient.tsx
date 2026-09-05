@@ -119,7 +119,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
       <div className="grid grid-cols-[1fr_320px] gap-6">
         <div>
           <span className="text-xs uppercase tracking-wide text-accent">On this purchase</span>
-          <PurchaseItemsList purchaseId={purchaseId} items={purchase.items} editable={isDraft} />
+          <PurchaseItemsList purchaseId={purchaseId} items={purchase.items} editable={isDraft} showCosts={isAdmin} />
         </div>
         <div className="flex flex-col gap-3">
           <PurchaseSummaryCard purchase={purchase} />

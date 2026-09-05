@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProductDetailPageClient from "./ProductDetailPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useProductDetailModule from "@/lib/products/useProductDetail";
+import * as useProductProfitabilityModule from "@/lib/products/useProductProfitability";
 import type { ProductDetail } from "@/lib/products/useProductDetail";
 
 const pushMock = vi.fn();
@@ -41,7 +42,28 @@ describe("ProductDetailPageClient", () => {
   beforeEach(() => {
     pushMock.mockClear();
     vi.spyOn(useProductDetailModule, "useProductDetail").mockReturnValue(baseDetail);
+    vi.spyOn(useProductProfitabilityModule, "useProductProfitability").mockReturnValue({
+      row: {
+        product_id: 1, product_name: "JBL Flip 6 Speaker",
+        units_bought: 10, avg_cost_paid: "100000.00", avg_cost_invoiced: "110000.00",
+        units_sold: 4, revenue: "560000.00", projected_revenue: "580000.00",
+        cogs_paid: "400000.00", cogs_invoiced: "440000.00",
+        gross_margin: "160000.00", projected_margin: "140000.00",
+        margin_pct: "28.57", projected_margin_pct: "24.14",
+      },
+      isLoading: false,
+      isError: false,
+    });
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("renders the Cost & margin card for admin and manager, not for sales_staff", () => {
+    const { unmount } = renderWithProviders(<ProductDetailPageClient productId={1} role="manager" />);
+    expect(screen.getByText("Cost & margin · all time")).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
+    expect(screen.queryByText("Cost & margin · all time")).not.toBeInTheDocument();
   });
 
   it("renders the product name, status, and barcode", () => {

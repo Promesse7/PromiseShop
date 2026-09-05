@@ -216,6 +216,32 @@ export interface StockHealth {
   equipment_status_counts: Record<string, number>;
 }
 
+// One row of dashboard/profitability/: costs are all-time weighted averages over
+// received purchases; sales figures cover the requested period. Cost-derived
+// fields are null when the product has never been on a received purchase.
+export interface ProfitabilityRow {
+  product_id: number | null;
+  product_name: string | null;
+  units_bought: number;
+  avg_cost_paid: string | null;
+  avg_cost_invoiced: string | null;
+  units_sold: number;
+  revenue: string;
+  projected_revenue: string;
+  cogs_paid: string | null;
+  cogs_invoiced: string | null;
+  gross_margin: string | null;
+  projected_margin: string | null;
+  margin_pct: string | null;
+  projected_margin_pct: string | null;
+}
+
+export interface ProfitabilityResponse {
+  period: string;
+  products: ProfitabilityRow[];
+  totals: ProfitabilityRow;
+}
+
 export type ExpenseCategory = "rent" | "utilities" | "salaries" | "repairs" | "other";
 
 export interface Expense {

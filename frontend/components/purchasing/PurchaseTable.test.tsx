@@ -44,6 +44,17 @@ describe("PurchaseTable", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
+  it("shows the Total invoiced column beside Total paid when showTotals is true", () => {
+    render(<PurchaseTable rows={rows} showTotals={true} />);
+    expect(screen.getByRole("columnheader", { name: "Total invoiced" })).toBeInTheDocument();
+    expect(screen.getByText("3,034,000")).toBeInTheDocument();
+  });
+
+  it("hides the Total invoiced column when showTotals is false", () => {
+    render(<PurchaseTable rows={rows} showTotals={false} />);
+    expect(screen.queryByRole("columnheader", { name: "Total invoiced" })).not.toBeInTheDocument();
+  });
+
   it("links each row to its purchase workspace", () => {
     render(<PurchaseTable rows={rows} showTotals={false} />);
     expect(screen.getAllByRole("link", { name: "Open" })[0]).toHaveAttribute("href", "/purchases/1");

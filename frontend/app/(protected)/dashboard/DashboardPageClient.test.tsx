@@ -29,6 +29,7 @@ function baseData(overrides: Partial<DashboardData> = {}): DashboardData {
     topSellers: [],
     slowMovers: [],
     trend: [],
+    profitability: null,
     ...overrides,
   };
 }

@@ -56,6 +56,11 @@ export function PurchaseTable({ rows, showTotals }: PurchaseTableProps) {
             header: "Total paid",
             render: (r: PurchaseListRow) => formatMoney(r.total_paid),
           },
+          {
+            key: "total_invoiced",
+            header: "Total invoiced",
+            render: (r: PurchaseListRow) => formatMoney(r.total_invoiced),
+          },
         ]
       : []),
     {

@@ -14,12 +14,12 @@ const items: PurchaseItem[] = [
   { purchase_item_id: 1, purchase: 7, product: 3, quantity: 8, unit_cost_paid: "108000", unit_cost_invoiced: "112000", price_discrepancy_note: "bulk discount", subtotal_paid: "864000", subtotal_invoiced: "896000" },
 ];
 
-function renderList(editable = true) {
+function renderList(editable = true, showCosts = false, rows: PurchaseItem[] = items) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <PurchaseItemsList purchaseId={7} items={items} editable={editable} />
+        <PurchaseItemsList purchaseId={7} items={rows} editable={editable} showCosts={showCosts} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -78,5 +78,30 @@ describe("PurchaseItemsList", () => {
     renderList(false);
     await screen.findByText("JBL Flip 6 Speaker");
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
+  });
+
+  it("shows paid, invoiced, difference and the note per line when costs are visible", async () => {
+    renderList(true, true);
+    await screen.findByText("JBL Flip 6 Speaker");
+    expect(screen.getByRole("columnheader", { name: "Paid / unit" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Invoiced / unit" })).toBeInTheDocument();
+    expect(screen.getByText("108,000")).toBeInTheDocument();
+    expect(screen.getByText("112,000")).toBeInTheDocument();
+    // 8 × (112,000 − 108,000): the supplier billed more than was paid.
+    expect(screen.getByText("+32,000")).toBeInTheDocument();
+    expect(screen.getByText("bulk discount")).toBeInTheDocument();
+  });
+
+  it("hides the cost columns when costs are not visible", async () => {
+    renderList(true, false);
+    await screen.findByText("JBL Flip 6 Speaker");
+    expect(screen.queryByRole("columnheader", { name: "Paid / unit" })).not.toBeInTheDocument();
+    expect(screen.queryByText("108,000")).not.toBeInTheDocument();
+  });
+
+  it("shows dashes when the API omitted the cost fields", async () => {
+    renderList(true, true, [{ purchase_item_id: 1, purchase: 7, product: 3, quantity: 8, price_discrepancy_note: null }]);
+    await screen.findByText("JBL Flip 6 Speaker");
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 });

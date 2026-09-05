@@ -23,9 +23,11 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
+        # Cost figures are visible to admins and managers (the roles that run
+        # purchasing); sales staff and technicians never see what was paid.
         is_admin = bool(
             request and request.user.is_authenticated
-            and request.user.role == request.user.Role.ADMIN
+            and request.user.role in (request.user.Role.ADMIN, request.user.Role.MANAGER)
         )
         if not is_admin:
             for field in ("unit_cost_paid", "unit_cost_invoiced", "subtotal_paid", "subtotal_invoiced"):
@@ -47,9 +49,11 @@ class PurchaseSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
+        # Cost figures are visible to admins and managers (the roles that run
+        # purchasing); sales staff and technicians never see what was paid.
         is_admin = bool(
             request and request.user.is_authenticated
-            and request.user.role == request.user.Role.ADMIN
+            and request.user.role in (request.user.Role.ADMIN, request.user.Role.MANAGER)
         )
         if not is_admin:
             data.pop("total_paid", None)

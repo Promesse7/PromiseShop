@@ -24,6 +24,7 @@ function makeData(): DashboardData {
     topSellers: [],
     slowMovers: [],
     trend: [],
+    profitability: null,
   };
 }
 

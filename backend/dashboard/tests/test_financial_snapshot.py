@@ -56,8 +56,8 @@ def test_financial_snapshot_computes_net(admin, product):
     )
     Sale.objects.filter(pk=sale.pk).update(sale_date=now)
     SaleItem.objects.create(
-        sale=sale, product=product, quantity=1, unit_price=Decimal("50000.00"), subtotal=Decimal("50000.00"),
-        tax_category="B", tax_amount=Decimal("0.00"),
+        sale=sale, product=product, quantity=1, unit_price=Decimal("50000.00"), list_price=Decimal("50000.00"),
+        subtotal=Decimal("50000.00"), tax_category="B", tax_amount=Decimal("0.00"),
     )
     Expense.objects.create(
         category=Expense.ExpenseCategory.RENT, amount=Decimal("20000.00"),
@@ -133,7 +133,7 @@ def test_financial_snapshot_week_boundary_includes_and_excludes_expenses_and_sal
     Sale.objects.filter(pk=inside_sale.pk).update(sale_date=inside_sale_dt)
     SaleItem.objects.create(
         sale=inside_sale, product=product, quantity=1,
-        unit_price=Decimal("1000.00"), subtotal=Decimal("1000.00"),
+        unit_price=Decimal("1000.00"), list_price=Decimal("1000.00"), subtotal=Decimal("1000.00"),
         tax_category="B", tax_amount=Decimal("0.00"),
     )
 
@@ -143,7 +143,7 @@ def test_financial_snapshot_week_boundary_includes_and_excludes_expenses_and_sal
     Sale.objects.filter(pk=outside_sale.pk).update(sale_date=outside_sale_dt)
     SaleItem.objects.create(
         sale=outside_sale, product=product, quantity=1,
-        unit_price=Decimal("9000.00"), subtotal=Decimal("9000.00"),
+        unit_price=Decimal("9000.00"), list_price=Decimal("9000.00"), subtotal=Decimal("9000.00"),
         tax_category="B", tax_amount=Decimal("0.00"),
     )
 

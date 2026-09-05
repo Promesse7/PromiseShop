@@ -372,6 +372,22 @@ def test_zero_quantity_returns_400(employee, draft_purchase, product):
     assert response.status_code == 400
 
 
+def test_manager_sees_purchase_totals_and_item_costs(manager, draft_purchase, product):
+    admin_free_client = auth_client(manager, "managerpass")
+    admin_free_client.post(
+        f"/api/purchases/{draft_purchase.purchase_id}/items/",
+        {"product": product.product_id, "quantity": 2, "unit_cost_paid": "100.00", "unit_cost_invoiced": "110.00", "price_discrepancy_note": "rounding"},
+        format="json",
+    )
+    body = admin_free_client.get(f"/api/purchases/{draft_purchase.purchase_id}/").json()
+    assert body["total_paid"] == "200.00"
+    assert body["total_invoiced"] == "220.00"
+    item = body["items"][0]
+    assert item["unit_cost_paid"] == "100.00"
+    assert item["unit_cost_invoiced"] == "110.00"
+    assert item["subtotal_invoiced"] == "220.00"
+
+
 def test_negative_unit_cost_paid_returns_400(employee, draft_purchase, product):
     client = auth_client(employee, "staffpass")
     response = client.post(

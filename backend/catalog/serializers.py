@@ -48,10 +48,12 @@ class ProductPricingSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
-        is_admin = bool(
+        # Cost price is visible to admins and managers; setting it stays admin-only
+        # (see ProductPricingViewSet).
+        can_see_cost = bool(
             request and request.user.is_authenticated
-            and request.user.role == request.user.Role.ADMIN
+            and request.user.role in (request.user.Role.ADMIN, request.user.Role.MANAGER)
         )
-        if not is_admin:
+        if not can_see_cost:
             data.pop("wholesale_price", None)
         return data

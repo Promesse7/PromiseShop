@@ -319,8 +319,8 @@ def test_deleting_product_with_sale_history_returns_400_not_500(admin, category)
 
     sale = Sale.objects.create(employee=admin, total_amount="1000.00")
     SaleItem.objects.create(
-        sale=sale, product=product, quantity=1, unit_price="1000.00", subtotal="1000.00",
-        tax_category="B", tax_amount="0.00",
+        sale=sale, product=product, quantity=1, unit_price="1000.00", list_price="1000.00",
+        subtotal="1000.00", tax_category="B", tax_amount="0.00",
     )
 
     response = admin_client.delete(f"/api/products/{product_id}/")

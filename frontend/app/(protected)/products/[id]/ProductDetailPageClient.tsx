@@ -5,10 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProductDetail } from "@/lib/products/useProductDetail";
+import { useProductProfitability } from "@/lib/products/useProductProfitability";
 import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
 import { StockCard } from "@/components/products/StockCard";
 import { CatalogInfoCard } from "@/components/products/CatalogInfoCard";
 import { PricingCard } from "@/components/products/PricingCard";
+import { CostMarginCard } from "@/components/products/CostMarginCard";
 import { PriceHistoryCard } from "@/components/products/PriceHistoryCard";
 import { InfoSheetCard } from "@/components/products/InfoSheetCard";
 import { SpecificationsCard } from "@/components/products/SpecificationsCard";
@@ -43,6 +45,7 @@ interface ProductDetailPageClientProps {
 export default function ProductDetailPageClient({ productId, role }: ProductDetailPageClientProps) {
   const detail = useProductDetail(productId);
   const isAdmin = ADMIN_ROLES.includes(role);
+  const profitability = useProductProfitability(productId, isAdmin);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
@@ -133,9 +136,16 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           )}
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
         <StockCard inventory={detail.inventory} />
         {isAdmin && <PricingCard currentPricing={detail.currentPricing} />}
+        {isAdmin && (
+          <CostMarginCard
+            row={profitability.row}
+            isLoading={profitability.isLoading}
+            isError={profitability.isError}
+          />
+        )}
         <CatalogInfoCard
           category={detail.category}
           brand={detail.product.brand}

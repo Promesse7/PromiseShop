@@ -39,9 +39,10 @@ function makeData(overrides: Partial<DashboardData> = {}): DashboardData {
     reorderCount: 1,
     outOfStockCount: 0,
     lowStockRows: [makeLowStockRow()],
-    topSellers: [{ product_id: 1, product_name: "Samsung TV", units: 3, revenue: 1155000 }],
+    topSellers: [{ product_id: 1, product_name: "Samsung TV", units: 3, revenue: 1155000, grossMargin: null, marginPct: null }],
     slowMovers: [],
     trend: [],
+    profitability: null,
     ...overrides,
   };
 }
@@ -69,7 +70,7 @@ describe("buildDashboardCsv", () => {
 
   it("quotes a product name containing a comma", () => {
     const csv = buildDashboardCsv(
-      makeData({ topSellers: [{ product_id: 1, product_name: "Charger, 20W", units: 1, revenue: 12000 }] })
+      makeData({ topSellers: [{ product_id: 1, product_name: "Charger, 20W", units: 1, revenue: 12000, grossMargin: null, marginPct: null }] })
     );
     expect(csv).toContain('"Charger, 20W",1,12000');
   });

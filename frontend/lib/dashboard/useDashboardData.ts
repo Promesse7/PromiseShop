@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, fetchAllPages, ApiError } from "@/lib/api-client";
 import { useCatalogProducts, type CatalogProduct } from "@/lib/products/useCatalogProducts";
-import type { Sale, Purchase, SalesSummary, StockHealth } from "@/lib/types";
+import type { Sale, Purchase, SalesSummary, StockHealth, ProfitabilityResponse, ProfitabilityRow } from "@/lib/types";
 
 export interface MonthlyTrendPoint {
   month: string;
@@ -18,6 +18,10 @@ export interface TopSellerRow {
   product_name: string;
   units: number;
   revenue: number;
+  // From dashboard/profitability/; null when the product has no received purchase
+  // to cost against.
+  grossMargin: number | null;
+  marginPct: number | null;
 }
 
 export interface SlowMoverRow {
@@ -46,6 +50,8 @@ export interface DashboardData {
   topSellers: TopSellerRow[];
   slowMovers: SlowMoverRow[];
   trend: MonthlyTrendPoint[];
+  // This month's totals row from dashboard/profitability/ (actual vs projected margin).
+  profitability: ProfitabilityRow | null;
 }
 
 const SLOW_MOVER_DAYS = 30;
@@ -86,6 +92,7 @@ const emptyData: Omit<DashboardData, "isLoading" | "isError" | "isForbidden"> = 
   topSellers: [],
   slowMovers: [],
   trend: [],
+  profitability: null,
 };
 
 export function useDashboardData(now: Date = new Date()): DashboardData {
@@ -115,20 +122,29 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
     queryFn: () => fetchAllPages<Purchase>("purchases/"),
     enabled: enableDetail,
   });
+  const profitability = useQuery({
+    queryKey: ["dashboard", "profitability", "month"],
+    queryFn: () => apiFetch<ProfitabilityResponse>("dashboard/profitability/?period=month"),
+    enabled: enableDetail,
+    retry: false,
+  });
   const catalog = useCatalogProducts();
 
-  const isLoading = salesSummary.isLoading || stockHealth.isLoading || (enableDetail && (sales.isLoading || purchases.isLoading || catalog.isLoading));
-  const isError = !isForbidden && (salesSummary.isError || stockHealth.isError || (enableDetail && (sales.isError || purchases.isError || catalog.isError)));
+  const isLoading = salesSummary.isLoading || stockHealth.isLoading || (enableDetail && (sales.isLoading || purchases.isLoading || profitability.isLoading || catalog.isLoading));
+  const isError = !isForbidden && (salesSummary.isError || stockHealth.isError || (enableDetail && (sales.isError || purchases.isError || profitability.isError || catalog.isError)));
 
   const data = useMemo(() => {
-    if (isForbidden || !enableDetail || !salesSummary.data || !stockHealth.data || !sales.data || !purchases.data) {
+    if (isForbidden || !enableDetail || !salesSummary.data || !stockHealth.data || !sales.data || !purchases.data || !profitability.data) {
       return emptyData;
     }
 
     const salesRevenue = parseFloat(salesSummary.data.total_revenue);
     const saleCount = salesSummary.data.sale_count;
 
-    const purchasesThisMonth = purchases.data.filter((p) => monthKey(p.purchase_date) === currentMonthKey);
+    // Only received purchases are real cost: drafts haven't happened yet and
+    // cancelled ones were reversed.
+    const receivedPurchases = purchases.data.filter((p) => p.status === "received");
+    const purchasesThisMonth = receivedPurchases.filter((p) => monthKey(p.purchase_date) === currentMonthKey);
     const purchaseCost = purchasesThisMonth.reduce((sum, p) => sum + parseFloat(p.total_paid ?? "0"), 0);
     const purchaseOrderCount = purchasesThisMonth.length;
 
@@ -158,12 +174,23 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
         topSellerTotals.set(item.product, entry);
       }
     }
+    const marginByProduct = new Map(
+      profitability.data.products.map((row) => [
+        row.product_id,
+        {
+          grossMargin: row.gross_margin != null ? parseFloat(row.gross_margin) : null,
+          marginPct: row.margin_pct != null ? parseFloat(row.margin_pct) : null,
+        },
+      ])
+    );
     const topSellers: TopSellerRow[] = Array.from(topSellerTotals.entries())
       .map(([product_id, totals]) => ({
         product_id,
         product_name: productById.get(product_id)?.name ?? `Product #${product_id}`,
         units: totals.units,
         revenue: totals.revenue,
+        grossMargin: marginByProduct.get(product_id)?.grossMargin ?? null,
+        marginPct: marginByProduct.get(product_id)?.marginPct ?? null,
       }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, TOP_N);
@@ -197,13 +224,13 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
       revenue: completedSales
         .filter((s) => monthKey(s.sale_date) === key)
         .reduce((sum, s) => sum + parseFloat(s.total_amount), 0),
-      purchaseCost: purchases.data
+      purchaseCost: receivedPurchases
         .filter((p) => monthKey(p.purchase_date) === key)
         .reduce((sum, p) => sum + parseFloat(p.total_paid ?? "0"), 0),
     }));
 
     return {
-      hasReceivedPurchase: purchases.data.some((p) => p.status === "received"),
+      hasReceivedPurchase: receivedPurchases.length > 0,
       categoryCount: catalog.categories.length,
       productCount: catalog.all.length,
       salesRevenue,
@@ -218,9 +245,10 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
       topSellers,
       slowMovers,
       trend,
+      profitability: profitability.data.totals,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isForbidden, enableDetail, salesSummary.data, stockHealth.data, sales.data, purchases.data, catalog.all, currentMonthKey]);
+  }, [isForbidden, enableDetail, salesSummary.data, stockHealth.data, sales.data, purchases.data, profitability.data, catalog.all, currentMonthKey]);
 
   return { isLoading, isError, isForbidden, ...data };
 }

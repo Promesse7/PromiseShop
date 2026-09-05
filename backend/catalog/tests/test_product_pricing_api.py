@@ -51,6 +51,20 @@ def test_admin_sees_wholesale_price(admin, product):
     assert response.json()["results"][0]["wholesale_price"] == "108000.00"
 
 
+def test_manager_sees_wholesale_price(product):
+    manager = Employee.objects.create_user(
+        username="manager1", password="managerpass", full_name="Manager One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.MANAGER,
+    )
+    ProductPricing.objects.create(
+        product=product, wholesale_price="108000.00", retail_price="145000.00",
+        effective_date=date(2026, 1, 1),
+    )
+    client = auth_client(manager, "managerpass")
+    response = client.get(f"/api/product-pricing/?product={product.product_id}")
+    assert response.json()["results"][0]["wholesale_price"] == "108000.00"
+
+
 def test_non_admin_does_not_see_wholesale_price(sales_staff, product):
     ProductPricing.objects.create(
         product=product, wholesale_price="108000.00", retail_price="145000.00",

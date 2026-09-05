@@ -55,7 +55,32 @@ const PURCHASES = [
     purchase_id: 1, supplier: 1, employee: 1, invoice_number: "INV-1", purchase_date: "2026-08-05",
     total_paid: "200000.00", total_invoiced: "200000.00", payment_status: "paid", status: "received", items: [],
   },
+  // A draft this month must not count as cost: nothing has been paid or received yet.
+  {
+    purchase_id: 2, supplier: 1, employee: 1, invoice_number: null, purchase_date: "2026-08-20",
+    total_paid: "999999.00", total_invoiced: "999999.00", payment_status: "unpaid", status: "draft", items: [],
+  },
 ];
+const PROFITABILITY = {
+  period: "month",
+  products: [
+    {
+      product_id: 1, product_name: "Samsung TV", units_bought: 5, avg_cost_paid: "300000.00", avg_cost_invoiced: "300000.00",
+      units_sold: 1, revenue: "385000.00", projected_revenue: "385000.00", cogs_paid: "300000.00", cogs_invoiced: "300000.00",
+      gross_margin: "85000.00", projected_margin: "85000.00", margin_pct: "22.08", projected_margin_pct: "22.08",
+    },
+    {
+      product_id: 2, product_name: "JBL Flip 6", units_bought: 0, avg_cost_paid: null, avg_cost_invoiced: null,
+      units_sold: 1, revenue: "145000.00", projected_revenue: "145000.00", cogs_paid: null, cogs_invoiced: null,
+      gross_margin: null, projected_margin: null, margin_pct: null, projected_margin_pct: null,
+    },
+  ],
+  totals: {
+    product_id: null, product_name: null, units_bought: 5, avg_cost_paid: null, avg_cost_invoiced: null,
+    units_sold: 2, revenue: "530000.00", projected_revenue: "530000.00", cogs_paid: "300000.00", cogs_invoiced: "300000.00",
+    gross_margin: "85000.00", projected_margin: "85000.00", margin_pct: "16.04", projected_margin_pct: "16.04",
+  },
+};
 
 function mockFetchImpl(overrides: Record<string, () => Promise<Response>> = {}) {
   return vi.fn((url: string) => {
@@ -67,6 +92,9 @@ function mockFetchImpl(overrides: Record<string, () => Promise<Response>> = {}) 
     }
     if (url.includes("/dashboard/stock-health/")) {
       return Promise.resolve({ ok: true, json: async () => ({ low_stock_count: 1, equipment_status_counts: {} }) } as Response);
+    }
+    if (url.includes("/dashboard/profitability/")) {
+      return Promise.resolve({ ok: true, json: async () => PROFITABILITY } as Response);
     }
     if (url.includes("/products/")) return Promise.resolve({ ok: true, json: async () => paginated(PRODUCTS) } as Response);
     if (url.includes("/categories/")) return Promise.resolve({ ok: true, json: async () => paginated(CATEGORIES) } as Response);
@@ -144,6 +172,38 @@ describe("useDashboardData", () => {
 
     expect(result.current.topSellers[0]).toMatchObject({ product_id: 1, units: 1, revenue: 385000 });
     expect(result.current.topSellers.map((s) => s.product_id)).not.toContain(3);
+  });
+
+  it("counts only received purchases as this month's purchase cost and in the trend", async () => {
+    vi.stubGlobal("fetch", mockFetchImpl());
+    const { result } = renderHook(() => useDashboardData(NOW), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.purchaseCost).toBe(200000);
+    expect(result.current.purchaseOrderCount).toBe(1);
+    expect(result.current.trend[5].purchaseCost).toBe(200000);
+  });
+
+  it("merges per-product margin from the profitability endpoint into top sellers", async () => {
+    vi.stubGlobal("fetch", mockFetchImpl());
+    const { result } = renderHook(() => useDashboardData(NOW), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const tv = result.current.topSellers.find((s) => s.product_id === 1);
+    expect(tv?.grossMargin).toBe(85000);
+    expect(tv?.marginPct).toBeCloseTo(22.08);
+    const jbl = result.current.topSellers.find((s) => s.product_id === 2);
+    expect(jbl?.grossMargin).toBeNull();
+    expect(jbl?.marginPct).toBeNull();
+  });
+
+  it("exposes the period's profitability totals", async () => {
+    vi.stubGlobal("fetch", mockFetchImpl());
+    const { result } = renderHook(() => useDashboardData(NOW), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.profitability?.gross_margin).toBe("85000.00");
+    expect(result.current.profitability?.projected_margin).toBe("85000.00");
   });
 
   it("flags a product with no sale in 30+ days as a slow mover", async () => {

@@ -45,6 +45,11 @@ export function TopSellersTable({ rows }: TopSellersTableProps) {
                   <span className="text-xs text-text/50 whitespace-nowrap">
                     <span>{row.units}</span> units
                   </span>
+                  <span className="text-xs text-text/50 whitespace-nowrap">
+                    {row.grossMargin != null && row.marginPct != null
+                      ? `margin ${row.grossMargin.toLocaleString()} · ${row.marginPct.toFixed(1)}%`
+                      : "cost unknown"}
+                  </span>
                 </div>
               </div>
             </li>
