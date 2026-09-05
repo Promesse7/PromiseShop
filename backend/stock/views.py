@@ -21,6 +21,10 @@ class InventoryViewSet(viewsets.ModelViewSet):
         queryset = Inventory.objects.all().select_related("product").order_by("inventory_id")
         if self.request.query_params.get("low_stock") == "true":
             queryset = queryset.filter(quantity_in_stock__lte=F("product__reorder_level"))
+        product_id = self.request.query_params.get("product")
+        if product_id:
+            # Lets a product page read its one row instead of walking the whole collection.
+            queryset = queryset.filter(product_id=product_id)
         return queryset
 
 

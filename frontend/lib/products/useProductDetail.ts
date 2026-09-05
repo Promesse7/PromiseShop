@@ -9,6 +9,7 @@ export interface ProductDetail {
   priceHistory: ProductPricing[];
   inventory: Inventory | undefined;
   hasTrackedSerials: boolean;
+  trackedSerialCount: number;
   isLoading: boolean;
   isError: boolean;
 }
@@ -26,9 +27,11 @@ export function useProductDetail(productId: number): ProductDetail {
     queryKey: ["product-pricing", "history", productId],
     queryFn: () => fetchAllPages<ProductPricing>(`product-pricing/?product=${productId}`),
   });
+  // One row, not the whole collection: the key still starts with "inventory" so the
+  // existing invalidations after sales/purchases/receives reach it.
   const inventory = useQuery({
-    queryKey: ["inventory"],
-    queryFn: () => fetchAllPages<Inventory>("inventory/"),
+    queryKey: ["inventory", "product", productId],
+    queryFn: () => apiFetch<PaginatedResponse<Inventory>>(`inventory/?product=${productId}`),
   });
   const equipmentCount = useQuery({
     queryKey: ["equipment-units", "count", productId],
@@ -42,8 +45,9 @@ export function useProductDetail(productId: number): ProductDetail {
 
   const category = categories.data?.find((c) => c.category_id === product.data?.category);
   const currentPricing = priceHistory.data?.find((p) => p.is_current);
-  const productInventory = inventory.data?.find((i) => i.product === productId);
-  const hasTrackedSerials = (equipmentCount.data?.count ?? 0) > 0;
+  const productInventory = inventory.data?.results.find((i) => i.product === productId);
+  const trackedSerialCount = equipmentCount.data?.count ?? 0;
+  const hasTrackedSerials = trackedSerialCount > 0;
 
   return {
     product: product.data,
@@ -52,6 +56,7 @@ export function useProductDetail(productId: number): ProductDetail {
     priceHistory: priceHistory.data ?? [],
     inventory: productInventory,
     hasTrackedSerials,
+    trackedSerialCount,
     isLoading,
     isError,
   };

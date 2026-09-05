@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -67,9 +67,14 @@ function ProductFormFields({
   const [errors, setErrors] = useState<ProductFormErrors>({});
   const [submitting, setSubmitting] = useState(false);
   const showStorageLocation = mode === "edit" && initialStorageLocation != null;
+  // Normalise the catalog once, not on every keystroke of the name field.
+  const productByNormalizedName = useMemo(
+    () => new Map(existingProducts.map((p) => [normalizeName(p.name), p])),
+    [existingProducts]
+  );
   const similarProduct =
     mode === "create" && values.name.trim()
-      ? existingProducts.find((p) => normalizeName(p.name) === normalizeName(values.name))
+      ? productByNormalizedName.get(normalizeName(values.name))
       : undefined;
 
   const [addingCategory, setAddingCategory] = useState(false);

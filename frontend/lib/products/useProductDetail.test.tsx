@@ -79,6 +79,17 @@ describe("useProductDetail", () => {
 
     expect(result.current.hasTrackedSerials).toBe(true);
   });
+
+  it("asks the API for this product's inventory row only, not the whole collection", async () => {
+    const { result } = renderHook(() => useProductDetail(1), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const inventoryUrls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls
+      .map(([url]) => String(url))
+      .filter((url) => url.includes("/inventory/"));
+    expect(inventoryUrls).toHaveLength(1);
+    expect(inventoryUrls[0]).toContain("product=1");
+  });
 });
 
 describe("useProductDetail with no inventory or equipment rows", () => {

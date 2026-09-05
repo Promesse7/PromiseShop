@@ -29,19 +29,25 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   return data as T;
 }
 
+// Matches the backend's max_page_size cap headroom (core.pagination.StandardPagination
+// allows up to 500). A whole shop catalog fits in a couple of requests.
+const PAGE_SIZE = 200;
+
+// Walk a paginated collection: one request for page 1, then every remaining page
+// in parallel (the first response's count tells us how many there are). Results
+// come back in page order.
 export async function fetchAllPages<T>(path: string): Promise<T[]> {
-  const results: T[] = [];
-  let page = 1;
   const separator = path.includes("?") ? "&" : "?";
+  const pageUrl = (page: number) => `${path}${separator}page=${page}&page_size=${PAGE_SIZE}`;
 
-  while (true) {
-    const data = await apiFetch<PaginatedResponse<T>>(`${path}${separator}page=${page}`);
-    results.push(...data.results);
-    if (!data.next) break;
-    page += 1;
-  }
+  const first = await apiFetch<PaginatedResponse<T>>(pageUrl(1));
+  if (!first.next) return first.results;
 
-  return results;
+  const totalPages = Math.max(2, Math.ceil(first.count / PAGE_SIZE));
+  const rest = await Promise.all(
+    Array.from({ length: totalPages - 1 }, (_, i) => apiFetch<PaginatedResponse<T>>(pageUrl(i + 2)))
+  );
+  return [...first.results, ...rest.flatMap((page) => page.results)];
 }
 
 export function extractErrorMessage(body: unknown): string {

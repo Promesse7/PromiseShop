@@ -6,7 +6,7 @@ describe("fetchAllPages", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("returns all results when the response fits on one page", async () => {
+  it("asks for large pages and returns all results when the response fits on one page", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ count: 2, next: null, previous: null, results: [{ id: 1 }, { id: 2 }] }),
@@ -15,33 +15,42 @@ describe("fetchAllPages", () => {
     const results = await fetchAllPages<{ id: number }>("products/");
 
     expect(results).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
     expect(global.fetch).toHaveBeenCalledWith(
-      "/api/proxy/products/?page=1",
+      "/api/proxy/products/?page=1&page_size=200",
       expect.anything()
     );
   });
 
-  it("follows next pages until next is null", async () => {
+  it("fetches the remaining pages in parallel after the first, keeping page order", async () => {
+    const page = (n: number, results: { id: number }[], next: string | null) => ({
+      ok: true,
+      json: async () => ({ count: 450, next, previous: null, results, page: n }),
+    });
     const mockFetch = global.fetch as ReturnType<typeof vi.fn>;
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        count: 3, next: "http://backend:8000/api/products/?page=2", previous: null,
-        results: [{ id: 1 }, { id: 2 }],
-      }),
-    });
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ count: 3, next: null, previous: null, results: [{ id: 3 }] }),
+    const resolvers: Record<string, () => void> = {};
+    mockFetch.mockImplementation((url: string) => {
+      if (url.includes("page=1&")) return Promise.resolve(page(1, [{ id: 1 }], "http://backend:8000/api/products/?page=2&page_size=200"));
+      // Pages 2 and 3 resolve only when released, page 3 first — the results must still
+      // come back in page order.
+      return new Promise((resolve) => {
+        resolvers[url] = () =>
+          resolve(url.includes("page=2") ? page(2, [{ id: 2 }], "…") : page(3, [{ id: 3 }], null));
+      });
     });
 
-    const results = await fetchAllPages<{ id: number }>("products/");
+    const pending = fetchAllPages<{ id: number }>("products/");
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(3));
+    expect(mockFetch).toHaveBeenCalledWith("/api/proxy/products/?page=2&page_size=200", expect.anything());
+    expect(mockFetch).toHaveBeenCalledWith("/api/proxy/products/?page=3&page_size=200", expect.anything());
 
-    expect(results).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
-    expect(mockFetch).toHaveBeenNthCalledWith(2, "/api/proxy/products/?page=2", expect.anything());
+    resolvers["/api/proxy/products/?page=3&page_size=200"]();
+    resolvers["/api/proxy/products/?page=2&page_size=200"]();
+
+    expect(await pending).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
   });
 
-  it("appends page as an additional query param when the path already has one", async () => {
+  it("appends page params after an existing query string", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       json: async () => ({ count: 1, next: null, previous: null, results: [{ id: 1 }] }),
@@ -50,7 +59,7 @@ describe("fetchAllPages", () => {
     await fetchAllPages<{ id: number }>("product-pricing/?is_current=true");
 
     expect(global.fetch).toHaveBeenCalledWith(
-      "/api/proxy/product-pricing/?is_current=true&page=1",
+      "/api/proxy/product-pricing/?is_current=true&page=1&page_size=200",
       expect.anything()
     );
   });

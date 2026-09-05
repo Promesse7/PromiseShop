@@ -62,6 +62,16 @@ def test_retrieve_inventory_includes_is_low_stock_true(employee, product):
     assert response.json()["is_low_stock"] is True
 
 
+def test_product_filter_returns_only_that_products_row(employee, category, product):
+    other = Product.objects.create(category=category, barcode="PES-AUD-00002", name="Other")
+    Inventory.objects.create(product=product, quantity_in_stock=10)
+    Inventory.objects.create(product=other, quantity_in_stock=3)
+    client = auth_client(employee, "staffpass")
+    body = client.get(f"/api/inventory/?product={product.product_id}").json()
+    assert body["count"] == 1
+    assert body["results"][0]["product"] == product.product_id
+
+
 def test_low_stock_filter(employee, category):
     low_product = Product.objects.create(
         category=category, barcode="PES-AUD-00002", name="Low Item", reorder_level=5,
