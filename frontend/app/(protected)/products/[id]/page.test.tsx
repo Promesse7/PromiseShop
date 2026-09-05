@@ -7,6 +7,11 @@ import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useProductDetailModule from "@/lib/products/useProductDetail";
 import type { ProductDetail } from "@/lib/products/useProductDetail";
 
+const pushMock = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
+}));
+
 const baseDetail: ProductDetail = {
   product: {
     product_id: 1, category: 20, barcode: "PES-AUD-00147", name: "JBL Flip 6 Speaker",
@@ -34,6 +39,7 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe("ProductDetailPageClient", () => {
   beforeEach(() => {
+    pushMock.mockClear();
     vi.spyOn(useProductDetailModule, "useProductDetail").mockReturnValue(baseDetail);
     vi.stubGlobal("fetch", vi.fn());
   });
@@ -147,5 +153,52 @@ describe("ProductDetailPageClient", () => {
     await userEvent.click(screen.getByRole("button", { name: "Deactivate" }));
 
     expect(await screen.findByText("You do not have permission to perform this action.")).toBeInTheDocument();
+  });
+
+  it("shows a Delete button for admin and hides it for sales_staff", () => {
+    const { unmount } = renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
+
+  it("does not delete when the confirmation is dismissed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes after confirmation, invalidates products, toasts, and returns to the list", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({ ok: true, status: 204, json: async () => null });
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(await screen.findByText("Product deleted.")).toBeInTheDocument();
+    expect(global.fetch).toHaveBeenCalledWith("/api/proxy/products/1/", expect.objectContaining({ method: "DELETE" }));
+    expect(pushMock).toHaveBeenCalledWith("/products");
+  });
+
+  it("shows the backend message when delete is blocked by purchase or sale history", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        detail: "This product has purchase or sale history and cannot be deleted. Deactivate it instead so past records stay intact.",
+      }),
+    });
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Delete" }));
+
+    expect(
+      await screen.findByText(/This product has purchase or sale history and cannot be deleted/)
+    ).toBeInTheDocument();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });

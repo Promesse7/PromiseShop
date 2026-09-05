@@ -34,6 +34,25 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAdminOrManager()]
+        return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        # PurchaseItem/SaleItem point at Product with on_delete=PROTECT, so a raw delete
+        # would raise ProtectedError (an unhandled 500). Check first and return a clean
+        # 400 so the UI can steer the user to "deactivate" instead. Everything else that
+        # hangs off a product (pricing history, inventory, equipment units) is CASCADE
+        # and is meant to go with it — a product with no trade history is an entry
+        # mistake, not a record worth keeping.
+        if instance.purchase_items.exists() or instance.sale_items.exists():
+            raise ValidationError(
+                "This product has purchase or sale history and cannot be deleted. "
+                "Deactivate it instead so past records stay intact."
+            )
+        instance.delete()
+
     def perform_create(self, serializer):
         with transaction.atomic():
             category = serializer.validated_data["category"]

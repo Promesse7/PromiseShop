@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProductDetail } from "@/lib/products/useProductDetail";
 import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
@@ -45,8 +46,31 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { show } = useToast();
+
+  async function handleDelete() {
+    if (!detail.product) return;
+    const confirmed = window.confirm(
+      `Delete "${detail.product.name}"? This also removes its stock record, pricing history and any tracked equipment units. This can't be undone.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await apiFetch(`products/${productId}/`, { method: "DELETE" });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      show("Product deleted.", "success");
+      router.push("/products");
+    } catch (error) {
+      const message =
+        error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
+      show(message, "error");
+      setDeleting(false);
+    }
+  }
 
   async function handleToggleActive() {
     if (!detail.product) return;
@@ -100,6 +124,11 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           {isAdmin && (
             <Button variant="secondary" onClick={handleToggleActive} disabled={togglingActive}>
               {togglingActive ? "Saving…" : detail.product.is_active === false ? "Reactivate" : "Deactivate"}
+            </Button>
+          )}
+          {isAdmin && (
+            <Button variant="secondary" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "Deleting…" : "Delete"}
             </Button>
           )}
         </div>

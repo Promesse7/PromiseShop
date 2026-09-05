@@ -25,6 +25,16 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("CategoryManagerDialog", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+  });
+
+  it("asks for confirmation and does nothing when it is dismissed", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    renderWithProviders(<CategoryManagerDialog open={true} categories={categories} onClose={vi.fn()} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("Televisions"));
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it("does not render when closed", () => {

@@ -217,3 +217,116 @@ def test_set_active_rejects_empty_body(admin, category):
 
     response = admin_client.post(f"/api/products/{product_id}/set-active/", {}, format="json")
     assert response.status_code == 400
+
+
+def test_admin_can_delete_product_with_no_history(admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = admin_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 204
+    assert not Product.objects.filter(pk=product_id).exists()
+
+
+def test_manager_can_delete_product_with_no_history(manager, category):
+    manager_client = auth_client(manager, "managerpass")
+    create_response = manager_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    response = manager_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 204
+    assert not Product.objects.filter(pk=product_id).exists()
+
+
+def test_sales_staff_forbidden_from_deleting_product(sales_staff, admin, category):
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+
+    staff_client = auth_client(sales_staff, "staffpass")
+    response = staff_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 403
+    assert Product.objects.filter(pk=product_id).exists()
+
+
+def test_deleting_product_cascades_pricing_and_inventory(admin, category):
+    from catalog.models import ProductPricing
+    from stock.models import Inventory
+
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+    product = Product.objects.get(pk=product_id)
+    ProductPricing.objects.create(
+        product=product, wholesale_price="1000.00", retail_price="1500.00", effective_date="2026-01-01"
+    )
+    Inventory.objects.create(product=product, quantity_in_stock=5)
+
+    response = admin_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 204
+    assert not ProductPricing.objects.filter(product_id=product_id).exists()
+    assert not Inventory.objects.filter(product_id=product_id).exists()
+
+
+def test_deleting_product_with_purchase_history_returns_400_not_500(admin, category):
+    from purchasing.models import Supplier, Purchase, PurchaseItem
+
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+    product = Product.objects.get(pk=product_id)
+
+    supplier = Supplier.objects.create(name="Kigali Electronics Ltd")
+    purchase = Purchase.objects.create(
+        supplier=supplier, employee=admin, purchase_date="2026-01-01",
+        total_paid="10000.00", total_invoiced="10000.00",
+    )
+    PurchaseItem.objects.create(
+        purchase=purchase, product=product, quantity=1,
+        unit_cost_paid="1000.00", unit_cost_invoiced="1000.00",
+        subtotal_paid="1000.00", subtotal_invoiced="1000.00",
+    )
+
+    response = admin_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 400
+    assert (
+        "This product has purchase or sale history and cannot be deleted. "
+        "Deactivate it instead so past records stay intact."
+    ) in response.json()["detail"]
+    assert Product.objects.filter(pk=product_id).exists()
+
+
+def test_deleting_product_with_sale_history_returns_400_not_500(admin, category):
+    from sales.models import Sale, SaleItem
+
+    admin_client = auth_client(admin, "adminpass")
+    create_response = admin_client.post(
+        "/api/products/", {"category": category.category_id, "name": "First"}, format="json"
+    )
+    product_id = create_response.json()["product_id"]
+    product = Product.objects.get(pk=product_id)
+
+    sale = Sale.objects.create(employee=admin, total_amount="1000.00")
+    SaleItem.objects.create(
+        sale=sale, product=product, quantity=1, unit_price="1000.00", subtotal="1000.00",
+        tax_category="B", tax_amount="0.00",
+    )
+
+    response = admin_client.delete(f"/api/products/{product_id}/")
+    assert response.status_code == 400
+    assert (
+        "This product has purchase or sale history and cannot be deleted. "
+        "Deactivate it instead so past records stay intact."
+    ) in response.json()["detail"]
+    assert Product.objects.filter(pk=product_id).exists()

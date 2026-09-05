@@ -28,6 +28,7 @@ function CategoryManagerList({ categories }: { categories: Category[] }) {
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   async function handleDelete(category: Category) {
+    if (!window.confirm(`Delete category "${category.name}"? This can't be undone.`)) return;
     setDeletingId(category.category_id);
     try {
       await apiFetch(`categories/${category.category_id}/`, { method: "DELETE" });
