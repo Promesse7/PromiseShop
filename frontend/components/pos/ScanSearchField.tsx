@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { findByBarcode, searchCatalog } from "@/lib/pos/search";
 import type { PosCatalog } from "@/lib/pos/usePosCatalog";
@@ -10,6 +10,8 @@ interface ScanSearchFieldProps {
   catalog: PosCatalog;
   onAdd: (product: PosProduct) => void;
 }
+
+const MAX_SUGGESTIONS = 8;
 
 export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
   const id = useId();
@@ -21,16 +23,26 @@ export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
     inputRef.current?.focus();
   }, []);
 
+  const matches = useMemo(() => {
+    const trimmed = query.trim();
+    if (!trimmed) return [];
+    return searchCatalog(catalog, trimmed).slice(0, MAX_SUGGESTIONS);
+  }, [catalog, query]);
+
+  function addAndReset(product: PosProduct) {
+    onAdd(product);
+    setQuery("");
+    setNotFound(false);
+    inputRef.current?.focus();
+  }
+
   function resolve() {
     const trimmed = query.trim();
     if (!trimmed) return;
 
-    const match = findByBarcode(catalog, trimmed) ?? searchCatalog(catalog, trimmed)[0];
+    const match = findByBarcode(catalog, trimmed) ?? matches[0];
     if (match) {
-      onAdd(match);
-      setQuery("");
-      setNotFound(false);
-      inputRef.current?.focus();
+      addAndReset(match);
     } else {
       setNotFound(true);
     }
@@ -63,6 +75,20 @@ export function ScanSearchField({ catalog, onAdd }: ScanSearchFieldProps) {
           Search
         </Button>
       </div>
+      {matches.length > 1 && (
+        <div className="flex flex-col gap-1 mt-1 max-w-[420px]">
+          {matches.map((p) => (
+            <button
+              key={p.product_id}
+              type="button"
+              onClick={() => addAndReset(p)}
+              className="text-left text-sm py-1.5 px-2 hover:bg-text/[0.07] rounded-md"
+            >
+              {p.name} <span className="text-xs font-mono text-text/50">{p.barcode}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {notFound && <p className="text-xs text-text/60 mt-1">Not in catalog — add product?</p>}
     </div>
   );
