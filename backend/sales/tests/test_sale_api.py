@@ -67,18 +67,81 @@ def test_complete_sale_via_api(employee, admin, product):
     assert body["items"][0]["subtotal"] == "200.00"
 
 
-def test_client_supplied_price_is_ignored(employee, admin, product):
+def test_omitted_unit_price_uses_catalog_price_and_records_it_as_list_price(employee, admin, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/sales/",
+        {"payment_method": "cash", "items": [{"product": product.product_id, "quantity": 1}]},
+        format="json",
+    )
+    assert response.status_code == 201
+    item = response.json()["items"][0]
+    assert item["unit_price"] == "100.00"
+    assert item["list_price"] == "100.00"
+
+
+def test_client_supplied_price_overrides_catalog_price_and_keeps_list_price(employee, admin, product):
     client = auth_client(employee, "staffpass")
     response = client.post(
         "/api/sales/",
         {
             "payment_method": "cash",
-            "items": [{"product": product.product_id, "quantity": 1, "unit_price": "0.01"}],
+            "items": [{"product": product.product_id, "quantity": 2, "unit_price": "80.00"}],
         },
         format="json",
     )
     assert response.status_code == 201
-    assert response.json()["items"][0]["unit_price"] == "100.00"
+    body = response.json()
+    item = body["items"][0]
+    assert item["unit_price"] == "80.00"
+    assert item["list_price"] == "100.00"
+    assert item["subtotal"] == "160.00"
+    assert body["total_amount"] == "160.00"
+    # The catalog price itself is untouched by a point-of-sale override.
+    assert ProductPricing.objects.get(product=product, is_current=True).retail_price == Decimal("100.00")
+
+
+def test_unit_price_above_catalog_is_allowed(employee, admin, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/sales/",
+        {
+            "payment_method": "cash",
+            "items": [{"product": product.product_id, "quantity": 1, "unit_price": "125.00"}],
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.json()["items"][0]["unit_price"] == "125.00"
+    assert response.json()["total_amount"] == "125.00"
+
+
+def test_unit_price_must_be_positive(employee, admin, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/sales/",
+        {
+            "payment_method": "cash",
+            "items": [{"product": product.product_id, "quantity": 1, "unit_price": "0.00"}],
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert Sale.objects.count() == 0
+
+
+def test_unit_price_rejects_more_than_two_decimals(employee, admin, product):
+    client = auth_client(employee, "staffpass")
+    response = client.post(
+        "/api/sales/",
+        {
+            "payment_method": "cash",
+            "items": [{"product": product.product_id, "quantity": 1, "unit_price": "80.005"}],
+        },
+        format="json",
+    )
+    assert response.status_code == 400
+    assert Sale.objects.count() == 0
 
 
 def test_walk_in_sale_via_api(employee, admin, product):

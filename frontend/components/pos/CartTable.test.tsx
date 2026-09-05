@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { CartTable } from "./CartTable";
@@ -10,26 +10,65 @@ const line: CartLine = {
     model_number: "JBLFLIP6BLK", category_name: "Audio", retail_price: 145000, quantity_in_stock: 2,
   },
   quantity: 2,
+  unitPrice: 145000,
 };
+
+function renderTable(lines: CartLine[], handlers: Partial<{ onSetQuantity: () => void; onSetUnitPrice: () => void; onRemove: () => void }> = {}) {
+  return render(
+    <CartTable
+      lines={lines}
+      onSetQuantity={handlers.onSetQuantity ?? vi.fn()}
+      onSetUnitPrice={handlers.onSetUnitPrice ?? vi.fn()}
+      onRemove={handlers.onRemove ?? vi.fn()}
+    />
+  );
+}
 
 describe("CartTable", () => {
   it("shows an empty-cart message with no lines", () => {
-    render(<CartTable lines={[]} onSetQuantity={vi.fn()} onRemove={vi.fn()} />);
+    renderTable([]);
     expect(screen.getByText("No items scanned yet")).toBeInTheDocument();
   });
 
-  it("renders product name, barcode, price, quantity, and subtotal", () => {
-    render(<CartTable lines={[line]} onSetQuantity={vi.fn()} onRemove={vi.fn()} />);
+  it("renders product name, barcode, an editable price, quantity, and subtotal", () => {
+    renderTable([line]);
     expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
     expect(screen.getByText("PES-AUD-00147")).toBeInTheDocument();
-    expect(screen.getByText("145,000")).toBeInTheDocument();
+    expect(screen.getByLabelText("Unit price")).toHaveValue(145000);
     expect(screen.getByText("290,000")).toBeInTheDocument();
+  });
+
+  it("calls onSetUnitPrice when the price input changes", () => {
+    const onSetUnitPrice = vi.fn();
+    renderTable([line], { onSetUnitPrice });
+    // The input is controlled by the line's price, so a single change event with the
+    // whole value is how a keyed-in price reaches the handler.
+    fireEvent.change(screen.getByLabelText("Unit price"), { target: { value: "120000" } });
+    expect(onSetUnitPrice).toHaveBeenCalledWith(1, 120000);
+  });
+
+  it("does not call onSetUnitPrice when the price input is cleared", async () => {
+    const onSetUnitPrice = vi.fn();
+    renderTable([line], { onSetUnitPrice });
+    await userEvent.clear(screen.getByLabelText("Unit price"));
+    expect(onSetUnitPrice).not.toHaveBeenCalled();
+  });
+
+  it("shows the catalog price beside a line whose price was changed", () => {
+    renderTable([{ ...line, unitPrice: 120000 }]);
+    expect(screen.getByText(/list 145,000/)).toBeInTheDocument();
+    expect(screen.getByText("240,000")).toBeInTheDocument();
+  });
+
+  it("does not show a catalog-price hint when the price is unchanged", () => {
+    renderTable([line]);
+    expect(screen.queryByText(/list 145,000/)).not.toBeInTheDocument();
   });
 
   it("calls onSetQuantity when the quantity input changes", async () => {
     const onSetQuantity = vi.fn();
-    render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
-    const qtyInput = screen.getByDisplayValue("2") as HTMLInputElement;
+    renderTable([line], { onSetQuantity });
+    const qtyInput = screen.getByLabelText("Quantity") as HTMLInputElement;
     qtyInput.focus();
     await userEvent.keyboard("{Control>}a{/Control}");
     await userEvent.keyboard("5");
@@ -38,15 +77,15 @@ describe("CartTable", () => {
 
   it("calls onRemove when Remove is clicked", async () => {
     const onRemove = vi.fn();
-    render(<CartTable lines={[line]} onSetQuantity={vi.fn()} onRemove={onRemove} />);
+    renderTable([line], { onRemove });
     await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(onRemove).toHaveBeenCalledWith(1);
   });
 
   it("calls onSetQuantity with 0 when quantity input is set to 0", async () => {
     const onSetQuantity = vi.fn();
-    render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
-    const qtyInput = screen.getByDisplayValue("2") as HTMLInputElement;
+    renderTable([line], { onSetQuantity });
+    const qtyInput = screen.getByLabelText("Quantity") as HTMLInputElement;
     qtyInput.focus();
     await userEvent.keyboard("{Control>}a{/Control}");
     await userEvent.keyboard("0");
@@ -55,25 +94,19 @@ describe("CartTable", () => {
 
   it("does not call onSetQuantity or remove the row when the quantity input is cleared", async () => {
     const onSetQuantity = vi.fn();
-    render(<CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
-    const qtyInput = screen.getByDisplayValue("2");
-    await userEvent.clear(qtyInput);
+    renderTable([line], { onSetQuantity });
+    await userEvent.clear(screen.getByLabelText("Quantity"));
     expect(onSetQuantity).not.toHaveBeenCalled();
     expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
   });
 
   it("updates the quantity input value when the lines prop changes", () => {
-    const onSetQuantity = vi.fn();
-    const { rerender } = render(
-      <CartTable lines={[line]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />
-    );
-    expect(screen.getByDisplayValue("2")).toBeInTheDocument();
+    const { rerender } = renderTable([line]);
+    expect(screen.getByLabelText("Quantity")).toHaveValue(2);
 
-    const updatedLine: CartLine = {
-      ...line,
-      quantity: 5,
-    };
-    rerender(<CartTable lines={[updatedLine]} onSetQuantity={onSetQuantity} onRemove={vi.fn()} />);
-    expect(screen.getByDisplayValue("5")).toBeInTheDocument();
+    rerender(
+      <CartTable lines={[{ ...line, quantity: 5 }]} onSetQuantity={vi.fn()} onSetUnitPrice={vi.fn()} onRemove={vi.fn()} />
+    );
+    expect(screen.getByLabelText("Quantity")).toHaveValue(5);
   });
 });

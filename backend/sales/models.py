@@ -48,6 +48,9 @@ class SaleItem(models.Model):
     product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="sale_items")
     quantity = models.PositiveIntegerField()
     unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    # Catalog retail price at the moment of sale. unit_price may be overridden at
+    # the till; keeping the list price beside it makes every discount/markup auditable.
+    list_price = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax_category = models.CharField(max_length=1, choices=Product.TaxCategory.choices)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2)

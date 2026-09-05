@@ -75,6 +75,9 @@ export interface SaleItem {
   product: number;
   quantity: number;
   unit_price: string;
+  // Catalog retail price at the time of sale; differs from unit_price when the
+  // cashier discounted or marked the line up at the till.
+  list_price: string;
   subtotal: string;
   tax_category: "A" | "B";
   tax_amount: string;

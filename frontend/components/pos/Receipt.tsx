@@ -97,11 +97,17 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
 
         {sale.items.map((item) => {
           const line = lines.find((l) => l.product.product_id === item.product);
+          const unitPrice = Number(item.unit_price);
+          const listPrice = Number(item.list_price);
+          const priceLabel =
+            `@ ${unitPrice.toLocaleString()}` +
+            (unitPrice !== listPrice ? ` (list ${listPrice.toLocaleString()})` : "");
           return (
-            <div key={item.sale_item_id} className="flex justify-between py-0.5">
+            <div key={item.sale_item_id} className="flex justify-between gap-2 py-0.5">
               <span>
                 {line?.product.name ?? `Product #${item.product}`} × {item.quantity}
               </span>
+              <span className="flex-1 text-right text-xs text-text/50 self-center">{priceLabel}</span>
               <span>{Number(item.subtotal).toLocaleString()}</span>
             </div>
           );

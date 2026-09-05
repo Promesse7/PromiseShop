@@ -34,7 +34,13 @@ def _notify_admins(sale, notification_type="sale_alert"):
 
 
 def complete_sale(customer, employee, payment_method, items):
-    """items: list of {"product": Product instance, "quantity": int}"""
+    """items: list of {"product": Product instance, "quantity": int, "unit_price": Decimal | absent}
+
+    unit_price, when present, is the price agreed at the till (VAT-inclusive, like the
+    catalog price) and replaces the catalog retail price for that line only. The catalog
+    price is still resolved and stored as list_price so the discount/markup is auditable,
+    and a product with no current price still fails loudly even when an override is sent.
+    """
     if not items:
         raise ValidationError("Cannot complete a sale with no line items.")
 
@@ -61,13 +67,15 @@ def complete_sale(customer, employee, payment_method, items):
         for entry in items:
             product = entry["product"]
             quantity = entry["quantity"]
-            unit_price = _resolve_retail_price(product)
-            subtotal = unit_price * quantity
+            list_price = _resolve_retail_price(product)
+            override = entry.get("unit_price")
+            unit_price = override if override is not None else list_price
+            subtotal = (unit_price * quantity).quantize(Decimal("0.01"))
             # Retail prices are VAT-inclusive, so tax_amount is the portion of subtotal that is
             # tax, not an additional charge on top of it.
             rate = TAX_RATES[product.tax_category]
             tax_amount = (subtotal - subtotal / (1 + rate)).quantize(Decimal("0.01"))
-            resolved_items.append((product, quantity, unit_price, subtotal, tax_amount))
+            resolved_items.append((product, quantity, unit_price, list_price, subtotal, tax_amount))
             total += subtotal
 
         sale = Sale.objects.create(
@@ -75,10 +83,10 @@ def complete_sale(customer, employee, payment_method, items):
             total_amount=total,
         )
 
-        for product, quantity, unit_price, subtotal, tax_amount in resolved_items:
+        for product, quantity, unit_price, list_price, subtotal, tax_amount in resolved_items:
             SaleItem.objects.create(
                 sale=sale, product=product, quantity=quantity,
-                unit_price=unit_price, subtotal=subtotal,
+                unit_price=unit_price, list_price=list_price, subtotal=subtotal,
                 tax_category=product.tax_category, tax_amount=tax_amount,
             )
 

@@ -3,6 +3,10 @@ import type { PosProduct } from "@/lib/types";
 export interface CartLine {
   product: PosProduct;
   quantity: number;
+  // Price this line will actually be sold at. Seeded from the catalog's current
+  // retail price and editable at the till — the catalog price on `product` is
+  // never changed by a point-of-sale override.
+  unitPrice: number;
 }
 
 export function addItem(lines: CartLine[], product: PosProduct): CartLine[] {
@@ -14,7 +18,7 @@ export function addItem(lines: CartLine[], product: PosProduct): CartLine[] {
         : line
     );
   }
-  return [...lines, { product, quantity: 1 }];
+  return [...lines, { product, quantity: 1, unitPrice: product.retail_price }];
 }
 
 export function setQuantity(lines: CartLine[], productId: number, quantity: number): CartLine[] {
@@ -26,17 +30,26 @@ export function setQuantity(lines: CartLine[], productId: number, quantity: numb
   );
 }
 
+export function setUnitPrice(lines: CartLine[], productId: number, unitPrice: number): CartLine[] {
+  return lines.map((line) =>
+    line.product.product_id === productId ? { ...line, unitPrice } : line
+  );
+}
+
 export function removeItem(lines: CartLine[], productId: number): CartLine[] {
   return lines.filter((line) => line.product.product_id !== productId);
 }
 
 export function lineSubtotal(line: CartLine): number {
-  return line.product.retail_price * line.quantity;
+  return line.unitPrice * line.quantity;
 }
 
 export interface CartTotals {
   itemCount: number;
   subtotal: number;
+  // What the same lines would come to at catalog prices, so the till can show
+  // the net discount or markup the cashier has applied.
+  listSubtotal: number;
 }
 
 export function totals(lines: CartLine[]): CartTotals {
@@ -44,7 +57,8 @@ export function totals(lines: CartLine[]): CartTotals {
     (acc, line) => ({
       itemCount: acc.itemCount + line.quantity,
       subtotal: acc.subtotal + lineSubtotal(line),
+      listSubtotal: acc.listSubtotal + line.product.retail_price * line.quantity,
     }),
-    { itemCount: 0, subtotal: 0 }
+    { itemCount: 0, subtotal: 0, listSubtotal: 0 }
   );
 }

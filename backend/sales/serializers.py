@@ -1,3 +1,4 @@
+from decimal import Decimal
 from rest_framework import serializers
 from catalog.models import Product
 from sales.models import Customer, Sale, SaleItem
@@ -14,7 +15,7 @@ class SaleItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = SaleItem
         fields = [
-            "sale_item_id", "sale", "product", "quantity", "unit_price", "subtotal",
+            "sale_item_id", "sale", "product", "quantity", "unit_price", "list_price", "subtotal",
             "tax_category", "tax_amount",
         ]
         read_only_fields = fields
@@ -35,6 +36,11 @@ class SaleSerializer(serializers.ModelSerializer):
 class SaleItemInputSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
     quantity = serializers.IntegerField(min_value=1)
+    # Optional point-of-sale override (VAT-inclusive, like the catalog price).
+    # Omitted means "sell at the current catalog retail price".
+    unit_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False
+    )
 
 
 class CreateSaleSerializer(serializers.Serializer):

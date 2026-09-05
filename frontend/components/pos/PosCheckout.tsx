@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePosCatalog } from "@/lib/pos/usePosCatalog";
-import { addItem, removeItem, setQuantity, totals, type CartLine } from "@/lib/pos/cart";
+import { addItem, removeItem, setQuantity, setUnitPrice, totals, type CartLine } from "@/lib/pos/cart";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ScanSearchField } from "./ScanSearchField";
@@ -48,14 +48,26 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
     setLines((current) => removeItem(current, productId));
   }
 
+  function handleSetUnitPrice(productId: number, unitPrice: number) {
+    setLines((current) => setUnitPrice(current, productId, unitPrice));
+  }
+
+  const unpricedLines = lines.filter((line) => line.unitPrice <= 0);
+
   async function handleCompleteSale() {
-    if (lines.length === 0) return;
+    if (lines.length === 0 || unpricedLines.length > 0) return;
     setSubmitting(true);
     try {
       const sale = await apiFetch<Sale>("sales/", {
         method: "POST",
         body: JSON.stringify({
-          items: lines.map((line) => ({ product: line.product.product_id, quantity: line.quantity })),
+          // unit_price is only sent for lines the cashier changed, so the catalog
+          // price stays server-authoritative for everything else.
+          items: lines.map((line) => ({
+            product: line.product.product_id,
+            quantity: line.quantity,
+            ...(line.unitPrice !== line.product.retail_price ? { unit_price: line.unitPrice.toFixed(2) } : {}),
+          })),
           payment_method: paymentMethod,
         }),
       });
@@ -92,7 +104,8 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
     );
   }
 
-  const { itemCount, subtotal } = totals(lines);
+  const { itemCount, subtotal, listSubtotal } = totals(lines);
+  const adjustment = subtotal - listSubtotal;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
@@ -114,8 +127,18 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         ) : (
           <ScanSearchField catalog={catalog} onAdd={handleAdd} />
         )}
-        <CartTable lines={lines} onSetQuantity={handleSetQuantity} onRemove={handleRemove} />
-        <CartCards lines={lines} onSetQuantity={handleSetQuantity} />
+        <CartTable
+          lines={lines}
+          onSetQuantity={handleSetQuantity}
+          onSetUnitPrice={handleSetUnitPrice}
+          onRemove={handleRemove}
+        />
+        <CartCards lines={lines} onSetQuantity={handleSetQuantity} onSetUnitPrice={handleSetUnitPrice} />
+        {unpricedLines.length > 0 && (
+          <p className="text-sm text-red-400 mt-2">
+            Set a price for {unpricedLines.map((line) => line.product.name).join(", ")} before completing the sale.
+          </p>
+        )}
       </div>
       <div className="flex flex-col gap-4">
         <Card elevation="md">
@@ -124,6 +147,14 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
             <span>Items ({itemCount})</span>
             <span>RWF {subtotal.toLocaleString()}</span>
           </div>
+          {adjustment !== 0 && (
+            <div className="flex justify-between text-sm text-text/70 mt-1">
+              <span>{adjustment < 0 ? "Discount vs catalog" : "Markup vs catalog"}</span>
+              <span>
+                {adjustment < 0 ? "−" : "+"} RWF {Math.abs(adjustment).toLocaleString()}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between font-sans font-medium text-xl mt-1.5">
             <span>Due</span>
             <span className="text-accent-300">RWF {subtotal.toLocaleString()}</span>
@@ -150,7 +181,7 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         </div>
         <Button
           block
-          disabled={lines.length === 0 || submitting}
+          disabled={lines.length === 0 || unpricedLines.length > 0 || submitting}
           onClick={handleCompleteSale}
           className="min-h-11"
         >

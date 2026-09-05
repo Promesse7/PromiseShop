@@ -10,8 +10,8 @@ const sale: Sale = {
   sale_id: 841, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
   payment_method: "cash", total_amount: "530000.00", status: "completed",
   items: [
-    { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "385000.00", subtotal: "385000.00", tax_category: "B", tax_amount: "58728.81" },
-    { sale_item_id: 2, sale: 841, product: 2, quantity: 1, unit_price: "145000.00", subtotal: "145000.00", tax_category: "B", tax_amount: "22118.64" },
+    { sale_item_id: 1, sale: 841, product: 1, quantity: 1, unit_price: "385000.00", list_price: "385000.00", subtotal: "385000.00", tax_category: "B", tax_amount: "58728.81" },
+    { sale_item_id: 2, sale: 841, product: 2, quantity: 1, unit_price: "145000.00", list_price: "145000.00", subtotal: "145000.00", tax_category: "B", tax_amount: "22118.64" },
   ],
 };
 
@@ -19,8 +19,16 @@ const mixedCategorySale: Sale = {
   sale_id: 842, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
   payment_method: "cash", total_amount: "485000.00", status: "completed",
   items: [
-    { sale_item_id: 3, sale: 842, product: 1, quantity: 1, unit_price: "385000.00", subtotal: "385000.00", tax_category: "B", tax_amount: "58728.81" },
-    { sale_item_id: 4, sale: 842, product: 3, quantity: 1, unit_price: "100000.00", subtotal: "100000.00", tax_category: "A", tax_amount: "0.00" },
+    { sale_item_id: 3, sale: 842, product: 1, quantity: 1, unit_price: "385000.00", list_price: "385000.00", subtotal: "385000.00", tax_category: "B", tax_amount: "58728.81" },
+    { sale_item_id: 4, sale: 842, product: 3, quantity: 1, unit_price: "100000.00", list_price: "100000.00", subtotal: "100000.00", tax_category: "A", tax_amount: "0.00" },
+  ],
+};
+
+const discountedSale: Sale = {
+  sale_id: 843, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
+  payment_method: "cash", total_amount: "240000.00", status: "completed",
+  items: [
+    { sale_item_id: 5, sale: 843, product: 2, quantity: 2, unit_price: "120000.00", list_price: "145000.00", subtotal: "240000.00", tax_category: "B", tax_amount: "36610.17" },
   ],
 };
 
@@ -31,6 +39,7 @@ const lines: CartLine[] = [
       model_number: "UA43DU7000", category_name: "Televisions", retail_price: 385000, quantity_in_stock: 11,
     },
     quantity: 1,
+    unitPrice: 385000,
   },
   {
     product: {
@@ -38,6 +47,7 @@ const lines: CartLine[] = [
       model_number: "JBLFLIP6BLK", category_name: "Audio", retail_price: 145000, quantity_in_stock: 1,
     },
     quantity: 1,
+    unitPrice: 145000,
   },
 ];
 
@@ -61,6 +71,19 @@ describe("Receipt", () => {
     expect(screen.getByText('Samsung 43" TV × 1')).toBeInTheDocument();
     expect(screen.getByText("JBL Flip 6 × 1")).toBeInTheDocument();
     expect(screen.getByText("RWF 530,000")).toBeInTheDocument();
+  });
+
+  it("prints the unit price of every line", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("@ 385,000")).toBeInTheDocument();
+    expect(screen.getByText("@ 145,000")).toBeInTheDocument();
+  });
+
+  it("shows the catalog price next to a discounted line", () => {
+    render(<Receipt sale={discountedSale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("JBL Flip 6 × 2")).toBeInTheDocument();
+    expect(screen.getByText("@ 120,000 (list 145,000)")).toBeInTheDocument();
+    expect(screen.getByText("RWF 240,000")).toBeInTheDocument();
   });
 
   it("renders the business info from the shop profile", () => {

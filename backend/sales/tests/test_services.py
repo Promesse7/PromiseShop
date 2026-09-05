@@ -58,6 +58,34 @@ def test_complete_sale_with_sufficient_stock_decrements_and_computes_total(emplo
     assert inventory.quantity_in_stock == 7
 
 
+def test_complete_sale_records_catalog_price_as_list_price_when_no_override(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 1}],
+    )
+    item = SaleItem.objects.get(sale=sale)
+    assert item.list_price == Decimal("100.00")
+    assert item.unit_price == Decimal("100.00")
+
+
+def test_complete_sale_override_price_drives_subtotal_tax_and_total(employee, admin, category):
+    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
+    sale = complete_sale(
+        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
+        items=[{"product": product, "quantity": 2, "unit_price": Decimal("80.00")}],
+    )
+    item = SaleItem.objects.get(sale=sale)
+    assert item.unit_price == Decimal("80.00")
+    assert item.list_price == Decimal("100.00")
+    assert item.subtotal == Decimal("160.00")
+    # Override is VAT-inclusive like the catalog price: 160 - 160/1.18 = 24.41
+    assert item.tax_amount == Decimal("24.41")
+    assert sale.total_amount == Decimal("160.00")
+    # Catalog pricing is untouched.
+    assert ProductPricing.objects.get(product=product, is_current=True).retail_price == Decimal("100.00")
+
+
 def test_complete_sale_creates_one_notification_per_admin(employee, admin, category):
     other_admin = Employee.objects.create_user(
         username="admin2", password="adminpass", full_name="Admin Two",
