@@ -170,7 +170,7 @@ function ProductFormFields({
           queryClient.invalidateQueries({ queryKey: ["inventory"] });
         }
       }
-      show(mode === "create" ? "Product created." : "Product saved.", "success");
+      show(mode === "create" ? "Product created — next, set its selling price." : "Product saved.", "success");
       onSaved();
     } catch (error) {
       const message =

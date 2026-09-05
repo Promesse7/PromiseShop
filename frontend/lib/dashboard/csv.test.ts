@@ -18,6 +18,8 @@ function makeLowStockRow(overrides: Partial<CatalogProduct> = {}): CatalogProduc
     reorder_level: 4,
     status: "low_stock",
     is_active: true,
+    has_price: true,
+    has_inventory: true,
     ...overrides,
   };
 }

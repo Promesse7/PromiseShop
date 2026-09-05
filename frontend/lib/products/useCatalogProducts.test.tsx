@@ -72,7 +72,7 @@ describe("useCatalogProducts", () => {
       product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000",
       barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions",
       retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12,
-      reorder_level: 5, status: "ok", is_active: true,
+      reorder_level: 5, status: "ok", is_active: true, has_price: true, has_inventory: true,
     });
   });
 
@@ -101,6 +101,18 @@ describe("useCatalogProducts", () => {
     expect(noStock?.status).toBe("out_of_stock");
     expect(noStock?.quantity_in_stock).toBe(0);
     expect(noStock?.retail_price).toBe(0);
+  });
+
+  it("flags products with no current price and products never received, instead of only collapsing them to zero", async () => {
+    const { result } = renderHook(() => useCatalogProducts(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const priced = result.current.all.find((p) => p.product_id === 1);
+    const noStock = result.current.all.find((p) => p.product_id === 3);
+    expect(priced?.has_price).toBe(true);
+    expect(priced?.has_inventory).toBe(true);
+    expect(noStock?.has_price).toBe(false);
+    expect(noStock?.has_inventory).toBe(false);
   });
 
   it("exposes the fetched categories list", async () => {

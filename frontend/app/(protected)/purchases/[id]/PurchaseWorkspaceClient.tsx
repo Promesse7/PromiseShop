@@ -10,6 +10,7 @@ import { AddProductSingleForm } from "@/components/purchasing/AddProductSingleFo
 import { AddProductBulkTable } from "@/components/purchasing/AddProductBulkTable";
 import { PurchaseItemsList } from "@/components/purchasing/PurchaseItemsList";
 import { PurchaseSummaryCard } from "@/components/purchasing/PurchaseSummaryCard";
+import { PurchaseSteps } from "@/components/purchasing/PurchaseSteps";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
@@ -100,6 +101,8 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
         <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
       </div>
 
+      <PurchaseSteps itemCount={purchase.items.length} status={purchase.status} />
+
       {isDraft && (
         <>
           <div className="flex items-center gap-3 mb-3">
@@ -128,6 +131,9 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
               <Button onClick={handleReceive} disabled={purchase.items.length === 0 || receivePurchase.isPending} block>
                 {receivePurchase.isPending ? "Receiving…" : "Receive purchase → stock increases"}
               </Button>
+              {purchase.items.length === 0 && (
+                <p className="text-xs text-text/50 -mt-2">Add at least one item before receiving.</p>
+              )}
               <Button variant="secondary" onClick={() => router.push("/purchases")} block>
                 Save draft
               </Button>

@@ -40,7 +40,8 @@ export function ProductTable({ products, showWholesale }: ProductTableProps) {
     {
       key: "retail_price",
       header: "Retail",
-      render: (p: CatalogProduct) => p.retail_price.toLocaleString(),
+      render: (p: CatalogProduct) =>
+        p.has_price ? p.retail_price.toLocaleString() : <Tag variant="warning">Needs price</Tag>,
     },
     ...(showWholesale
       ? [
@@ -65,7 +66,11 @@ export function ProductTable({ products, showWholesale }: ProductTableProps) {
         return (
           <div className="flex items-center gap-1.5">
             {p.is_active === false && <Tag variant="neutral">Inactive</Tag>}
-            <Tag variant={tag.variant}>{tag.label}</Tag>
+            {p.has_inventory ? (
+              <Tag variant={tag.variant}>{tag.label}</Tag>
+            ) : (
+              <Tag variant="neutral">Not yet received</Tag>
+            )}
           </div>
         );
       },

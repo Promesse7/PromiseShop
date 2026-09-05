@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { PricingCard } from "./PricingCard";
 import type { ProductPricing } from "@/lib/types";
 
@@ -20,6 +21,14 @@ describe("PricingCard", () => {
   it("shows a no-price-set state when there is no current pricing", () => {
     render(<PricingCard currentPricing={undefined} />);
     expect(screen.getByText("No price set")).toBeInTheDocument();
+  });
+
+  it("offers a Set price action in the no-price state when a handler is given", async () => {
+    const onSetPrice = vi.fn();
+    render(<PricingCard currentPricing={undefined} onSetPrice={onSetPrice} />);
+    expect(screen.getByText("This product can't be sold until it has a selling price.")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Set price" }));
+    expect(onSetPrice).toHaveBeenCalled();
   });
 
   it("shows a placeholder margin when there is no wholesale price", () => {

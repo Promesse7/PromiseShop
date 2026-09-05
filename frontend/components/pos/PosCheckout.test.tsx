@@ -164,7 +164,8 @@ describe("PosCheckout", () => {
     await userEvent.type(screen.getByLabelText("Scan barcode or search product"), "PES-NEW-00001{Enter}");
 
     expect(screen.getByRole("button", { name: "Complete sale" })).toBeDisabled();
-    expect(screen.getByText(/Set a price for Unpriced Gadget/)).toBeInTheDocument();
+    expect(screen.getByText(/Set a price for/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Unpriced Gadget" })).toHaveAttribute("href", "/products/2");
 
     const priceInput = screen.getAllByLabelText("Unit price")[0] as HTMLInputElement;
     priceInput.focus();

@@ -17,6 +17,12 @@ export interface CatalogProduct {
   reorder_level: number;
   status: "ok" | "low_stock" | "out_of_stock";
   is_active: boolean;
+  // false when there is no current ProductPricing row: retail_price is then 0 only
+  // as a fallback and the product cannot be sold yet.
+  has_price: boolean;
+  // false when no Inventory row exists yet (never received on a purchase), which
+  // is different from having been received and sold out.
+  has_inventory: boolean;
 }
 
 export interface CatalogProducts {
@@ -85,6 +91,8 @@ export function useCatalogProducts(): CatalogProducts {
         reorder_level: product.reorder_level,
         status: deriveStatus(quantity_in_stock, product.reorder_level),
         is_active: product.is_active,
+        has_price: price != null,
+        has_inventory: stockByProductId.has(product.product_id),
       };
     });
   }, [products.data, categories.data, pricing.data, inventory.data]);

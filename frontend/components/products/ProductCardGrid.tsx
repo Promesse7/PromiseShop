@@ -52,7 +52,11 @@ export function ProductCardGrid({
             </CardMeta>
             <span className="font-mono text-xs text-text/50">{p.barcode}</span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="font-sans font-medium text-lg">{p.retail_price.toLocaleString()}</span>
+              {p.has_price ? (
+                <span className="font-sans font-medium text-lg">{p.retail_price.toLocaleString()}</span>
+              ) : (
+                <Tag variant="warning">Needs price</Tag>
+              )}
               {showWholesale && p.wholesale_price != null && (
                 <span className="text-xs text-text/50">wholesale {p.wholesale_price.toLocaleString()}</span>
               )}
@@ -61,7 +65,11 @@ export function ProductCardGrid({
               <span className="text-xs text-text/50">{p.quantity_in_stock} in stock</span>
               <div className="ml-auto flex items-center gap-1.5">
                 {p.is_active === false && <Tag variant="neutral">Inactive</Tag>}
-                <Tag variant={tag.variant}>{tag.label}</Tag>
+                {p.has_inventory ? (
+                  <Tag variant={tag.variant}>{tag.label}</Tag>
+                ) : (
+                  <Tag variant="neutral">Not yet received</Tag>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between gap-2">

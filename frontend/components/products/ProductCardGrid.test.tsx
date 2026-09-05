@@ -5,8 +5,8 @@ import { ProductCardGrid } from "./ProductCardGrid";
 import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 const products: CatalogProduct[] = [
-  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true },
-  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock", is_active: true },
+  { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true, has_price: true, has_inventory: true },
+  { product_id: 2, name: "JBL Flip 6", brand: "JBL", model_number: "JBLFLIP6BLK", barcode: "PES-AUD-00147", category_id: 20, category_name: "Audio", retail_price: 145000, wholesale_price: 112000, quantity_in_stock: 2, reorder_level: 4, status: "low_stock", is_active: true, has_price: true, has_inventory: true },
 ];
 
 describe("ProductCardGrid", () => {
@@ -75,5 +75,22 @@ describe("ProductCardGrid", () => {
   it("does not show an Inactive tag for an active product", () => {
     render(<ProductCardGrid products={products} showWholesale={false} />);
     expect(screen.queryByText("Inactive")).not.toBeInTheDocument();
+  });
+
+  it("flags a product with no selling price instead of showing zero", () => {
+    render(<ProductCardGrid products={[{ ...products[0], retail_price: 0, has_price: false }]} showWholesale={false} />);
+    expect(screen.getByText("Needs price")).toBeInTheDocument();
+    expect(screen.queryByText("0")).not.toBeInTheDocument();
+  });
+
+  it("says 'Not yet received' rather than 'Out of stock' for a product never received", () => {
+    render(
+      <ProductCardGrid
+        products={[{ ...products[0], quantity_in_stock: 0, status: "out_of_stock", has_inventory: false }]}
+        showWholesale={false}
+      />
+    );
+    expect(screen.getByText("Not yet received")).toBeInTheDocument();
+    expect(screen.queryByText("Out of stock")).not.toBeInTheDocument();
   });
 });

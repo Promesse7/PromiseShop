@@ -1,16 +1,24 @@
 import { Card, CardKicker } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import type { ProductPricing } from "@/lib/types";
 
 interface PricingCardProps {
   currentPricing: ProductPricing | undefined;
+  onSetPrice?: () => void;
 }
 
-export function PricingCard({ currentPricing }: PricingCardProps) {
+export function PricingCard({ currentPricing, onSetPrice }: PricingCardProps) {
   if (!currentPricing) {
     return (
       <Card elevation="sm">
         <CardKicker>Current pricing · Admin only</CardKicker>
         <p className="text-sm text-text/50">No price set</p>
+        <p className="text-xs text-text/50">This product can&apos;t be sold until it has a selling price.</p>
+        {onSetPrice && (
+          <div>
+            <Button onClick={onSetPrice}>Set price</Button>
+          </div>
+        )}
       </Card>
     );
   }

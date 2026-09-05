@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePosCatalog } from "@/lib/pos/usePosCatalog";
 import { addItem, removeItem, setQuantity, setUnitPrice, totals, type CartLine } from "@/lib/pos/cart";
@@ -136,7 +137,16 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         <CartCards lines={lines} onSetQuantity={handleSetQuantity} onSetUnitPrice={handleSetUnitPrice} />
         {unpricedLines.length > 0 && (
           <p className="text-sm text-red-400 mt-2">
-            Set a price for {unpricedLines.map((line) => line.product.name).join(", ")} before completing the sale.
+            Set a price for{" "}
+            {unpricedLines.map((line, i) => (
+              <span key={line.product.product_id}>
+                {i > 0 && ", "}
+                <Link href={`/products/${line.product.product_id}`} className="underline">
+                  {line.product.name}
+                </Link>
+              </span>
+            ))}{" "}
+            before completing the sale.
           </p>
         )}
       </div>

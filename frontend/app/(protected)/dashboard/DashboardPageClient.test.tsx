@@ -60,11 +60,11 @@ describe("DashboardPageClient", () => {
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 
-  it("shows the setup checklist instead of the KPI dashboard when no purchase has been received yet", () => {
+  it("renders the KPI dashboard even before the first purchase is received (setup steps live in the guidance bar)", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ hasReceivedPurchase: false, categoryCount: 0, productCount: 0 }));
     render(<DashboardPageClient role="admin" />);
-    expect(screen.getByText("Let's get your shop set up")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Export CSV" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Let's get your shop set up")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 
   it("shows the normal KPI dashboard once a purchase has been received", () => {
