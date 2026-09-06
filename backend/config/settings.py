@@ -82,6 +82,19 @@ _default_database_url = (
 DATABASES = {
     "default": env.db_url_config(env("DATABASE_URL", default=_default_database_url))
 }
+# Share a pool of open connections across requests and threads. Against a remote
+# managed Postgres (Neon) opening a connection costs 2-3 s (TLS + SCRAM over a
+# ~300 ms round trip), dwarfing the ~0.3 s the actual queries take; with
+# Django's default of one fresh connection per request, every request paid it.
+# A pool (rather than CONN_MAX_AGE) is used because Django connections are
+# per-thread and the dev server and ASGI workers spread requests over threads.
+# Django pings a pooled connection before handing it out, so one the provider
+# closed while idle is replaced instead of failing the user's request.
+if env.bool("DB_POOL", default=True):
+    DATABASES["default"].setdefault("OPTIONS", {})["pool"] = {
+        "min_size": 1,
+        "max_size": env.int("DB_POOL_MAX_SIZE", default=8),
+    }
 
 CACHES = {
     "default": {
