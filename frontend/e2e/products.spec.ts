@@ -16,7 +16,8 @@ test.describe("Products", () => {
 
     await page.goto("/products");
     await page.getByLabel("Search products").fill("E2E Test Speaker");
-    await expect(page.getByRole("table").getByText("E2E Test Speaker")).toBeVisible();
+    // The catalog opens in the card grid by default; each card's title is a heading.
+    await expect(page.getByRole("heading", { name: "E2E Test Speaker" })).toBeVisible();
 
     await page.getByRole("link", { name: "Open" }).click();
     await expect(page.getByRole("heading", { name: "E2E Test Speaker" })).toBeVisible();
@@ -31,6 +32,6 @@ test.describe("Products", () => {
 
     await page.goto("/products");
     await page.getByLabel("Search products").fill("E2E Test Speaker");
-    await expect(page.getByRole("table").getByText(/UpdatedBrandE2E/)).toBeVisible();
+    await expect(page.getByText(/UpdatedBrandE2E/).first()).toBeVisible();
   });
 });

@@ -25,11 +25,16 @@ test.describe("Stock & Equipment", () => {
 
     await page.goto("/stock");
     await page.getByRole("radio", { name: "Serialized only" }).click();
-    await expect(page.getByText("E2E Test Speaker")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "E2E Test Speaker" })).toBeVisible();
 
-    // Scoped to this product's row — another product in the dev DB can also carry a lone
+    // Scoped to this product's card — another product in the dev DB can also carry a lone
     // serialized unit, which would otherwise make a bare "N units" button locator ambiguous.
-    await page.getByRole("row", { name: /E2E Test Speaker/ }).getByRole("button", { name: /\d+ units/ }).click();
+    // The overview is a card grid: walk up from the card's heading to the nearest ancestor
+    // that holds a "units" button, then click that button.
+    const card = page
+      .getByRole("heading", { name: "E2E Test Speaker" })
+      .locator("xpath=ancestor::div[.//button[contains(., 'units')]][1]");
+    await card.getByRole("button", { name: /\d+ units/ }).click();
     await expect(page.getByText(/Serialized units — E2E Test Speaker/)).toBeVisible();
     await expect(page.getByText("E2E-UNIT-0001")).toBeVisible();
 
