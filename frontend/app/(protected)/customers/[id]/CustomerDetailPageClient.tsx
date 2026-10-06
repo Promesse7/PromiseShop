@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SearchX } from "lucide-react";
@@ -149,6 +150,7 @@ export default function CustomerDetailPageClient({ customerId, canManage }: Cust
   return (
     <Page
       title={c.name ?? "Customer"}
+      sharedName={sharedName("customer", c.customer_id)}
       description={c.phone ?? "No phone on file"}
       back="/customers"
       primaryAction={

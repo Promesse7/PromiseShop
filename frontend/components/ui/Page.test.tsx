@@ -55,6 +55,15 @@ describe("Page", () => {
     expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/sales");
   });
 
+  it("keeps the title an h1 when it is a shared element (detail pages)", () => {
+    render(
+      <Page title="JBL Flip 6" sharedName="product-12">
+        <p>Body</p>
+      </Page>
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "JBL Flip 6" })).toBeInTheDocument();
+  });
+
   it("renders the toolbar between the header and the content", () => {
     render(
       <Page title="Products" toolbar={<Toolbar search={<input aria-label="Search products" />} />}>

@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useState } from "react";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
@@ -150,6 +151,7 @@ export default function SaleDetailPageClient({ saleId, canManage }: SaleDetailPa
   return (
     <Page
       title={`Sale #S-${s.sale_id}`}
+      sharedName={sharedName("sale", s.sale_id)}
       description={`${when(s.sale_date)} · ${s.employee_name ?? `#${s.employee}`} · ${s.customer_name ?? "Walk-in"}`}
       back="/sales"
       primaryAction={

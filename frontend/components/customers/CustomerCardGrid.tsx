@@ -1,5 +1,6 @@
 "use client";
 
+import { SharedElement, sharedName } from "@/components/ui/SharedElement";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Users } from "lucide-react";
@@ -34,12 +35,14 @@ export function CustomerCardGrid({ customers, onEdit }: CustomerCardGridProps) {
           whileTap={reduced ? undefined : { scale: 0.985 }}
           className="flex h-full flex-col gap-2 rounded-lg border border-divider bg-surface px-3.5 py-3 shadow-sm"
         >
-          <Link
-            href={`/customers/${c.customer_id}`}
-            className="truncate font-medium text-text no-underline hover:text-accent"
-          >
-            {c.name ?? "—"}
-          </Link>
+          <SharedElement name={sharedName("customer", c.customer_id)}>
+            <Link
+              href={`/customers/${c.customer_id}`}
+              className="truncate font-medium text-text no-underline hover:text-accent"
+            >
+              {c.name ?? "—"}
+            </Link>
+          </SharedElement>
           <div className="flex flex-col gap-0.5 text-sm text-text/70">
             <span>{c.phone ?? "—"}</span>
             <span className="truncate">{c.email ?? "—"}</span>

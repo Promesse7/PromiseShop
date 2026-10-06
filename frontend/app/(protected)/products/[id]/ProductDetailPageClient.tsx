@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -179,6 +180,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   return (
     <Page
       title={product.name}
+      sharedName={sharedName("product", product.product_id)}
       breadcrumb={[{ label: "Stock" }, { label: "Products", href: "/products" }, { label: product.name }]}
       back="/products"
       primaryAction={

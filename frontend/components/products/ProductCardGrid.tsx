@@ -1,5 +1,6 @@
 "use client";
 
+import { SharedElement, sharedName } from "@/components/ui/SharedElement";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { PackageSearch } from "lucide-react";
@@ -71,9 +72,11 @@ export function ProductCardGrid({
                   <CardKicker>{p.category_name}</CardKicker>
                 </div>
                 <CardTitle>
-                  <Link href={`/products/${p.product_id}`} className="text-text no-underline hover:text-accent">
-                    {p.name}
-                  </Link>
+                  <SharedElement name={sharedName("product", p.product_id)}>
+                    <Link href={`/products/${p.product_id}`} className="text-text no-underline hover:text-accent">
+                      {p.name}
+                    </Link>
+                  </SharedElement>
                 </CardTitle>
                 {(p.brand || p.model_number) && (
                   <CardMeta>{[p.brand, p.model_number].filter(Boolean).join(" · ")}</CardMeta>
