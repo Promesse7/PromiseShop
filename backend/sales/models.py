@@ -75,6 +75,17 @@ class SaleItem(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     tax_category = models.CharField(max_length=1, choices=Product.TaxCategory.choices)
     tax_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    # Weighted average paid cost at the moment of sale (null before the product's
+    # first received purchase). Never shown to sales staff.
+    cost_at_sale = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    # (list_price - unit_price) * quantity: positive for a discount, negative for a markup.
+    discount_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    # The manager/admin whose PIN approved this line's price, when it needed one.
+    approved_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="approved_sale_items",
+    )
+    price_note = models.TextField(blank=True, default="")
 
     def __str__(self):
         return f"{self.product} x{self.quantity} (Sale #{self.sale_id})"

@@ -53,11 +53,22 @@ class ProductViewSet(viewsets.ModelViewSet):
             )
         instance.delete()
 
+    def _guard_min_price(self):
+        # The minimum (floor) price is set by admin and manager only.
+        user = self.request.user
+        if "min_price" in self.request.data and user.role not in (user.Role.ADMIN, user.Role.MANAGER):
+            raise PermissionDenied("Only an admin or manager can set a minimum price.")
+
     def perform_create(self, serializer):
+        self._guard_min_price()
         with transaction.atomic():
             category = serializer.validated_data["category"]
             barcode = generate_barcode(category)
             serializer.save(barcode=barcode)
+
+    def perform_update(self, serializer):
+        self._guard_min_price()
+        serializer.save()
 
     @action(detail=True, methods=["post"], url_path="set-active", permission_classes=[IsAdminOrManager])
     def set_active(self, request, pk=None):

@@ -6,7 +6,7 @@ from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import RetrieveAPIView
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -63,9 +63,17 @@ class ExpenseViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ShopProfileView(RetrieveAPIView):
+class ShopProfileView(RetrieveUpdateAPIView):
+    """Every role reads the shop details (receipts); only admin changes them."""
+
     serializer_class = ShopProfileSerializer
     permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if self.request.method == "PATCH":
+            return [IsAdmin()]
+        return super().get_permissions()
 
     def get_object(self):
         obj, _ = ShopProfile.objects.get_or_create(

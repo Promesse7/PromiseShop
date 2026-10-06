@@ -26,10 +26,15 @@ class ExpenseSerializer(serializers.ModelSerializer):
 
 
 class ShopProfileSerializer(serializers.ModelSerializer):
+    max_staff_discount_pct = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0"), max_value=Decimal("100"), required=False
+    )
+
     class Meta:
         model = ShopProfile
-        fields = ["business_name", "tin", "po_box", "phone", "email", "address"]
-        read_only_fields = fields
+        fields = [
+            "business_name", "tin", "po_box", "phone", "email", "address", "max_staff_discount_pct",
+        ]
 
 
 class PaymentSerializer(serializers.ModelSerializer):

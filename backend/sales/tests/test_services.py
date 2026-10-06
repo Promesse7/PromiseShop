@@ -73,15 +73,16 @@ def test_complete_sale_override_price_drives_subtotal_tax_and_total(employee, ad
     product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
-        items=[{"product": product, "quantity": 2, "unit_price": Decimal("80.00")}],
+        # 8% off: within the staff bargaining limit (Module C), so no approval needed.
+        items=[{"product": product, "quantity": 2, "unit_price": Decimal("92.00")}],
     )
     item = SaleItem.objects.get(sale=sale)
-    assert item.unit_price == Decimal("80.00")
+    assert item.unit_price == Decimal("92.00")
     assert item.list_price == Decimal("100.00")
-    assert item.subtotal == Decimal("160.00")
-    # Override is VAT-inclusive like the catalog price: 160 - 160/1.18 = 24.41
-    assert item.tax_amount == Decimal("24.41")
-    assert sale.total_amount == Decimal("160.00")
+    assert item.subtotal == Decimal("184.00")
+    # Override is VAT-inclusive like the catalog price: 184 - 184/1.18 = 28.07
+    assert item.tax_amount == Decimal("28.07")
+    assert sale.total_amount == Decimal("184.00")
     # Catalog pricing is untouched.
     assert ProductPricing.objects.get(product=product, is_current=True).retail_price == Decimal("100.00")
 

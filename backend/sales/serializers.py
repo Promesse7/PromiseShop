@@ -46,14 +46,23 @@ class CustomerSerializer(serializers.ModelSerializer):
 
 class SaleItemSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
+    approved_by_name = serializers.CharField(source="approved_by.full_name", read_only=True, default=None)
 
     class Meta:
         model = SaleItem
         fields = [
             "sale_item_id", "sale", "product", "product_name", "quantity", "unit_price",
-            "list_price", "subtotal", "tax_category", "tax_amount",
+            "list_price", "subtotal", "tax_category", "tax_amount", "cost_at_sale",
+            "discount_amount", "approved_by", "approved_by_name", "price_note",
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Cost is never sent to sales staff or technicians.
+        if not _is_admin_or_manager(self.context):
+            data.pop("cost_at_sale", None)
+        return data
 
 
 class SaleSerializer(serializers.ModelSerializer):
@@ -73,13 +82,6 @@ class SaleSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-        for item in data.get("items", []):
-            if not _is_admin_or_manager(self.context):
-                item.pop("cost_at_sale", None)
-        return data
-
 
 class SaleItemInputSerializer(serializers.Serializer):
     product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
@@ -89,6 +91,19 @@ class SaleItemInputSerializer(serializers.Serializer):
     unit_price = serializers.DecimalField(
         max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False
     )
+    # Why the price is what it is; required for a line below the price floor.
+    price_note = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class PriceCheckLineSerializer(serializers.Serializer):
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all())
+    unit_price = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0.01"), required=False
+    )
+
+
+class PriceCheckSerializer(serializers.Serializer):
+    items = PriceCheckLineSerializer(many=True)
 
 
 class PaymentLineInputSerializer(serializers.Serializer):

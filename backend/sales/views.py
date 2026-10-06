@@ -15,8 +15,10 @@ from finance.services import customer_statement
 from finance.views import is_admin_or_manager, jsonable, parse_date_param
 
 from sales.models import Customer, Sale
-from sales.serializers import CustomerSerializer, SaleSerializer, CreateSaleSerializer
-from sales.services import complete_sale, reverse_sale
+from sales.pricing import evaluate_line, max_staff_discount_pct, price_floor
+from sales.serializers import CustomerSerializer, CreateSaleSerializer, PriceCheckSerializer, SaleSerializer
+from sales.services import _resolve_retail_price, complete_sale, reverse_sale
+from stock.services import weighted_average_cost
 
 MONEY = DecimalField(max_digits=14, decimal_places=2)
 
@@ -110,6 +112,39 @@ class SaleViewSet(viewsets.ModelViewSet):
         body = SaleSerializer(sale, context={"request": request}).data
         body["change_due"] = str(change_due)
         return Response(body, status=http_status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=["post"], url_path="price-check")
+    def price_check(self, request):
+        """Which bargaining rule each cart line falls under, for the till's colours.
+
+        Never returns cost or the floor itself — only the rule and whether the
+        line needs a manager's approval or a note, for the signed-in seller.
+        """
+        serializer = PriceCheckSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        max_pct = max_staff_discount_pct()
+        lines = []
+        for index, entry in enumerate(serializer.validated_data["items"]):
+            product = entry["product"]
+            try:
+                list_price = _resolve_retail_price(product)
+            except ValidationError:
+                lines.append({"index": index, "product": product.pk, "rule": "no_price",
+                              "discount_pct": None, "needs_approval": False, "needs_note": False})
+                continue
+            unit_price = entry.get("unit_price") or list_price
+            verdict = evaluate_line(
+                unit_price=unit_price, list_price=list_price,
+                floor=price_floor(product, weighted_average_cost(product)),
+                seller=request.user, max_pct=max_pct,
+            )
+            lines.append({
+                "index": index, "product": product.pk, "rule": verdict.rule,
+                "list_price": str(list_price), "unit_price": str(unit_price),
+                "discount_pct": str(verdict.discount_pct),
+                "needs_approval": verdict.needs_approval, "needs_note": verdict.needs_note,
+            })
+        return Response({"max_staff_discount_pct": str(max_pct), "lines": lines})
 
     @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAdminOrManager])
     def return_action(self, request, pk=None):

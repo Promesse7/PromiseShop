@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 
@@ -32,6 +35,12 @@ class ShopProfile(models.Model):
     phone = models.CharField(max_length=30, blank=True, null=True)
     email = models.EmailField(max_length=120, blank=True, null=True)
     address = models.CharField(max_length=255, blank=True, null=True)
+    # Cashiers may go this far below the catalog price on their own; beyond it
+    # needs a manager/admin PIN.
+    max_staff_discount_pct = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("10.00"),
+        validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
+    )
 
     def save(self, *args, **kwargs):
         self.pk = 1

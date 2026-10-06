@@ -6,6 +6,7 @@ from rest_framework.exceptions import ValidationError
 from accounts.models import Employee
 from accounts.services import can_approve, verify_approval
 from catalog.models import ProductPricing
+from sales.pricing import evaluate_line, max_staff_discount_pct, price_floor
 from finance.models import Payment
 from finance.services import (
     customer_balance, default_due_date, refresh_sale_payments, validate_method_and_reference,
@@ -13,7 +14,7 @@ from finance.services import (
 from notifications.models import NotificationLog
 from sales.models import Customer, Sale, SaleItem
 from stock.models import Inventory, StockMovement
-from stock.services import record_movement
+from stock.services import record_movement, weighted_average_cost
 
 ZERO = Decimal("0.00")
 CENT = Decimal("0.01")
@@ -28,6 +29,12 @@ class ApprovalRequired(ValidationError):
     """The cart needs a manager/admin approval (PIN) before it can be completed."""
 
     default_code = "approval_required"
+
+
+class PriceNoteRequired(ValidationError):
+    """A below-floor line was sent without the note explaining its price."""
+
+    default_code = "price_note_required"
 
 
 def _resolve_retail_price(product):
@@ -138,20 +145,55 @@ def complete_sale(customer, employee, payment_method=None, items=None, *, paymen
                 )
             locked_inventories[product_id] = inventory
 
+        approver = None
+
+        def require_approval(message):
+            # One approval covers the whole sale: verified once, then reused.
+            nonlocal approver
+            if approver is None:
+                if not approval:
+                    raise ApprovalRequired(message)
+                approver = verify_approval(approval.get("approver_username"), approval.get("pin"))
+            return approver
+
+        max_pct = max_staff_discount_pct()
         resolved_items = []
         total = ZERO
-        for entry in items:
+        for index, entry in enumerate(items, start=1):
             product = entry["product"]
             quantity = entry["quantity"]
             list_price = _resolve_retail_price(product)
             override = entry.get("unit_price")
             unit_price = override if override is not None else list_price
+            if unit_price <= 0:
+                raise ValidationError(f"Line {index} ({product.name}): the price must be above zero.")
+            cost_at_sale = weighted_average_cost(product)
+            verdict = evaluate_line(
+                unit_price=unit_price, list_price=list_price,
+                floor=price_floor(product, cost_at_sale), seller=employee, max_pct=max_pct,
+            )
+            price_note = (entry.get("price_note") or "").strip()
+            if verdict.needs_note and not price_note:
+                if verdict.needs_approval:
+                    message = "Below the minimum price — needs manager approval and a note"
+                else:
+                    message = "Below the minimum price — add a note explaining the price"
+                raise PriceNoteRequired(f"Line {index} ({product.name}): {message}.")
+            line_approver = None
+            if verdict.needs_approval:
+                line_approver = require_approval(f"Line {index} ({product.name}): needs manager approval.")
             subtotal = (unit_price * quantity).quantize(CENT)
             # Retail prices are VAT-inclusive, so tax_amount is the portion of subtotal that is
             # tax, not an additional charge on top of it.
             rate = TAX_RATES[product.tax_category]
             tax_amount = (subtotal - subtotal / (1 + rate)).quantize(CENT)
-            resolved_items.append((product, quantity, unit_price, list_price, subtotal, tax_amount))
+            resolved_items.append({
+                "product": product, "quantity": quantity, "unit_price": unit_price,
+                "list_price": list_price, "subtotal": subtotal, "tax_amount": tax_amount,
+                "cost_at_sale": cost_at_sale,
+                "discount_amount": ((list_price - unit_price) * quantity).quantize(CENT),
+                "approved_by": line_approver, "price_note": price_note,
+            })
             total += subtotal
 
         applied, change_due = _normalise_payments(payments, payment_method, total)
@@ -172,11 +214,7 @@ def complete_sale(customer, employee, payment_method=None, items=None, *, paymen
                 and customer_balance(customer) + on_credit > customer.credit_limit
             )
             if over_limit and not can_approve(employee):
-                if not approval:
-                    raise ApprovalRequired(
-                        "This sale takes the customer over their credit limit — needs manager approval."
-                    )
-                verify_approval(approval.get("approver_username"), approval.get("pin"))
+                require_approval("This sale takes the customer over their credit limit — needs manager approval.")
 
         methods = {line["method"] for line in applied}
         sale = Sale.objects.create(
@@ -186,11 +224,10 @@ def complete_sale(customer, employee, payment_method=None, items=None, *, paymen
             due_date=(due_date or default_due_date()) if on_credit > 0 else None,
         )
 
-        for product, quantity, unit_price, list_price, subtotal, tax_amount in resolved_items:
+        for line in resolved_items:
+            product, quantity = line["product"], line["quantity"]
             sale_item = SaleItem.objects.create(
-                sale=sale, product=product, quantity=quantity,
-                unit_price=unit_price, list_price=list_price, subtotal=subtotal,
-                tax_category=product.tax_category, tax_amount=tax_amount,
+                sale=sale, tax_category=product.tax_category, **line,
             )
             record_movement(
                 locked_inventories[product.pk], StockMovement.Bucket.IN_STOCK, -quantity,
