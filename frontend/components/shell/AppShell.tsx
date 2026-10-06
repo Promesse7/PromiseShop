@@ -3,6 +3,8 @@
 import { useCallback, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useStoredBoolean } from "@/lib/useStoredBoolean";
+import { useScrollRestoration } from "@/lib/scroll/useScrollRestoration";
+import { BackToTop } from "@/components/ui/BackToTop";
 import type { EmployeeRole } from "@/lib/types";
 import { CommandPalette, useCommandPaletteShortcut } from "./CommandPalette";
 import { HelpPanel } from "./HelpPanel";
@@ -37,6 +39,8 @@ export function AppShell({ role, username, children }: AppShellProps) {
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
   useCommandPaletteShortcut(openSearch);
+  // New pages open at the top; Back returns to the spot you left.
+  useScrollRestoration();
 
   return (
     <PageTitleProvider>
@@ -67,6 +71,7 @@ export function AppShell({ role, username, children }: AppShellProps) {
       />
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} role={role} />
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <BackToTop />
     </div>
     </PageTitleProvider>
   );
