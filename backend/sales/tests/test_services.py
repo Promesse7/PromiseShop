@@ -100,7 +100,7 @@ def test_complete_sale_creates_one_notification_per_admin(employee, admin, categ
     assert logs.count() == 2
     assert set(logs.values_list("recipient_id", flat=True)) == {admin.pk, other_admin.pk}
     assert all(log.type == "sale_alert" for log in logs)
-    assert all(log.status == NotificationLog.NotificationStatus.SENT for log in logs)
+    assert all(log.status == NotificationLog.NotificationStatus.LOGGED for log in logs)
 
 
 def test_complete_sale_with_no_admins_creates_zero_notifications_and_succeeds(employee, category):
@@ -253,7 +253,7 @@ def test_reverse_sale_notifies_active_admins_with_sale_reversed_type(employee, a
     logs = NotificationLog.objects.filter(related_sale=sale, type="sale_reversed")
     assert logs.count() == 1
     assert logs.first().recipient_id == admin.pk
-    assert logs.first().status == NotificationLog.NotificationStatus.SENT
+    assert logs.first().status == NotificationLog.NotificationStatus.LOGGED
 
 
 def test_duplicate_product_lines_aggregate_and_round_trip(employee, admin, category):

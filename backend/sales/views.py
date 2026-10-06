@@ -3,6 +3,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status as http_status
+from rest_framework.exceptions import ValidationError
+
+from accounts.permissions import IsAdmin, IsAdminOrManager
 
 from sales.models import Customer, Sale
 from sales.serializers import CustomerSerializer, SaleSerializer, CreateSaleSerializer
@@ -13,6 +16,20 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all().order_by("customer_id")
     serializer_class = CustomerSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [IsAdmin()]
+        return super().get_permissions()
+
+    def perform_destroy(self, instance):
+        # Sale.customer is SET_NULL, so deleting would silently strip the name off
+        # past sales (and, from Module B, off open debts).
+        if instance.sales.exists():
+            raise ValidationError(
+                "This customer has sales on record and cannot be deleted."
+            )
+        instance.delete()
 
 
 class SaleViewSet(viewsets.ModelViewSet):
@@ -36,13 +53,13 @@ class SaleViewSet(viewsets.ModelViewSet):
             status=http_status.HTTP_201_CREATED,
         )
 
-    @action(detail=True, methods=["post"], url_path="return")
+    @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAdminOrManager])
     def return_action(self, request, pk=None):
         sale = self.get_object()
         updated = reverse_sale(sale, Sale.SaleStatus.RETURNED)
         return Response(SaleSerializer(updated, context={"request": request}).data)
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post"], permission_classes=[IsAdminOrManager])
     def cancel(self, request, pk=None):
         sale = self.get_object()
         updated = reverse_sale(sale, Sale.SaleStatus.CANCELLED)

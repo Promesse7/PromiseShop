@@ -45,6 +45,24 @@ describe("POST /api/auth/login", () => {
     expect(response.status).toBe(401);
   });
 
+  it("passes a lockout through as 429 with the backend's message", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({ detail: "Too many failed attempts. Try again in 15 minutes.", code: "locked_out" }),
+    });
+
+    const request = new Request("http://localhost:3000/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username: "a.uwase", password: "wrong" }),
+    });
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(429);
+    expect((await response.json()).error).toBe("Too many failed attempts. Try again in 15 minutes.");
+  });
+
   it("returns 502 when Django is unreachable", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
       new Error("fetch failed")

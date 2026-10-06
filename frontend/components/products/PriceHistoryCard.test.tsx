@@ -24,6 +24,11 @@ describe("PriceHistoryCard", () => {
     expect(onSetNewPrice).toHaveBeenCalled();
   });
 
+  it("hides Set new price when the viewer can't set prices", () => {
+    render(<PriceHistoryCard history={history} onSetNewPrice={vi.fn()} showWholesale={false} canSetPrice={false} />);
+    expect(screen.queryByRole("button", { name: "Set new price" })).not.toBeInTheDocument();
+  });
+
   it("shows an empty state with no history", () => {
     render(<PriceHistoryCard history={[]} onSetNewPrice={vi.fn()} showWholesale={true} />);
     expect(screen.getByText("No price history yet")).toBeInTheDocument();

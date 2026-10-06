@@ -10,7 +10,12 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import type { Supplier } from "@/lib/types";
 
-export default function SuppliersPageClient() {
+interface SuppliersPageClientProps {
+  /** Admin and manager create and edit suppliers; staff only read them. */
+  canEdit: boolean;
+}
+
+export default function SuppliersPageClient({ canEdit }: SuppliersPageClientProps) {
   const suppliers = useSuppliers();
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; supplier?: Supplier } | null>(null);
@@ -47,11 +52,16 @@ export default function SuppliersPageClient() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-[220px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
         />
-        <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
-          + New supplier
-        </Button>
+        {canEdit && (
+          <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
+            + New supplier
+          </Button>
+        )}
       </PageHeader>
-      <SupplierCardGrid suppliers={filtered} onEdit={(supplier) => setDialog({ mode: "edit", supplier })} />
+      <SupplierCardGrid
+        suppliers={filtered}
+        onEdit={canEdit ? (supplier) => setDialog({ mode: "edit", supplier }) : undefined}
+      />
       <SupplierFormDialog
         open={dialog !== null}
         mode={dialog?.mode ?? "create"}

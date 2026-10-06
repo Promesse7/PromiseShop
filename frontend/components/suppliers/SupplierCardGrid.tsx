@@ -4,7 +4,8 @@ import type { Supplier } from "@/lib/types";
 
 interface SupplierCardGridProps {
   suppliers: Supplier[];
-  onEdit: (supplier: Supplier) => void;
+  /** Omitted for staff, who may only read suppliers. */
+  onEdit?: (supplier: Supplier) => void;
 }
 
 export function SupplierCardGrid({ suppliers, onEdit }: SupplierCardGridProps) {
@@ -24,9 +25,11 @@ export function SupplierCardGrid({ suppliers, onEdit }: SupplierCardGridProps) {
               {s.phone ?? "—"} · {s.email ?? "—"}
             </span>
           </div>
-          <Button variant="ghost" className="mt-auto self-start text-xs" onClick={() => onEdit(s)}>
-            Edit
-          </Button>
+          {onEdit && (
+            <Button variant="ghost" className="mt-auto self-start text-xs" onClick={() => onEdit(s)}>
+              Edit
+            </Button>
+          )}
         </Card>
       ))}
     </div>

@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from accounts.permissions import IsAdmin, IsAdminOrManager
+from accounts.permissions import IsAdminOrManager
 from catalog.models import Product
 from dashboard.services import resolve_period_range
 from finance.models import Expense
@@ -19,7 +19,7 @@ from stock.models import EquipmentUnit, Inventory
 
 
 class SalesSummaryView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrManager]
 
     def get(self, request):
         period = request.query_params.get("period")
@@ -57,7 +57,7 @@ class SalesSummaryView(APIView):
 
 
 class StockHealthView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrManager]
 
     def get(self, request):
         low_stock_count = Inventory.objects.filter(
@@ -75,7 +75,7 @@ class StockHealthView(APIView):
 
 
 class FinancialSnapshotView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrManager]
 
     def get(self, request):
         period = request.query_params.get("period")
@@ -278,7 +278,7 @@ class ProfitabilityView(APIView):
 
 
 class ActivityFeedView(APIView):
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdminOrManager]
 
     def get(self, request):
         raw_limit = request.query_params.get("limit", "20")

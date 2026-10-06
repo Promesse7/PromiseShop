@@ -47,7 +47,7 @@ const ADMIN_LINKS: NavLink[] = [
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
 
-// The backend's Employee and Expense endpoints (and every dashboard endpoint) are gated to
+// The backend's Employee and Expense endpoints are gated to
 // role === "admin" strictly — a Manager gets a hard 403, unlike the rest of this list which is
 // admin+manager shared. So the Employees/Expenses links are appended only for the strict admin
 // role, not derived from ADMIN_ROLES like the rest of this array.

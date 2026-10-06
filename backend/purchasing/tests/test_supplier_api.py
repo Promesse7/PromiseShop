@@ -17,15 +17,15 @@ def auth_client(employee, password):
 
 
 @pytest.fixture
-def sales_staff():
+def manager():
     return Employee.objects.create_user(
-        username="staff1", password="staffpass", full_name="Staff One",
-        hire_date=date(2025, 1, 1), role=Employee.Role.SALES_STAFF,
+        username="manager1", password="managerpass", full_name="Manager One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.MANAGER,
     )
 
 
-def test_authenticated_employee_can_create_and_list_suppliers(sales_staff):
-    client = auth_client(sales_staff, "staffpass")
+def test_manager_can_create_and_list_suppliers(manager):
+    client = auth_client(manager, "managerpass")
     create_response = client.post(
         "/api/suppliers/",
         {"name": "Kigali Electronics Ltd", "contact_person": "J. Habimana", "phone": "0788000000"},

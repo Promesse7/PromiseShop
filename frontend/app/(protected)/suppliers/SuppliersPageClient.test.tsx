@@ -9,12 +9,12 @@ function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
 }
 
-function renderPage() {
+function renderPage({ canEdit = true }: { canEdit?: boolean } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <SuppliersPageClient />
+        <SuppliersPageClient canEdit={canEdit} />
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -66,5 +66,12 @@ describe("SuppliersPageClient", () => {
     await screen.findByText("Kigali Electronics Ltd");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue("Kigali Electronics Ltd"));
+  });
+
+  it("is read-only for staff: no create or edit buttons", async () => {
+    renderPage({ canEdit: false });
+    await screen.findByText("Kigali Electronics Ltd");
+    expect(screen.queryByRole("button", { name: "+ New supplier" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
   });
 });

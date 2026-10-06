@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import type { NotificationRow } from "@/lib/notifications/useNotifications";
 
 const STATUS_TAG: Record<NotificationRow["status"], { label: string; variant: "accent" | "neutral" }> = {
+  logged: { label: "In app", variant: "accent" },
   sent: { label: "Delivered", variant: "accent" },
   failed: { label: "Failed", variant: "neutral" },
 };

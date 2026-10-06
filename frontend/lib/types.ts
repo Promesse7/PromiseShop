@@ -192,7 +192,7 @@ export interface Employee {
   created_at: string;
 }
 
-export type NotificationStatus = "sent" | "failed";
+export type NotificationStatus = "logged" | "sent" | "failed";
 
 export interface NotificationLogEntry {
   notification_id: number;

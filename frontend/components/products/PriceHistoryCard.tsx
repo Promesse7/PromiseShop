@@ -9,9 +9,11 @@ interface PriceHistoryCardProps {
   history: ProductPricing[];
   onSetNewPrice: () => void;
   showWholesale: boolean;
+  /** Only admin and manager may set prices (the backend refuses staff). */
+  canSetPrice?: boolean;
 }
 
-export function PriceHistoryCard({ history, onSetNewPrice, showWholesale }: PriceHistoryCardProps) {
+export function PriceHistoryCard({ history, onSetNewPrice, showWholesale, canSetPrice = true }: PriceHistoryCardProps) {
   return (
     <Card elevation="sm">
       <CardKicker>Price history</CardKicker>
@@ -49,9 +51,11 @@ export function PriceHistoryCard({ history, onSetNewPrice, showWholesale }: Pric
         </table>
         </div>
       )}
-      <Button variant="secondary" onClick={onSetNewPrice} className="mt-2">
-        Set new price
-      </Button>
+      {canSetPrice && (
+        <Button variant="secondary" onClick={onSetNewPrice} className="mt-2">
+          Set new price
+        </Button>
+      )}
     </Card>
   );
 }

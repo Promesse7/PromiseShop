@@ -23,6 +23,13 @@ describe("NotificationsTable", () => {
     expect(screen.getByText("Delivered")).toBeInTheDocument();
   });
 
+  it("labels in-app notifications as In app, not Delivered", () => {
+    render(<NotificationsTable notifications={[{ ...delivered, status: "logged" }]} />);
+    expect(screen.getByText("In app")).toBeInTheDocument();
+    expect(screen.queryByText("Delivered")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
   it("shows a disabled Retry button for failed notifications", () => {
     render(<NotificationsTable notifications={[failed]} />);
     expect(screen.getByText("Failed")).toBeInTheDocument();

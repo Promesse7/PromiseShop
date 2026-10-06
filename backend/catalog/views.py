@@ -5,7 +5,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from accounts.permissions import IsAdminOrManager
+from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
 from catalog.models import Category, Product, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
 from catalog.services import generate_barcode
@@ -73,7 +73,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 class ProductPricingViewSet(viewsets.ModelViewSet):
     serializer_class = ProductPricingSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrManagerOrReadOnly]
 
     def get_queryset(self):
         queryset = ProductPricing.objects.all().order_by("-effective_date")

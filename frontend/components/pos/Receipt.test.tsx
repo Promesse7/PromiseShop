@@ -73,6 +73,12 @@ describe("Receipt", () => {
     expect(screen.getByText("RWF 530,000")).toBeInTheDocument();
   });
 
+  it("says the admin was notified in the app, never by email", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText(/admin notified in the app/)).toBeInTheDocument();
+    expect(screen.queryByText(/email/i)).not.toBeInTheDocument();
+  });
+
   it("prints the unit price of every line", () => {
     render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
     expect(screen.getByText("@ 385,000")).toBeInTheDocument();

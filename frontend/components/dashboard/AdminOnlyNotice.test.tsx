@@ -5,6 +5,6 @@ import { AdminOnlyNotice } from "./AdminOnlyNotice";
 describe("AdminOnlyNotice", () => {
   it("renders an admin-only message", () => {
     render(<AdminOnlyNotice />);
-    expect(screen.getByText("Dashboard data is limited to Admin accounts.")).toBeInTheDocument();
+    expect(screen.getByText("Dashboard data is limited to Admin and Manager accounts.")).toBeInTheDocument();
   });
 });

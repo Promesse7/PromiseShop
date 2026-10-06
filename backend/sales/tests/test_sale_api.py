@@ -235,7 +235,7 @@ def test_return_via_api_restores_inventory(employee, admin, product):
     sale_id = create_response.json()["sale_id"]
     assert Inventory.objects.get(product=product).quantity_in_stock == 7
 
-    response = client.post(f"/api/sales/{sale_id}/return/")
+    response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
     assert response.status_code == 200
     assert response.json()["status"] == "returned"
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
@@ -249,7 +249,7 @@ def test_cancel_via_api_restores_inventory(employee, admin, product):
         format="json",
     )
     sale_id = create_response.json()["sale_id"]
-    response = client.post(f"/api/sales/{sale_id}/cancel/")
+    response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/cancel/")
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
@@ -263,6 +263,6 @@ def test_return_twice_returns_400(employee, admin, product):
         format="json",
     )
     sale_id = create_response.json()["sale_id"]
-    client.post(f"/api/sales/{sale_id}/return/")
-    second_response = client.post(f"/api/sales/{sale_id}/return/")
+    auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
+    second_response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
     assert second_response.status_code == 400

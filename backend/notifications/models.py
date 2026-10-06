@@ -3,6 +3,9 @@ from django.db import models
 
 class NotificationLog(models.Model):
     class NotificationStatus(models.TextChoices):
+        # Recorded in the app only; nothing is emailed yet. "sent" is kept for
+        # when real delivery exists.
+        LOGGED = "logged", "Logged in app"
         SENT = "sent", "Sent"
         FAILED = "failed", "Failed"
 
@@ -16,7 +19,7 @@ class NotificationLog(models.Model):
     )
     sent_at = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
-        max_length=20, choices=NotificationStatus.choices, default=NotificationStatus.SENT
+        max_length=20, choices=NotificationStatus.choices, default=NotificationStatus.LOGGED
     )
     read_at = models.DateTimeField(null=True, blank=True)
 

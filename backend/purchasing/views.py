@@ -6,7 +6,7 @@ from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework import status as http_status
 
-from accounts.permissions import IsAdminOrManager
+from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
 from purchasing.models import Supplier, Purchase, PurchaseItem
 from purchasing.serializers import SupplierSerializer, PurchaseSerializer, AddPurchaseItemSerializer, PurchaseItemSerializer
 from purchasing.services import (
@@ -21,7 +21,13 @@ from purchasing.services import (
 class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.all().order_by("supplier_id")
     serializer_class = SupplierSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminOrManagerOrReadOnly]
+
+    def perform_destroy(self, instance):
+        # Purchase.supplier is PROTECT; check first so this is a clean 400, not a 500.
+        if instance.purchases.exists():
+            raise ValidationError("This supplier has purchases on record and cannot be deleted.")
+        instance.delete()
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):

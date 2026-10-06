@@ -61,7 +61,7 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2.5 p-3 rounded-md bg-accent-900 text-accent-100 text-sm shadow-sm">
         <span className="w-2 h-2 rounded-full bg-accent" />
-        Sale #S-{sale.sale_id} completed — stock updated, admin notified by email.
+        Sale #S-{sale.sale_id} completed — stock updated, admin notified in the app.
       </div>
       <div className="print-target bg-surface rounded-md p-6 shadow-sm text-sm max-w-[420px] mx-auto w-full">
         <div className="text-center mb-4">

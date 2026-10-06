@@ -32,6 +32,14 @@ export async function POST(request: Request) {
     );
   }
 
+  if (djangoResponse.status === 429) {
+    const body = (await djangoResponse.json().catch(() => ({}))) as { detail?: unknown };
+    return NextResponse.json(
+      { error: typeof body.detail === "string" ? body.detail : "Too many failed attempts. Try again later." },
+      { status: 429 }
+    );
+  }
+
   if (!djangoResponse.ok) {
     return NextResponse.json(
       { error: "Invalid username or password" },

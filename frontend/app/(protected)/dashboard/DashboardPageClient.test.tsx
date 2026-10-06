@@ -44,7 +44,7 @@ describe("DashboardPageClient", () => {
   it("shows the admin-only notice when forbidden", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ isForbidden: true }));
     render(<DashboardPageClient role="admin" />);
-    expect(screen.getByText("Dashboard data is limited to Admin accounts.")).toBeInTheDocument();
+    expect(screen.getByText("Dashboard data is limited to Admin and Manager accounts.")).toBeInTheDocument();
   });
 
   it("shows a retry option on error", () => {

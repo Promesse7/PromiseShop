@@ -27,7 +27,7 @@ def _notify_admins(sale, notification_type="sale_alert"):
     NotificationLog.objects.bulk_create([
         NotificationLog(
             type=notification_type, recipient=admin, related_sale=sale,
-            status=NotificationLog.NotificationStatus.SENT,
+            status=NotificationLog.NotificationStatus.LOGGED,
         )
         for admin in admins
     ])

@@ -35,6 +35,14 @@ def sales_staff():
 
 
 @pytest.fixture
+def manager():
+    return Employee.objects.create_user(
+        username="manager1", password="managerpass", full_name="Manager One",
+        hire_date=date(2025, 1, 1), role=Employee.Role.MANAGER,
+    )
+
+
+@pytest.fixture
 def product():
     category = Category.objects.create(name="Audio", code="AUD")
     return Product.objects.create(category=category, barcode="PES-AUD-00001", name="JBL Flip 6")
@@ -122,7 +130,7 @@ def test_new_pricing_row_flips_previous_current_to_false(admin, product):
     assert second.is_current is True
 
 
-def test_non_admin_updating_wholesale_price_is_rejected(admin, sales_staff, product):
+def test_non_admin_updating_wholesale_price_is_rejected(admin, manager, product):
     admin_client = auth_client(admin, "adminpass")
     create_response = admin_client.post(
         "/api/product-pricing/",
@@ -136,15 +144,15 @@ def test_non_admin_updating_wholesale_price_is_rejected(admin, sales_staff, prod
     )
     price_id = create_response.json()["price_id"]
 
-    staff_client = auth_client(sales_staff, "staffpass")
-    reject_response = staff_client.patch(
+    manager_client = auth_client(manager, "managerpass")
+    reject_response = manager_client.patch(
         f"/api/product-pricing/{price_id}/",
         {"wholesale_price": "999999.00"},
         format="json",
     )
     assert reject_response.status_code == 403
 
-    allow_response = staff_client.patch(
+    allow_response = manager_client.patch(
         f"/api/product-pricing/{price_id}/",
         {"retail_price": "150000.00"},
         format="json",
@@ -152,7 +160,7 @@ def test_non_admin_updating_wholesale_price_is_rejected(admin, sales_staff, prod
     assert allow_response.status_code == 200
 
 
-def test_non_admin_creating_pricing_row_carries_forward_wholesale_price(admin, sales_staff, product):
+def test_non_admin_creating_pricing_row_carries_forward_wholesale_price(admin, manager, product):
     admin_client = auth_client(admin, "adminpass")
     admin_client.post(
         "/api/product-pricing/",
@@ -165,8 +173,8 @@ def test_non_admin_creating_pricing_row_carries_forward_wholesale_price(admin, s
         format="json",
     )
 
-    staff_client = auth_client(sales_staff, "staffpass")
-    response = staff_client.post(
+    manager_client = auth_client(manager, "managerpass")
+    response = manager_client.post(
         "/api/product-pricing/",
         {
             "product": product.product_id,
@@ -181,8 +189,8 @@ def test_non_admin_creating_pricing_row_carries_forward_wholesale_price(admin, s
     assert str(created.wholesale_price) == "108000.00"
 
 
-def test_non_admin_creating_first_pricing_row_without_wholesale_price_fails_cleanly(sales_staff, product):
-    client = auth_client(sales_staff, "staffpass")
+def test_non_admin_creating_first_pricing_row_without_wholesale_price_fails_cleanly(manager, product):
+    client = auth_client(manager, "managerpass")
     response = client.post(
         "/api/product-pricing/",
         {

@@ -18,7 +18,7 @@ def employee():
 def test_notification_log_without_related_sale(employee):
     log = NotificationLog.objects.create(type="low_stock", recipient=employee)
     assert log.related_sale is None
-    assert log.status == NotificationLog.NotificationStatus.SENT
+    assert log.status == NotificationLog.NotificationStatus.LOGGED
 
 
 def test_notification_log_with_related_sale(employee):
