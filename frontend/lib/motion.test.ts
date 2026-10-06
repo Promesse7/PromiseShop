@@ -1,6 +1,6 @@
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { DURATION, SPRING, pageVariants, listContainer, listItem, useReducedMotionSafe } from "./motion";
+import { DURATION, SPRING, pageVariants, listContainer, listItem, useCountUp, useReducedMotionSafe } from "./motion";
 import { useMediaQuery, DESKTOP_QUERY } from "./useMediaQuery";
 import { setMatchMedia } from "./test/matchMedia";
 
@@ -27,6 +27,22 @@ describe("motion tokens", () => {
   it("springs are springs", () => {
     expect(SPRING.sheet.type).toBe("spring");
     expect(SPRING.pill.type).toBe("spring");
+  });
+});
+
+describe("useCountUp", () => {
+  it("shows the target at once with reduced motion, and follows changes", () => {
+    const { result, rerender } = renderHook(({ n }) => useCountUp(n), { initialProps: { n: 100 } });
+    expect(result.current).toBe(100);
+    rerender({ n: 2500 });
+    expect(result.current).toBe(2500);
+  });
+
+  it("animates toward a new target and lands on it exactly", async () => {
+    act(() => setMatchMedia({ reducedMotion: false }));
+    const { result, rerender } = renderHook(({ n }) => useCountUp(n, 50), { initialProps: { n: 0 } });
+    rerender({ n: 1000 });
+    await waitFor(() => expect(result.current).toBe(1000));
   });
 });
 

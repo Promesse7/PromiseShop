@@ -83,8 +83,8 @@ export function useCountUp(target: number, durationMs = DURATION.slow * 1000): n
 
   useEffect(() => {
     if (reduced || typeof requestAnimationFrame === "undefined") {
+      // No animation: the returned value is the target itself (see below).
       fromRef.current = target;
-      setValue(target);
       return;
     }
     const from = fromRef.current;
@@ -102,5 +102,5 @@ export function useCountUp(target: number, durationMs = DURATION.slow * 1000): n
     return () => cancelAnimationFrame(frame);
   }, [target, reduced, durationMs]);
 
-  return value;
+  return reduced ? target : value;
 }

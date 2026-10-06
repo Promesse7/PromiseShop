@@ -44,7 +44,9 @@ export function Dialog({ open, onClose, title, children, description, footer, si
   const reduced = useReducedMotionSafe();
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   // Layout effect: runs before the panel's mount effect moves focus inside, so this still
   // sees the element that opened the dialog.
