@@ -34,7 +34,7 @@ describe("CartCards", () => {
     expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
     expect(screen.getByLabelText("Unit price")).toHaveValue(145000);
     expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.getByText("290,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 290,000")).toBeInTheDocument();
   });
 
   it("calls onSetUnitPrice when the price input changes", () => {
@@ -48,7 +48,7 @@ describe("CartCards", () => {
 
   it("shows the catalog price beside a line whose price was changed", () => {
     renderCards([{ ...line, unitPrice: 120000 }]);
-    expect(screen.getByText(/list 145,000/)).toBeInTheDocument();
+    expect(screen.getByText(/list RWF 145,000/)).toBeInTheDocument();
   });
 
   it("calls onSetQuantity with quantity + 1 when + is clicked", async () => {

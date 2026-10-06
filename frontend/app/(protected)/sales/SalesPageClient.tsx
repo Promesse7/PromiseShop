@@ -1,5 +1,6 @@
 "use client";
 
+import { SharedElement, sharedName } from "@/components/ui/SharedElement";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -61,7 +62,11 @@ export default function SalesPageClient({ canSeeAll, initialFilters }: SalesPage
       header: "Receipt",
       primary: true,
       sortValue: (s) => s.sale_id,
-      render: (s) => <span className="font-mono">#S-{s.sale_id}</span>,
+      render: (s) => (
+        <SharedElement name={sharedName("sale", s.sale_id)}>
+          <span className="font-mono">#S-{s.sale_id}</span>
+        </SharedElement>
+      ),
     },
     { key: "date", header: "Date", mobile: true, sortValue: (s) => s.sale_date, render: (s) => when(s.sale_date) },
     { key: "cashier", header: "Cashier", render: (s) => s.employee_name ?? `#${s.employee}` },

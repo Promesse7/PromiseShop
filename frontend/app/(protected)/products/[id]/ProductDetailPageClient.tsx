@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,7 +26,7 @@ import { ConsumptionTable } from "@/components/operations/ConsumptionTable";
 import { useConsumptions } from "@/lib/operations/useShopUse";
 import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Page, type PageAction } from "@/components/ui/Page";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { Tabs } from "@/components/ui/Tabs";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -179,6 +180,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   return (
     <Page
       title={product.name}
+      sharedName={sharedName("product", product.product_id)}
       breadcrumb={[{ label: "Stock" }, { label: "Products", href: "/products" }, { label: product.name }]}
       back="/products"
       primaryAction={

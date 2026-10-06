@@ -32,6 +32,9 @@ function buttonClassName(variant: ButtonVariant, block: boolean, className: stri
     "font-sans font-medium text-sm leading-tight text-text",
     "bg-transparent border rounded-md py-1.5 px-2.5",
     "disabled:opacity-45 disabled:cursor-not-allowed",
+    // Press feedback: a subtle sink on tap. CSS only, so Button stays usable from Server Components.
+    "transition-[transform,background-color] duration-150 active:scale-[0.97]",
+    "disabled:active:scale-100 motion-reduce:active:scale-100 motion-reduce:transition-none",
     block ? "w-full mt-1.5" : "",
     variantClasses[variant],
     className,

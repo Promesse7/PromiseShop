@@ -114,6 +114,13 @@
   animation: 220ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both vt-rise-in;
 }
 
+/* Shared-element morphs (components/ui/SharedElement.tsx): a list card's title glides into the
+   detail page header with the same name. Kept under the 300ms motion budget. */
+::view-transition-group(.morph) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 @keyframes vt-fade-out {
   to {
     opacity: 0;

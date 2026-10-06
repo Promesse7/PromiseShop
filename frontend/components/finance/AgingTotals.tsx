@@ -1,4 +1,4 @@
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import type { AgingBucket } from "@/lib/types";
 
 export const AGING_LABELS: Record<AgingBucket, string> = {

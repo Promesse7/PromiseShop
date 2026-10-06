@@ -5,7 +5,7 @@ import { useEquipmentUnitDetail } from "@/lib/stock/useEquipmentUnitDetail";
 import { StatusHistoryTimeline } from "@/components/stock/StatusHistoryTimeline";
 import { ChangeStatusDialog } from "@/components/stock/ChangeStatusDialog";
 import { Page } from "@/components/ui/Page";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";

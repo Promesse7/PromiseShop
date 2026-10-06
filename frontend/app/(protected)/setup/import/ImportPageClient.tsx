@@ -35,7 +35,12 @@ function rowNote(row: ImportRowResult) {
       .map(([field, message]) => `${field.replace(/_/g, " ")}: ${message}`)
       .join(" · ");
   }
-  if (row.product_id) return <Link href={`/products/${row.product_id}`}>Open →</Link>;
+  if (row.product_id)
+    return (
+      <Link href={`/products/${row.product_id}`} className="text-accent hover:underline">
+        View {row.name}
+      </Link>
+    );
   return null;
 }
 

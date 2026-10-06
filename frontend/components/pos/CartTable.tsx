@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { lineSubtotal, type CartLine } from "@/lib/pos/cart";
 import type { PriceCheckLine } from "@/lib/types";
 import { PriceDifference } from "./PriceDifference";
+import { formatRwf } from "@/lib/format";
 
 interface CartTableProps {
   lines: CartLine[];
@@ -92,7 +93,7 @@ export function CartTable({ lines, onSetQuantity, onSetUnitPrice, onRemove, verd
                     className="w-14 text-right min-h-9 py-1.5 px-2 border border-divider rounded-md bg-surface"
                   />
                 </td>
-                <td className="py-2 px-2 text-right">{lineSubtotal(line).toLocaleString()}</td>
+                <td className="py-2 px-2 text-right">{formatRwf(lineSubtotal(line))}</td>
                 <td className="py-2 px-2">
                   <Button variant="ghost" onClick={() => onRemove(line.product.product_id)}>
                     Remove

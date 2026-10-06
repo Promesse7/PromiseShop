@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from "luci
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
 import { Dialog } from "./Dialog";
+import { SharedElement } from "./SharedElement";
 
 export interface Crumb {
   label: string;
@@ -32,15 +33,28 @@ interface PageProps {
   toolbar?: ReactNode;
   /** Parent list for detail pages: shows a back arrow. */
   back?: string;
+  /** Detail pages: the title morphs from the list card with this shared name (see SharedElement). */
+  sharedName?: string;
   children: ReactNode;
 }
 
 /**
  * The frame every screen uses: header (title, description, primary action, ⋯ menu), optional
- * toolbar, then content. Page transitions are handled once by the app shell's template, so
- * Page itself doesn't animate.
+ * toolbar, then content. Route transitions are handled once by the app shell (RouteTransition),
+ * so Page itself doesn't animate.
  */
-export function Page({ title, description, breadcrumb, primaryAction, secondaryActions, toolbar, back, children }: PageProps) {
+export function Page({
+  title,
+  description,
+  breadcrumb,
+  primaryAction,
+  secondaryActions,
+  toolbar,
+  back,
+  sharedName,
+  children,
+}: PageProps) {
+  const heading = <h1 className="m-0 truncate text-xl font-semibold leading-tight">{title}</h1>;
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
@@ -57,7 +71,7 @@ export function Page({ title, description, breadcrumb, primaryAction, secondaryA
             </Link>
           )}
           <div className="min-w-0 flex-1">
-            <h1 className="m-0 truncate text-xl font-semibold leading-tight">{title}</h1>
+            {sharedName ? <SharedElement name={sharedName}>{heading}</SharedElement> : heading}
             {description && <p className="m-0 mt-0.5 text-sm text-text/60">{description}</p>}
           </div>
           {(primaryAction || (secondaryActions && secondaryActions.length > 0)) && (

@@ -1,5 +1,6 @@
 "use client";
 
+import { SharedElement, sharedName } from "@/components/ui/SharedElement";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Wrench } from "lucide-react";
@@ -41,9 +42,11 @@ export function AssetCardGrid({ assets, showValue }: AssetCardGridProps) {
                 {a.is_spare && <Tag variant="outline">Spare</Tag>}
               </div>
               <CardTitle>
-                <Link href={`/shop-use/assets/${a.asset_id}`} className="text-text no-underline hover:text-accent">
-                  {a.name}
-                </Link>
+                <SharedElement name={sharedName("asset", a.asset_id)}>
+                  <Link href={`/shop-use/assets/${a.asset_id}`} className="text-text no-underline hover:text-accent">
+                    {a.name}
+                  </Link>
+                </SharedElement>
               </CardTitle>
               {a.serial && <CardMeta>Serial {a.serial}</CardMeta>}
               <div className="flex flex-col gap-0.5 text-sm text-text/70">

@@ -28,7 +28,7 @@ describe("PriceDifference", () => {
     const diff = screen.getByText(/\+RWF 20,000/);
     expect(diff).toHaveTextContent("+10.0%");
     expect(diff.className).toMatch(/green/);
-    expect(screen.getByText(/list 100,000/)).toBeInTheDocument();
+    expect(screen.getByText(/list RWF 100,000/)).toBeInTheDocument();
   });
 
   it("shows a discount within the limit in amber", () => {

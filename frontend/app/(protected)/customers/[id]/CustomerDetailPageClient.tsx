@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SearchX } from "lucide-react";
@@ -11,7 +12,7 @@ import {
 import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
 import { RecordPaymentDialog } from "@/components/finance/RecordPaymentDialog";
 import { PaymentReceipt } from "@/components/finance/PaymentReceipt";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { useToast } from "@/components/layout/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -149,6 +150,7 @@ export default function CustomerDetailPageClient({ customerId, canManage }: Cust
   return (
     <Page
       title={c.name ?? "Customer"}
+      sharedName={sharedName("customer", c.customer_id)}
       description={c.phone ?? "No phone on file"}
       back="/customers"
       primaryAction={

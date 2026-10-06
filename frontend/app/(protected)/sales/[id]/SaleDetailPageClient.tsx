@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useState } from "react";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
@@ -10,7 +11,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
 import { Receipt } from "@/components/pos/Receipt";
 import { ReturnItemsDialog } from "@/components/sales/ReturnItemsDialog";
 import { SaleStatusTag } from "@/components/sales/SaleStatusTag";
-import { StatStrip, type Stat } from "@/components/finance/StatStrip";
+import { StatStrip, type Stat } from "@/components/ui/StatStrip";
 import { useToast } from "@/components/layout/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -150,6 +151,7 @@ export default function SaleDetailPageClient({ saleId, canManage }: SaleDetailPa
   return (
     <Page
       title={`Sale #S-${s.sale_id}`}
+      sharedName={sharedName("sale", s.sale_id)}
       description={`${when(s.sale_date)} · ${s.employee_name ?? `#${s.employee}`} · ${s.customer_name ?? "Walk-in"}`}
       back="/sales"
       primaryAction={

@@ -1,5 +1,6 @@
 "use client";
 
+import { sharedName } from "@/components/ui/SharedElement";
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,7 +13,7 @@ import { ReplaceAssetWizard } from "@/components/operations/ReplaceAssetWizard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Page } from "@/components/ui/Page";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Tag } from "@/components/ui/Tag";
@@ -66,6 +67,7 @@ export default function AssetDetailPageClient({ assetId, role }: AssetDetailPage
   return (
     <Page
       title={asset.name}
+      sharedName={sharedName("asset", asset.asset_id)}
       breadcrumb={[{ label: "Stock" }, { label: "Shop use", href: "/shop-use" }, { label: asset.name }]}
       back="/shop-use"
       primaryAction={actions}
