@@ -254,6 +254,47 @@ export interface PurchaseItem {
   subtotal_invoiced?: string;
 }
 
+// GET /products/search/ (release Module E1)
+export type ProductSearchMatch = "barcode" | "exact_name" | "starts_with" | "similar";
+
+export interface ProductSearchResult {
+  product_id: number;
+  name: string;
+  brand: string | null;
+  model_number: string | null;
+  barcode: string;
+  category: number;
+  category_name: string;
+  is_active: boolean;
+  in_stock: number | null;
+  retail_price: string | null;
+  match: ProductSearchMatch;
+  score: number;
+  /** Admin/manager only. */
+  last_paid_cost?: string | null;
+}
+
+// GET /suppliers/<id>/recent-products/
+export interface SupplierRecentProduct {
+  product_id: number;
+  name: string;
+  brand: string | null;
+  model_number: string | null;
+  barcode: string;
+  last_purchase_date: string;
+  last_quantity: number;
+  /** Admin/manager only. */
+  last_unit_cost_paid?: string;
+  last_unit_cost_invoiced?: string;
+}
+
+// A row saved by POST /purchases/<id>/items/bulk/
+export interface BulkSavedPurchaseItem extends PurchaseItem {
+  product_name: string;
+  product_barcode: string;
+  product_retail_price: string | null;
+}
+
 export interface Purchase {
   purchase_id: number;
   supplier: number;

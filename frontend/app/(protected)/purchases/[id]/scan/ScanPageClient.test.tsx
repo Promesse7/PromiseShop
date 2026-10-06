@@ -49,12 +49,15 @@ describe("ScanPageClient", () => {
         if (url.includes("/products/")) {
           return Promise.resolve({
             ok: true,
-            json: async () => paginated([{ product_id: 3, category: 2, barcode: "6925281998768", name: "JBL Flip 6 Speaker", brand: "JBL", model_number: null, description: null, specifications: null, usage_instructions: null, warranty_months: 12, reorder_level: 4, unit: "pcs", is_active: true, created_at: "2026-01-01" }]),
+            json: async () => paginated([
+              { product_id: 3, category: 2, barcode: "6925281998768", name: "JBL Flip 6 Speaker", brand: "JBL", model_number: null, description: null, specifications: null, usage_instructions: null, warranty_months: 12, reorder_level: 4, unit: "pcs", is_active: true, created_at: "2026-01-01" },
+              { product_id: 5, category: 2, barcode: "6925281990001", name: "Boya Mic", brand: null, model_number: null, description: null, specifications: null, usage_instructions: null, warranty_months: 0, reorder_level: 4, unit: "pcs", is_active: true, created_at: "2026-01-01" },
+            ]),
           });
         }
         if (url.includes("/purchases/7/items/")) {
           const body = options?.body ? JSON.parse(options.body as string) : null;
-          itemPosts.push(body);
+          itemPosts.push(options?.method === "PATCH" ? { patch: url, ...body } : body);
           return Promise.resolve({ ok: true, json: async () => ({ purchase_item_id: 3, purchase: 7, product: 3, quantity: 8, unit_cost_paid: "108000", unit_cost_invoiced: "108000", price_discrepancy_note: "", subtotal_paid: "864000", subtotal_invoiced: "864000" }) });
         }
         throw new Error(`Unexpected URL: ${url}`);
@@ -69,16 +72,24 @@ describe("ScanPageClient", () => {
 
   it("finds a product by barcode search and shows the just-scanned card", async () => {
     renderPage();
-    await userEvent.type(screen.getByLabelText("Scan received item…"), "6925281998768");
-    await userEvent.click(await screen.findByText(/JBL Flip 6 Speaker/));
+    await userEvent.type(screen.getByLabelText("Scan received item…"), "6925281990001");
+    await userEvent.click(await screen.findByText(/Boya Mic/));
     expect(screen.getByText("Just scanned")).toBeInTheDocument();
     expect(screen.getByLabelText("Quantity")).toBeInTheDocument();
   });
 
+  it("adds 1 to the existing line when the scanned product is already on the purchase", async () => {
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Scan received item…"), "6925281998768{Enter}");
+    expect(await screen.findByText("Already on this purchase")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Add 1 (→ 9)" }));
+    await waitFor(() => expect(itemPosts).toEqual([{ patch: "/api/proxy/purchases/7/items/1/", quantity: 9 }]));
+  });
+
   it("adds the scanned item to the purchase with touch-sized fields", async () => {
     renderPage();
-    await userEvent.type(screen.getByLabelText("Scan received item…"), "JBL");
-    await userEvent.click(await screen.findByText(/JBL Flip 6 Speaker/));
+    await userEvent.type(screen.getByLabelText("Scan received item…"), "Boya");
+    await userEvent.click(await screen.findByText(/Boya Mic/));
 
     expect(screen.getByLabelText("Quantity")).toHaveAttribute("class", expect.stringContaining("min-h-11"));
     await userEvent.type(screen.getByLabelText("Quantity"), "8");
@@ -86,6 +97,6 @@ describe("ScanPageClient", () => {
     await userEvent.type(screen.getByLabelText("Unit cost invoiced"), "108000");
     await userEvent.click(screen.getByRole("button", { name: "Add to purchase #P-7" }));
 
-    await waitFor(() => expect(itemPosts).toEqual([{ product: 3, quantity: 8, unit_cost_paid: "108000", unit_cost_invoiced: "108000", price_discrepancy_note: "" }]));
+    await waitFor(() => expect(itemPosts).toEqual([{ product: 5, quantity: 8, unit_cost_paid: "108000", unit_cost_invoiced: "108000", price_discrepancy_note: "" }]));
   });
 });

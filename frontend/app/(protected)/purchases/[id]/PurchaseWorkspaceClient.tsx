@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
@@ -108,12 +109,15 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
           <div className="flex items-center gap-3 mb-3">
             <span className="text-xs uppercase tracking-wide text-accent">Add product</span>
             <SegmentedToggle name="add-mode" options={ADD_MODE_OPTIONS} value={addMode} onChange={(v) => setAddMode(v as "single" | "bulk")} />
+            <Link href={`/purchases/${purchaseId}/scan`} className="text-sm ml-auto">
+              Scan to add →
+            </Link>
           </div>
           <div className="mb-6">
             {addMode === "single" ? (
               <AddProductSingleForm purchaseId={purchaseId} onAdded={() => {}} initialSearch={prefill} />
             ) : (
-              <AddProductBulkTable purchaseId={purchaseId} onAdded={() => {}} />
+              <AddProductBulkTable purchaseId={purchaseId} supplierId={purchase.supplier} onAdded={() => {}} />
             )}
           </div>
         </>
