@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useProductDetailModule from "@/lib/products/useProductDetail";
 import * as useProductProfitabilityModule from "@/lib/products/useProductProfitability";
 import * as useStockMovementsModule from "@/lib/stock/useStockMovements";
+import * as useOpeningStockModule from "@/lib/products/useOpeningStock";
 import type { ProductDetail } from "@/lib/products/useProductDetail";
 
 const pushMock = vi.fn();
@@ -40,6 +41,8 @@ function renderWithProviders(ui: React.ReactElement) {
   );
 }
 
+let openingEligible = false;
+
 describe("ProductDetailPageClient", () => {
   beforeEach(() => {
     pushMock.mockClear();
@@ -64,7 +67,32 @@ describe("ProductDetailPageClient", () => {
       isLoading: false,
       isError: false,
     });
+    openingEligible = false;
+    vi.spyOn(useOpeningStockModule, "useOpeningStockStatus").mockImplementation(
+      (_id: number, enabled: boolean) =>
+        ({ data: enabled ? { eligible: openingEligible, reason: null, in_stock: 2 } : undefined }) as unknown as ReturnType<
+          typeof useOpeningStockModule.useOpeningStockStatus
+        >
+    );
     vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("offers Set opening stock to an admin only while the product has never been received", async () => {
+    openingEligible = true;
+    const { unmount } = renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    await userEvent.click(screen.getByRole("button", { name: "Set opening stock" }));
+    expect(screen.getByLabelText("Opening count in stock")).toBeInTheDocument();
+    expect(screen.getByText(/2 are already recorded in stock/)).toBeInTheDocument();
+    unmount();
+
+    renderWithProviders(<ProductDetailPageClient productId={1} role="manager" />);
+    expect(screen.queryByRole("button", { name: "Set opening stock" })).not.toBeInTheDocument();
+  });
+
+  it("hides Set opening stock once the product has stock history", () => {
+    openingEligible = false;
+    renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
+    expect(screen.queryByRole("button", { name: "Set opening stock" })).not.toBeInTheDocument();
   });
 
   it("lets an admin open the Adjust stock dialog from the stock card, but not sales_staff", async () => {
