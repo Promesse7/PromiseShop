@@ -2,6 +2,7 @@
 
 import type { CartLine } from "@/lib/pos/cart";
 import type { PriceCheckLine } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface PriceDifferenceProps {
   line: CartLine;
@@ -35,9 +36,9 @@ export function PriceDifference({ line, verdict }: PriceDifferenceProps) {
 
   return (
     <div className="text-xs mt-0.5">
-      <span className="text-text/50">list {list.toLocaleString()}</span>{" "}
+      <span className="text-text/50">list {formatRwf(list)}</span>{" "}
       <span className={colour}>
-        {sign}RWF {Math.abs(diff).toLocaleString()} ({sign}
+        {formatRwf(diff, { sign: true })} ({sign}
         {Math.abs(pct).toFixed(1)}%)
       </span>
       {message && <div className="text-red-400">{message}</div>}

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
 import type { PaymentInput } from "@/lib/finance/useDebts";
 import type { PaymentMethod } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 const METHODS = Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[];
 
@@ -49,7 +50,7 @@ function PaymentFields({
       return;
     }
     if (value > maxAmount) {
-      setLocalError(`That is more than is owed (RWF ${maxAmount.toLocaleString()}).`);
+      setLocalError(`That is more than is owed (${formatRwf(maxAmount)}).`);
       return;
     }
     if (method !== "cash" && !reference.trim()) {
@@ -63,7 +64,7 @@ function PaymentFields({
   return (
     <div className="flex flex-col gap-3 min-w-[340px]">
       <p className="text-sm text-text/70">
-        {subject} · owes RWF {maxAmount.toLocaleString()}
+        {subject} · owes {formatRwf(maxAmount)}
       </p>
       {children}
       <Field label="Amount (RWF)" name="amount" type="number" value={amount} onChange={setAmount} />

@@ -35,7 +35,7 @@ describe("CartTable", () => {
     expect(screen.getByText("JBL Flip 6 Speaker")).toBeInTheDocument();
     expect(screen.getByText("PES-AUD-00147")).toBeInTheDocument();
     expect(screen.getByLabelText("Unit price")).toHaveValue(145000);
-    expect(screen.getByText("290,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 290,000")).toBeInTheDocument();
   });
 
   it("calls onSetUnitPrice when the price input changes", () => {
@@ -56,13 +56,13 @@ describe("CartTable", () => {
 
   it("shows the catalog price beside a line whose price was changed", () => {
     renderTable([{ ...line, unitPrice: 120000 }]);
-    expect(screen.getByText(/list 145,000/)).toBeInTheDocument();
-    expect(screen.getByText("240,000")).toBeInTheDocument();
+    expect(screen.getByText(/list RWF 145,000/)).toBeInTheDocument();
+    expect(screen.getByText("RWF 240,000")).toBeInTheDocument();
   });
 
   it("does not show a catalog-price hint when the price is unchanged", () => {
     renderTable([line]);
-    expect(screen.queryByText(/list 145,000/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/list RWF 145,000/)).not.toBeInTheDocument();
   });
 
   it("calls onSetQuantity when the quantity input changes", async () => {

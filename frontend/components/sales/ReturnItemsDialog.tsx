@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
 import { refundSplit, returnableQuantities, type ReturnInput } from "@/lib/sales/useSalesHistory";
 import type { PaymentMethod, ReturnCondition, Sale } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 const METHODS = Object.keys(PAYMENT_METHOD_LABELS) as PaymentMethod[];
 
@@ -68,7 +69,7 @@ function ReturnForm({ sale, submitting, error, onSubmit, onClose }: Omit<ReturnI
         return setLocalError(`${name}: only ${returnable[line.item.sale_item_id]} can still be returned.`);
       }
       if (Number.isNaN(line.refund) || line.refund < 0 || line.refund > line.paid) {
-        return setLocalError(`${name}: the refund must be between 0 and the price paid (${line.paid.toLocaleString()}).`);
+        return setLocalError(`${name}: the refund must be between 0 and the price paid (${formatRwf(line.paid)}).`);
       }
     }
     if (!reason.trim()) return setLocalError("Say why the items are coming back.");
@@ -110,7 +111,7 @@ function ReturnForm({ sale, submitting, error, onSubmit, onClose }: Omit<ReturnI
                 <td className="py-1.5 pr-2">
                   {name}
                   <div className="text-xs text-text/50">
-                    sold {item.quantity} @ {Number(item.unit_price).toLocaleString()} · {left} returnable
+                    sold {item.quantity} @ {formatRwf(item.unit_price)} · {left} returnable
                   </div>
                 </td>
                 <td className="py-1.5 pr-2">
@@ -154,11 +155,11 @@ function ReturnForm({ sale, submitting, error, onSubmit, onClose }: Omit<ReturnI
       </table>
 
       <div className="rounded-md border border-divider p-2 text-sm flex flex-col gap-0.5" aria-label="Refund summary">
-        <div className="flex justify-between"><span>Refund total</span><span>RWF {refundTotal.toLocaleString()}</span></div>
+        <div className="flex justify-between"><span>Refund total</span><span>{formatRwf(refundTotal)}</span></div>
         <div className="flex justify-between text-text/70">
-          <span>Reduces what is owed</span><span>RWF {balanceReduced.toLocaleString()}</span>
+          <span>Reduces what is owed</span><span>{formatRwf(balanceReduced)}</span>
         </div>
-        <div className="flex justify-between font-medium"><span>Pay back now</span><span>RWF {paidOut.toLocaleString()}</span></div>
+        <div className="flex justify-between font-medium"><span>Pay back now</span><span>{formatRwf(paidOut)}</span></div>
       </div>
 
       {paidOut > 0 && (

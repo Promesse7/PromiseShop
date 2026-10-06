@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { lineSubtotal, type CartLine } from "@/lib/pos/cart";
 import type { PriceCheckLine } from "@/lib/types";
 import { PriceDifference } from "./PriceDifference";
+import { formatRwf } from "@/lib/format";
 
 interface CartCardsProps {
   lines: CartLine[];
@@ -74,7 +75,7 @@ export function CartCards({ lines, onSetQuantity, onSetUnitPrice, verdicts, onSe
                   </button>
                 </div>
                 <div className="w-[100px] text-right font-sans font-medium">
-                  {lineSubtotal(line).toLocaleString()}
+                  {formatRwf(lineSubtotal(line))}
                 </div>
               </div>
             </Card>
