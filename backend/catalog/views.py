@@ -10,8 +10,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from accounts.permissions import IsAdmin, IsAdminOrManager, IsAdminOrManagerOrReadOnly
-from catalog.models import Category, Product, ProductPricing
+from catalog.models import Category, Product, ProductBarcodeAlias, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
+from catalog.merge import find_duplicate_pairs, merge_preview, merge_products
 from catalog.importer import ImportHasErrors, commit_import, dry_run, opening_stock_status, set_opening_stock, template_csv
 from catalog.search import DEFAULT_LIMIT, MAX_LIMIT, TIER_NAMES, search_products
 from catalog.services import generate_barcode
@@ -131,6 +132,27 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         return Response({"results": _search_rows(products, include_cost=_can_see_cost(request.user))})
 
+    @action(detail=False, methods=["get"], url_path="duplicates", permission_classes=[IsAdmin])
+    def duplicates(self, request):
+        return Response({"results": find_duplicate_pairs()})
+
+    @action(detail=True, methods=["get", "post"], url_path="merge", permission_classes=[IsAdmin])
+    def merge(self, request, pk=None):
+        keep = self.get_object()
+        source = request.query_params if request.method == "GET" else request.data
+        raw = source.get("duplicate") if hasattr(source, "get") else None
+        try:
+            duplicate = Product.objects.get(pk=int(raw))
+        except (TypeError, ValueError, Product.DoesNotExist):
+            raise ValidationError({"duplicate": "Choose the duplicate product to merge."})
+        if request.method == "GET":
+            return Response(merge_preview(keep, duplicate))
+        merge = merge_products(keep, duplicate, request.user, request.data.get("reason", ""))
+        return Response(
+            {"merge_id": merge.merge_id, "keep": keep.pk, "duplicate": duplicate.pk, "counts": merge.counts},
+            status=http_status.HTTP_201_CREATED,
+        )
+
     @action(detail=True, methods=["get", "post"], url_path="opening-stock", permission_classes=[IsAdmin])
     def opening_stock(self, request, pk=None):
         product = self.get_object()
@@ -219,6 +241,21 @@ class ProductPricingViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         self._reject_non_admin_wholesale_price()
         serializer.save()
+
+
+class ProductBarcodeAliasSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductBarcodeAlias
+        fields = ["alias_id", "barcode", "product", "created_at"]
+        read_only_fields = fields
+
+
+class ProductBarcodeAliasViewSet(viewsets.ReadOnlyModelViewSet):
+    """Extra barcodes that scan as a product (e.g. a merged duplicate's label)."""
+
+    queryset = ProductBarcodeAlias.objects.all().order_by("alias_id")
+    serializer_class = ProductBarcodeAliasSerializer
+    permission_classes = [IsAuthenticated]
 
 
 class OpeningStockSerializer(serializers.Serializer):

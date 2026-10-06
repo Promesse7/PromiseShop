@@ -1,11 +1,12 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
 
-from catalog.views import CategoryViewSet, ImportProductsView, ImportTemplateView, ProductPricingViewSet, ProductViewSet
+from catalog.views import CategoryViewSet, ImportProductsView, ImportTemplateView, ProductBarcodeAliasViewSet, ProductPricingViewSet, ProductViewSet
 
 router = DefaultRouter()
 router.register("categories", CategoryViewSet, basename="category")
 router.register("products", ProductViewSet, basename="product")
+router.register("product-barcode-aliases", ProductBarcodeAliasViewSet, basename="product-barcode-alias")
 router.register("product-pricing", ProductPricingViewSet, basename="product-pricing")
 
 urlpatterns = [
