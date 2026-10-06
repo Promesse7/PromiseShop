@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import CustomersPageClient from "./CustomersPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 function paginated<T>(results: T[]) {
   return { count: results.length, next: null, previous: null, results };
@@ -60,5 +61,20 @@ describe("CustomersPageClient", () => {
     await screen.findByText("Grace Mukamana");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue("Grace Mukamana"));
+  });
+
+  it("offers New customer as the page's main action", async () => {
+    renderPage();
+    await screen.findByText("Grace Mukamana");
+    expect(screen.getByRole("heading", { name: "Customers" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "+ New customer" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("keeps search and each customer's page one tap away on a phone", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage();
+    expect(await screen.findByRole("link", { name: "Grace Mukamana" })).toHaveAttribute("href", "/customers/1");
+    expect(screen.getByLabelText("Search customers")).toBeInTheDocument();
   });
 });

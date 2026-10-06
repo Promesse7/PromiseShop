@@ -23,7 +23,7 @@ describe("CustomerCardGrid", () => {
 
   it("links each card to the customer page and shows what they owe", () => {
     render(<CustomerCardGrid customers={[{ ...customers[0], balance: "75000.00" }]} onEdit={vi.fn()} />);
-    expect(screen.getByRole("link", { name: "Open →" })).toHaveAttribute("href", "/customers/1");
+    expect(screen.getByRole("link", { name: "Grace Mukamana" })).toHaveAttribute("href", "/customers/1");
     expect(screen.getByText("Owes RWF 75,000")).toBeInTheDocument();
   });
 
