@@ -29,6 +29,12 @@ describe("usePosCatalog", () => {
               ]),
           });
         }
+        if (url.includes("/product-barcode-aliases/")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => paginated([{ alias_id: 1, barcode: "PES-TV-00100", product: 2, created_at: "2026-10-01" }]),
+          });
+        }
         if (url.includes("/categories/")) {
           return Promise.resolve({
             ok: true,
@@ -108,6 +114,15 @@ describe("usePosCatalog", () => {
 
     expect(result.current.all).toHaveLength(3);
     expect(result.current.all.find((p) => p.product_id === 4)).toBeUndefined();
-    expect(result.current.byBarcode.get("PES-TV-00100")).toBeUndefined();
+    expect(result.current.byBarcode.get("PES-TV-00100")?.product_id).not.toBe(4);
+  });
+
+  it("scans a barcode alias (e.g. a merged duplicate's old label) as the product it points to", async () => {
+    const { result } = renderHook(() => usePosCatalog(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.byBarcode.get("PES-TV-00100")?.name).toBe("Samsung TV");
+    expect(result.current.byBarcode.get("PES-AUD-00147")?.name).toBe("JBL Flip 6");
   });
 });

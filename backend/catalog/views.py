@@ -13,7 +13,7 @@ from accounts.permissions import IsAdmin, IsAdminOrManager, IsAdminOrManagerOrRe
 from catalog.models import Category, Product, ProductBarcodeAlias, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
 from catalog.merge import find_duplicate_pairs, merge_preview, merge_products
-from catalog.importer import ImportHasErrors, commit_import, dry_run, opening_stock_status, set_opening_stock, template_csv
+from catalog.importer import COLUMNS as IMPORT_COLUMNS, ImportHasErrors, commit_import, dry_run, opening_stock_status, set_opening_stock, template_csv
 from catalog.search import DEFAULT_LIMIT, MAX_LIMIT, TIER_NAMES, search_products
 from catalog.services import generate_barcode
 
@@ -291,8 +291,13 @@ class ImportProductsView(APIView):
 class ImportTemplateView(APIView):
     permission_classes = [IsAdmin]
 
+    filename = "promiseshop-products-template.csv"
+
     def get(self, request):
+        # ?as=json for the frontend, whose API proxy only relays JSON.
+        if request.query_params.get("as") == "json":
+            return Response({"filename": self.filename, "columns": IMPORT_COLUMNS, "csv": template_csv()})
         response = HttpResponse(template_csv(), content_type="text/csv; charset=utf-8")
-        response["Content-Disposition"] = 'attachment; filename="promiseshop-products-template.csv"'
+        response["Content-Disposition"] = f'attachment; filename="{self.filename}"'
         return response
 

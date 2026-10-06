@@ -15,6 +15,7 @@ import {
   UserCog,
   Receipt,
   Bell,
+  Settings,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -60,6 +61,8 @@ export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
     ...base,
     { href: "/employees", label: "Employees", icon: UserCog },
     { href: "/expenses", label: "Expenses", icon: Receipt },
+    // Setup (opening-stock import) — admin only, like its backend.
+    { href: "/setup/import", label: "Setup", icon: Settings },
   ];
 }
 

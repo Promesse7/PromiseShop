@@ -207,6 +207,13 @@ def test_template_is_a_csv_with_the_header(admin):
     assert response.content.decode().splitlines()[0] == HEADER
 
 
+def test_template_as_json_for_the_frontend_proxy(admin):
+    body = client_for(admin).get("/api/setup/import-products/template/", {"as": "json"}).json()
+    assert body["filename"] == "promiseshop-products-template.csv"
+    assert body["columns"] == HEADER.split(",")
+    assert body["csv"].splitlines()[0] == HEADER
+
+
 # --- single product "Set opening stock" ---------------------------------------
 
 @pytest.fixture
