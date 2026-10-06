@@ -7,6 +7,12 @@ vi.mock("@/lib/dashboard/useDashboardData", () => ({
   useDashboardData: vi.fn(),
 }));
 
+// The money views fetch on their own; they have their own tests.
+vi.mock("@/components/dashboard/MoneyDashboard", () => ({
+  MoneyAlerts: () => <div>alerts</div>,
+  MoneyDashboard: ({ tab }: { tab: string }) => <div>money view: {tab}</div>,
+}));
+
 const mockedUseDashboardData = vi.mocked(useDashboardData);
 
 function baseData(overrides: Partial<DashboardData> = {}): DashboardData {
@@ -72,5 +78,20 @@ describe("DashboardPageClient", () => {
     render(<DashboardPageClient role="admin" />);
     expect(screen.queryByText("Let's get your shop set up")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
+  });
+
+  it("shows alerts above every tab and switches to the money chain and people views with a period picker", async () => {
+    const userEvent = (await import("@testing-library/user-event")).default;
+    mockedUseDashboardData.mockReturnValue(baseData());
+    render(<DashboardPageClient role="manager" />);
+    expect(screen.getByText("alerts")).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Last month" })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "Money chain" }));
+    expect(screen.getByText("money view: money")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Last month" })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("radio", { name: "People" }));
+    expect(screen.getByText("money view: people")).toBeInTheDocument();
   });
 });
