@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { isPhone, login, pageTitle } from "./helpers";
 
 /**
  * Requires a fixture product in the dev database (not auto-created):
@@ -15,28 +16,40 @@ import { test, expect } from "@playwright/test";
  *   ProductPricing.objects.get_or_create(product=product, is_current=True, defaults={'wholesale_price': '50000.00', 'retail_price': '75000.00', 'effective_date': date(2026, 1, 1)})
  *   Inventory.objects.get_or_create(product=product, defaults={'quantity_in_stock': 100})
  *   "
+ *
+ * The sale is a walk-in cash sale at the catalog price: the payment panel defaults to one cash
+ * line for the full amount, and no discount means no manager PIN is needed.
  */
 test.describe("Checkout", () => {
-  test("staff can scan a product, complete a sale, and see the receipt", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Username").fill("staff1");
-    await page.getByLabel("Password").fill("staffpass");
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page).toHaveURL("/checkout");
+  test("staff can scan a product, complete a sale, and see the receipt", async ({ page }, testInfo) => {
+    const phone = isPhone(testInfo);
+    await login(page, "staff");
+    await expect(pageTitle(page, "New sale")).toBeVisible();
 
-    await page.getByLabel("Scan barcode or search product").fill("PES-E2E-00001");
-    await page.getByLabel("Scan barcode or search product").press("Enter");
-    // Scoped to the table: CartTable and CartCards both exist in the DOM (CSS-only responsive split), so a bare getByText matches both and Playwright's strict mode rejects the ambiguity.
-    await expect(page.getByRole("table").getByText("E2E Test Speaker")).toBeVisible();
+    const scan = page.getByLabel("Scan barcode or search product");
+    await scan.fill("PES-E2E-00001");
+    await scan.press("Enter");
 
-    await page.getByRole("button", { name: "Complete sale" }).click();
+    if (phone) {
+      // Phone: the cart is a list of line cards and a sticky "Sale total" bar opens the Payment sheet.
+      await expect(page.getByRole("main").getByText("E2E Test Speaker").first()).toBeVisible();
+      await page.getByRole("region", { name: "Sale total" }).getByRole("button", { name: "Pay →" }).click();
+      const sheet = page.getByRole("dialog", { name: "Payment" });
+      await expect(sheet).toBeVisible();
+      await sheet.getByRole("button", { name: "Complete sale" }).click();
+    } else {
+      // Desktop: the cart is a table and Complete sale sits in the right-hand column.
+      await expect(page.getByRole("table").getByText("E2E Test Speaker")).toBeVisible();
+      await page.getByRole("button", { name: "Complete sale" }).click();
+    }
 
+    await expect(pageTitle(page, "Sale complete")).toBeVisible();
     await expect(page.getByText(/Sale #S-\d+ completed/)).toBeVisible();
-    await expect(page.getByText("RWF 75,000")).toBeVisible();
+    await expect(page.getByText("RWF 75,000").first()).toBeVisible();
 
     await page.getByRole("button", { name: "New sale" }).click();
+    await expect(pageTitle(page, "New sale")).toBeVisible();
     await expect(page.getByLabel("Scan barcode or search product")).toHaveValue("");
-    // Scoped to the table: CartTable and CartCards both exist in the DOM (CSS-only responsive split), so a bare getByText matches both and Playwright's strict mode rejects the ambiguity.
-    await expect(page.getByRole("table").getByText("No items scanned yet")).toBeVisible();
+    await expect(page.getByRole("main").getByText("No items scanned yet")).toBeVisible();
   });
 });
