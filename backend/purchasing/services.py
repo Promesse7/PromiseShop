@@ -7,7 +7,8 @@ from rest_framework.exceptions import ValidationError
 from catalog.models import Product, ProductPricing
 from catalog.services import generate_barcode
 from purchasing.models import Purchase, PurchaseItem
-from stock.models import Inventory
+from stock.models import Inventory, StockMovement
+from stock.services import record_movement
 
 
 def _validate_discrepancy_note(unit_cost_paid, unit_cost_invoiced, price_discrepancy_note):
@@ -99,14 +100,14 @@ def remove_item(purchase, item):
         _recompute_purchase_totals(purchase)
 
 
-def cancel_purchase(purchase):
+def cancel_purchase(purchase, *, user=None):
     with transaction.atomic():
         locked = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if locked.status == Purchase.Status.CANCELLED:
             raise ValidationError("This purchase is already cancelled.")
 
         if locked.status == Purchase.Status.RECEIVED:
-            items = list(locked.items.select_related("product").order_by("product_id"))
+            items = list(locked.items.select_related("product").order_by("product_id", "pk"))
             quantities = {}
             products = {}
             for item in items:
@@ -134,32 +135,40 @@ def cancel_purchase(purchase):
                     + "; ".join(shortfalls)
                 )
 
-            for product_id, quantity in quantities.items():
-                inventory = inventories[product_id]
-                inventory.quantity_in_stock -= quantity
-                inventory.save(update_fields=["quantity_in_stock"])
+            for item in items:
+                record_movement(
+                    inventories[item.product_id], StockMovement.Bucket.IN_STOCK, -item.quantity,
+                    StockMovement.MovementType.PURCHASE_CANCEL, ("purchase_item", item.pk), user,
+                    reason=f"Purchase #{locked.pk} cancelled", unit_cost=item.unit_cost_paid,
+                )
 
         locked.status = Purchase.Status.CANCELLED
         locked.save(update_fields=["status"])
     return locked
 
 
-def receive_purchase(purchase):
+def receive_purchase(purchase, *, user=None):
     if purchase.status != Purchase.Status.DRAFT:
         raise ValidationError("Only a draft purchase can be received.")
     with transaction.atomic():
         purchase = Purchase.objects.select_for_update().get(pk=purchase.pk)
         if purchase.status != Purchase.Status.DRAFT:
             raise ValidationError("Only a draft purchase can be received.")
-        items = list(purchase.items.select_related("product").order_by("product_id"))
+        items = list(purchase.items.select_related("product").order_by("product_id", "pk"))
         if not items:
             raise ValidationError("Cannot receive a purchase with no line items.")
+        inventories = {}
+        for item in items:  # ordered by product_id, so locks are taken in a stable order
+            if item.product_id not in inventories:
+                inventories[item.product_id], _ = Inventory.objects.select_for_update().get_or_create(
+                    product=item.product, defaults={"quantity_in_stock": 0}
+                )
         for item in items:
-            inventory, _ = Inventory.objects.select_for_update().get_or_create(
-                product=item.product, defaults={"quantity_in_stock": 0}
+            record_movement(
+                inventories[item.product_id], StockMovement.Bucket.IN_STOCK, item.quantity,
+                StockMovement.MovementType.PURCHASE_RECEIPT, ("purchase_item", item.pk), user,
+                reason=f"Purchase #{purchase.pk} received", unit_cost=item.unit_cost_paid,
             )
-            inventory.quantity_in_stock += item.quantity
-            inventory.save(update_fields=["quantity_in_stock"])
         purchase.status = Purchase.Status.RECEIVED
         purchase.save(update_fields=["status"])
     return purchase

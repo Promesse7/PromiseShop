@@ -1,17 +1,19 @@
+import datetime
+
 from django.db.models import F
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.exceptions import MethodNotAllowed, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrManager
-from stock.models import Inventory, EquipmentUnit
+from stock.models import Inventory, EquipmentUnit, StockMovement
 from stock.serializers import (
     InventorySerializer, InventoryAdjustmentSerializer, AdjustInventorySerializer,
     EquipmentUnitSerializer, EquipmentUnitListSerializer,
-    EquipmentUnitUpdateSerializer, ChangeStatusSerializer,
+    EquipmentUnitUpdateSerializer, ChangeStatusSerializer, StockMovementSerializer,
 )
 from stock.services import adjust_inventory, change_equipment_status
 
@@ -88,3 +90,37 @@ class EquipmentUnitViewSet(viewsets.ModelViewSet):
             changed_by=request.user, assigned_to=data.get("assigned_to"),
         )
         return Response(EquipmentUnitSerializer(updated, context={"request": request}).data)
+
+
+def _parse_date(value, name):
+    try:
+        return datetime.date.fromisoformat(value)
+    except ValueError:
+        raise ValidationError({name: f"Use a YYYY-MM-DD date, not {value!r}."})
+
+
+class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
+    """The stock ledger, newest first. ?product= &type= &bucket= &from= &to=
+
+    from/to are calendar days in the shop's time zone (Africa/Kigali), inclusive.
+    """
+
+    serializer_class = StockMovementSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        params = self.request.query_params
+        queryset = StockMovement.objects.select_related("product", "created_by").order_by(
+            "-created_at", "-movement_id"
+        )
+        if params.get("product"):
+            queryset = queryset.filter(product_id=params["product"])
+        if params.get("type"):
+            queryset = queryset.filter(movement_type=params["type"])
+        if params.get("bucket"):
+            queryset = queryset.filter(bucket=params["bucket"])
+        if params.get("from"):
+            queryset = queryset.filter(created_at__date__gte=_parse_date(params["from"], "from"))
+        if params.get("to"):
+            queryset = queryset.filter(created_at__date__lte=_parse_date(params["to"], "to"))
+        return queryset

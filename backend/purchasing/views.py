@@ -99,11 +99,11 @@ class PurchaseViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def receive(self, request, pk=None):
         purchase = self.get_object()
-        purchase = receive_purchase(purchase)
+        purchase = receive_purchase(purchase, user=request.user)
         return Response(PurchaseSerializer(purchase, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminOrManager])
     def cancel(self, request, pk=None):
         purchase = self.get_object()
-        purchase = cancel_purchase(purchase)
+        purchase = cancel_purchase(purchase, user=request.user)
         return Response(PurchaseSerializer(purchase, context={"request": request}).data)

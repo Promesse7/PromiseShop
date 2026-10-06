@@ -56,11 +56,11 @@ class SaleViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="return", permission_classes=[IsAdminOrManager])
     def return_action(self, request, pk=None):
         sale = self.get_object()
-        updated = reverse_sale(sale, Sale.SaleStatus.RETURNED)
+        updated = reverse_sale(sale, Sale.SaleStatus.RETURNED, user=request.user)
         return Response(SaleSerializer(updated, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], permission_classes=[IsAdminOrManager])
     def cancel(self, request, pk=None):
         sale = self.get_object()
-        updated = reverse_sale(sale, Sale.SaleStatus.CANCELLED)
+        updated = reverse_sale(sale, Sale.SaleStatus.CANCELLED, user=request.user)
         return Response(SaleSerializer(updated, context={"request": request}).data)
