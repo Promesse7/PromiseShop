@@ -53,6 +53,7 @@ describe("PurchaseWorkspaceClient", () => {
       vi.fn((url: string) => {
         if (url.includes("/products/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
         if (url.includes("/categories/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
+        if (url.includes("/recent-products/")) return Promise.resolve({ ok: true, json: async () => ({ results: [] }) });
         if (url.includes("/receive/")) {
           return Promise.resolve({ ok: true, json: async () => draftPurchase({ status: "received" }) });
         }
@@ -82,6 +83,14 @@ describe("PurchaseWorkspaceClient", () => {
     expect(screen.getByPlaceholderText("Search catalog first — reuse if it exists…")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Bulk" }));
     expect(screen.getByRole("button", { name: "Print all new labels" })).toBeInTheDocument();
+  });
+
+  it("links a draft to the scan-to-add page", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace();
+    expect(screen.getByRole("link", { name: "Scan to add →" })).toHaveAttribute("href", "/purchases/7/scan");
   });
 
   it("passes ?prefill= through to the single-add form's search box", () => {

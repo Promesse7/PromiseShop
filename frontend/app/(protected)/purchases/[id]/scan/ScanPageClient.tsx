@@ -6,6 +6,7 @@ import Link from "next/link";
 import { fetchAllPages, ApiError, extractErrorMessage } from "@/lib/api-client";
 import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
+import { useUpdatePurchaseItem } from "@/lib/purchasing/useUpdatePurchaseItem";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -22,6 +23,7 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
   const { purchase, isLoading, isError } = usePurchaseDetail(purchaseId);
   const productsQuery = useQuery({ queryKey: ["products"], queryFn: () => fetchAllPages<Product>("products/") });
   const addItem = useAddPurchaseItem();
+  const updateItem = useUpdatePurchaseItem();
 
   const [search, setSearch] = useState("");
   const [scanned, setScanned] = useState<Product | null>(null);
@@ -46,6 +48,28 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
     const unitCount = items.reduce((sum, i) => sum + i.quantity, 0);
     return { productCount, unitCount };
   }, [purchase]);
+
+  // A product already on this purchase gets +1 on its line instead of a second line.
+  const existingLine = scanned ? purchase?.items.find((i) => i.product === scanned.product_id) : undefined;
+
+  async function handleAddOne() {
+    if (!existingLine) return;
+    try {
+      await updateItem.mutateAsync({
+        purchaseId,
+        itemId: existingLine.purchase_item_id,
+        changes: { quantity: existingLine.quantity + 1 },
+      });
+      show(`${scanned?.name ?? "Item"} — now ${existingLine.quantity + 1} on this purchase.`, "success");
+      setScanned(null);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(extractErrorMessage(err.body));
+      } else {
+        show("Something went wrong — try again.", "error");
+      }
+    }
+  }
 
   function selectScanned(product: Product) {
     setScanned(product);
@@ -100,6 +124,13 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
           placeholder="Scan received item…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onKeyDown={(e) => {
+            // Scanners type the barcode then Enter: take the match straight away.
+            if (e.key === "Enter" && match) {
+              e.preventDefault();
+              selectScanned(match);
+            }
+          }}
           className="min-h-11 flex-1 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
         />
       </div>
@@ -113,7 +144,26 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
         </button>
       )}
 
-      {scanned && (
+      {scanned && existingLine && (
+        <Card elevation="md">
+          <span className="card-kicker text-[10px] tracking-wide uppercase text-accent">Already on this purchase</span>
+          <div className="text-[15px]">
+            {scanned.name} <span className="font-mono text-text/50 ml-2 text-sm">{scanned.barcode}</span>
+          </div>
+          <p className="text-sm text-text/70">{existingLine.quantity} units on this purchase so far.</p>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <div className="flex gap-2">
+            <Button className="min-h-11" onClick={handleAddOne} disabled={updateItem.isPending}>
+              {updateItem.isPending ? "Adding…" : `Add 1 (→ ${existingLine.quantity + 1})`}
+            </Button>
+            <Button variant="secondary" className="min-h-11" onClick={() => setScanned(null)}>
+              Cancel
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {scanned && !existingLine && (
         <Card elevation="md">
           <span className="card-kicker text-[10px] tracking-wide uppercase text-accent">Just scanned</span>
           <div className="text-[15px]">
