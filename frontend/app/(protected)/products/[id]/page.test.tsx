@@ -6,7 +6,7 @@ import ProductDetailPageClient from "./ProductDetailPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useProductDetailModule from "@/lib/products/useProductDetail";
 import * as useProductProfitabilityModule from "@/lib/products/useProductProfitability";
-import * as useInventoryAdjustmentsModule from "@/lib/stock/useInventoryAdjustments";
+import * as useStockMovementsModule from "@/lib/stock/useStockMovements";
 import type { ProductDetail } from "@/lib/products/useProductDetail";
 
 const pushMock = vi.fn();
@@ -57,9 +57,10 @@ describe("ProductDetailPageClient", () => {
       isError: false,
     });
     // Mocked like the other data hooks so the page's own fetch stubs only see the
-    // action under test (deactivate / delete), not the adjustment-history query.
-    vi.spyOn(useInventoryAdjustmentsModule, "useInventoryAdjustments").mockReturnValue({
-      adjustments: [],
+    // action under test (deactivate / delete), not the stock-movements query.
+    vi.spyOn(useStockMovementsModule, "useStockMovements").mockReturnValue({
+      movements: [],
+      count: 0,
       isLoading: false,
       isError: false,
     });

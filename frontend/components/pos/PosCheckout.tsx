@@ -74,6 +74,7 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
       });
       setCompletedSale(sale);
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
       queryClient.invalidateQueries({ queryKey: ["product-pricing", "current"] });
       setCompletedLines(lines);
       setLines([]);

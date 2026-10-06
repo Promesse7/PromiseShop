@@ -6,7 +6,8 @@ from accounts.models import Employee
 from catalog.models import ProductPricing
 from notifications.models import NotificationLog
 from sales.models import Sale, SaleItem
-from stock.models import Inventory
+from stock.models import Inventory, StockMovement
+from stock.services import record_movement
 
 TAX_RATES = {
     "A": Decimal("0.00"),
@@ -84,23 +85,23 @@ def complete_sale(customer, employee, payment_method, items):
         )
 
         for product, quantity, unit_price, list_price, subtotal, tax_amount in resolved_items:
-            SaleItem.objects.create(
+            sale_item = SaleItem.objects.create(
                 sale=sale, product=product, quantity=quantity,
                 unit_price=unit_price, list_price=list_price, subtotal=subtotal,
                 tax_category=product.tax_category, tax_amount=tax_amount,
             )
-
-        for product_id, quantity in quantities.items():
-            inventory = locked_inventories[product_id]
-            inventory.quantity_in_stock -= quantity
-            inventory.save(update_fields=["quantity_in_stock"])
+            record_movement(
+                locked_inventories[product.pk], StockMovement.Bucket.IN_STOCK, -quantity,
+                StockMovement.MovementType.SALE, ("sale_item", sale_item.pk), employee,
+                reason=f"Sale #{sale.pk}",
+            )
 
         _notify_admins(sale)
 
     return sale
 
 
-def reverse_sale(sale, new_status):
+def reverse_sale(sale, new_status, *, user=None):
     if new_status not in (Sale.SaleStatus.RETURNED, Sale.SaleStatus.CANCELLED):
         raise ValidationError(f"Invalid reversal status: {new_status}")
 
@@ -109,17 +110,23 @@ def reverse_sale(sale, new_status):
         if locked_sale.status != Sale.SaleStatus.COMPLETED:
             raise ValidationError("Only a completed sale can be returned or cancelled.")
 
-        items = list(locked_sale.items.select_related("product").all())
-        quantities = {}
-        for item in items:
-            quantities[item.product_id] = quantities.get(item.product_id, 0) + item.quantity
-
-        for product_id in sorted(quantities):
-            inventory, _ = Inventory.objects.select_for_update().get_or_create(
+        items = list(locked_sale.items.select_related("product").order_by("pk"))
+        inventories = {}
+        for product_id in sorted({item.product_id for item in items}):
+            inventories[product_id], _ = Inventory.objects.select_for_update().get_or_create(
                 product_id=product_id, defaults={"quantity_in_stock": 0}
             )
-            inventory.quantity_in_stock += quantities[product_id]
-            inventory.save(update_fields=["quantity_in_stock"])
+
+        movement_type = (
+            StockMovement.MovementType.SALE_RETURN if new_status == Sale.SaleStatus.RETURNED
+            else StockMovement.MovementType.SALE_VOID
+        )
+        for item in items:
+            record_movement(
+                inventories[item.product_id], StockMovement.Bucket.IN_STOCK, item.quantity,
+                movement_type, ("sale_item", item.pk), user,
+                reason=f"Sale #{locked_sale.pk} {new_status}",
+            )
 
         locked_sale.status = new_status
         locked_sale.save(update_fields=["status"])

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
 from accounts.models import Employee
-from stock.models import Inventory, InventoryAdjustment, EquipmentUnit, EquipmentStatusHistory
+from stock.models import Inventory, InventoryAdjustment, EquipmentUnit, EquipmentStatusHistory, StockMovement
 
 
 class InventorySerializer(serializers.ModelSerializer):
@@ -84,6 +84,29 @@ class EquipmentUnitUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save(update_fields=list(validated_data.keys()))
         return instance
+
+
+class StockMovementSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = StockMovement
+        fields = [
+            "movement_id", "product", "product_name", "movement_type", "bucket",
+            "quantity_delta", "balance_after", "unit_cost", "source_type", "source_id",
+            "reason", "created_by", "created_by_name", "created_at",
+        ]
+        read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Cost is for admin and manager only, like wholesale_price on pricing.
+        request = self.context.get("request")
+        role = getattr(getattr(request, "user", None), "role", None)
+        if role not in (Employee.Role.ADMIN, Employee.Role.MANAGER):
+            data.pop("unit_cost", None)
+        return data
 
 
 class ChangeStatusSerializer(serializers.Serializer):

@@ -56,6 +56,90 @@ class InventoryAdjustment(models.Model):
         return f"{self.inventory} {self.adjustment_type} {self.quantity}"
 
 
+class AppendOnlyError(Exception):
+    """Raised when code tries to change or remove a ledger row."""
+
+
+class StockMovementQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise AppendOnlyError("Stock movements are append-only; write a reversing movement instead.")
+
+    def delete(self):
+        raise AppendOnlyError("Stock movements are append-only; write a reversing movement instead.")
+
+
+class StockMovement(models.Model):
+    """One signed change to one Inventory bucket — the stock ledger.
+
+    Inventory stays the cached balance; every change to a bucket goes through
+    stock.services.record_movement, which updates the bucket and writes this row
+    in the same transaction. Rows are never edited or deleted.
+    """
+
+    class MovementType(models.TextChoices):
+        PURCHASE_RECEIPT = "purchase_receipt", "Purchase received"
+        PURCHASE_CANCEL = "purchase_cancel", "Purchase cancelled"
+        SALE = "sale", "Sale"
+        SALE_RETURN = "sale_return", "Sale return"
+        SALE_VOID = "sale_void", "Sale void"
+        ADJUST_COUNT = "adjust_count", "Count correction"
+        TO_DAMAGED = "to_damaged", "Moved to damaged"
+        FROM_DAMAGED = "from_damaged", "Returned from damaged"
+        TO_IN_USE = "to_in_use", "Moved to in use"
+        FROM_IN_USE = "from_in_use", "Returned from in use"
+        INTERNAL_CONSUMPTION = "internal_consumption", "Used internally"
+        TO_SHOP_ASSET = "to_shop_asset", "Made shop asset"
+        OPENING = "opening", "Opening stock"
+        MERGE_IN = "merge_in", "Merged in"
+        MERGE_OUT = "merge_out", "Merged out"
+        BUNDLE_BREAKDOWN = "bundle_breakdown", "Bundle breakdown"
+
+    class Bucket(models.TextChoices):
+        IN_STOCK = "in_stock", "In stock"
+        IN_USE = "in_use", "In use"
+        DAMAGED = "damaged", "Damaged"
+
+    movement_id = models.BigAutoField(primary_key=True)
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.CASCADE, related_name="stock_movements"
+    )
+    movement_type = models.CharField(max_length=30, choices=MovementType.choices)
+    bucket = models.CharField(max_length=10, choices=Bucket.choices)
+    quantity_delta = models.IntegerField()
+    balance_after = models.IntegerField()
+    # Weighted average paid cost at the time; null before the product's first received purchase.
+    unit_cost = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    source_type = models.CharField(max_length=30, blank=True, default="")
+    source_id = models.BigIntegerField(null=True, blank=True)
+    reason = models.TextField(blank=True, default="")
+    # Null only for system rows (the ledger-start backfill).
+    created_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="stock_movements",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = StockMovementQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["-created_at", "-movement_id"]
+        indexes = [
+            models.Index(fields=["product", "created_at"], name="stockmove_product_created"),
+            models.Index(fields=["created_at"], name="stockmove_created"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            raise AppendOnlyError("Stock movements are append-only; write a reversing movement instead.")
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise AppendOnlyError("Stock movements are append-only; write a reversing movement instead.")
+
+    def __str__(self):
+        return f"{self.product_id} {self.movement_type} {self.bucket} {self.quantity_delta:+d}"
+
+
 class EquipmentUnit(models.Model):
     class UnitStatus(models.TextChoices):
         IN_STOCK = "in_stock", "In stock"

@@ -13,6 +13,7 @@ export function useCancelPurchase() {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       // Cancelling a received purchase reverses Inventory.quantity_in_stock server-side.
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
     },
   });
 }

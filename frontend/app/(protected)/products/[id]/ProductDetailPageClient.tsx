@@ -12,7 +12,7 @@ import { CatalogInfoCard } from "@/components/products/CatalogInfoCard";
 import { PricingCard } from "@/components/products/PricingCard";
 import { CostMarginCard } from "@/components/products/CostMarginCard";
 import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
-import { useInventoryAdjustments } from "@/lib/stock/useInventoryAdjustments";
+import { ProductMovementsCard } from "@/components/stock/ProductMovementsCard";
 import { PriceHistoryCard } from "@/components/products/PriceHistoryCard";
 import { InfoSheetCard } from "@/components/products/InfoSheetCard";
 import { SpecificationsCard } from "@/components/products/SpecificationsCard";
@@ -48,7 +48,6 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const detail = useProductDetail(productId);
   const isAdmin = ADMIN_ROLES.includes(role);
   const profitability = useProductProfitability(productId, isAdmin);
-  const adjustments = useInventoryAdjustments(detail.inventory?.inventory_id, isAdmin);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
@@ -167,25 +166,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           createdAt={detail.product.created_at}
         />
       </div>
-      {isAdmin && adjustments.adjustments.length > 0 && (
-        <div className="mb-4 text-sm">
-          <span className="text-xs uppercase tracking-wide text-accent">Recent stock adjustments</span>
-          <ul className="mt-1 flex flex-col gap-0.5 list-none m-0 p-0">
-            {adjustments.adjustments.slice(0, 5).map((a) => (
-              <li key={a.adjustment_id} className="flex gap-3 text-text/70">
-                <span className="w-24 shrink-0 text-xs">
-                  {new Date(a.created_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                </span>
-                <span>
-                  {a.adjustment_type.replace(/_/g, " ")} · {a.quantity} · stock {a.before_in_stock}→{a.after_in_stock}
-                  {" · "}
-                  <span className="text-text/50">{a.reason}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <ProductMovementsCard productId={productId} showCost={isAdmin} />
       <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
         <div className="flex flex-col gap-4">
           <InfoSheetCard

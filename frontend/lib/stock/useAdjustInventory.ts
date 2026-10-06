@@ -18,10 +18,11 @@ export function useAdjustInventory() {
         method: "POST",
         body: JSON.stringify({ adjustment_type, quantity, reason }),
       }),
-    onSuccess: (_data, { inventoryId }) => {
-      // Prefix-matches every inventory query (stock page, catalog, one product's row).
+    onSuccess: () => {
+      // Prefix-matches every inventory query (stock page, catalog, one product's row)
+      // and every ledger view the adjustment just wrote to.
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-adjustments", inventoryId] });
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
     },
   });
 }
