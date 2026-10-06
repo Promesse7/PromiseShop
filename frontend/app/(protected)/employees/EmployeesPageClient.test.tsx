@@ -48,7 +48,6 @@ describe("EmployeesPageClient", () => {
   it("renders the fetched employees for an admin", async () => {
     renderPage(true);
     expect(await screen.findByText("Alice Uwase")).toBeInTheDocument();
-    expect(screen.getByText("Admin only")).toBeInTheDocument();
   });
 
   it("opens the create dialog from the toolbar button", async () => {
@@ -63,5 +62,11 @@ describe("EmployeesPageClient", () => {
     await screen.findByText("Alice Uwase");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     await waitFor(() => expect(screen.getByLabelText("Full name")).toHaveValue("Alice Uwase"));
+  });
+
+  it("uses the page template with the New employee primary action", async () => {
+    renderPage(true);
+    expect(await screen.findByRole("heading", { level: 1, name: "Employees" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New employee" })).toBeInTheDocument();
   });
 });

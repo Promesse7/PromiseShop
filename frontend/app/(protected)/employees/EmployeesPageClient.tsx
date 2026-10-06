@@ -7,9 +7,9 @@ import { SetPinDialog } from "@/components/employees/SetPinDialog";
 import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
 import { AdminOnlyNotice } from "@/components/employees/AdminOnlyNotice";
 import { Button } from "@/components/ui/Button";
-import { Tag } from "@/components/ui/Tag";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import type { Employee } from "@/lib/types";
 
 interface EmployeesPageClientProps {
@@ -22,36 +22,31 @@ export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProp
   const [pinFor, setPinFor] = useState<Employee | null>(null);
 
   if (!isAdmin) {
-    return <AdminOnlyNotice />;
-  }
-
-  if (employees.isError) {
     return (
-      <ErrorState message="Couldn't load employees." />
+      <Page title="Employees">
+        <AdminOnlyNotice />
+      </Page>
     );
   }
 
-  if (employees.isLoading) {
-    return <p className="text-sm text-text/50">Loading employees…</p>;
-  }
-
   return (
-    <div>
-      <PageHeader title="Employees">
-        <Tag variant="outline">Admin only</Tag>
-        <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
-          + New employee
-        </Button>
-      </PageHeader>
-      <EmployeeTable
-        employees={employees.all}
-        onEdit={(employee) => setDialog({ mode: "edit", employee })}
-        onSetPin={setPinFor}
-      />
+    <Page
+      title="Employees"
+      description="Everyone who signs in. Every purchase, sale and stock change is stamped with who did it."
+      primaryAction={<Button onClick={() => setDialog({ mode: "create" })}>+ New employee</Button>}
+    >
+      {employees.isError ? (
+        <ErrorState message="Couldn't load employees." onRetry={employees.refetch} />
+      ) : employees.isLoading ? (
+        <LoadingState variant="table" label="Loading employees…" />
+      ) : (
+        <EmployeeTable
+          employees={employees.all}
+          onEdit={(employee) => setDialog({ mode: "edit", employee })}
+          onSetPin={setPinFor}
+        />
+      )}
       <SetPinDialog employee={pinFor} onClose={() => setPinFor(null)} />
-      <p className="text-xs text-text/50 mt-3">
-        Every purchase, sale and equipment status change is stamped with the employee who did it.
-      </p>
       <EmployeeFormDialog
         open={dialog !== null}
         mode={dialog?.mode ?? "create"}
@@ -59,6 +54,6 @@ export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProp
         onClose={() => setDialog(null)}
         onSaved={() => setDialog(null)}
       />
-    </div>
+    </Page>
   );
 }

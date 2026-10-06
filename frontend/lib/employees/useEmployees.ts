@@ -6,6 +6,7 @@ export interface Employees {
   all: Employee[];
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 export function useEmployees(enabled: boolean): Employees {
@@ -19,5 +20,6 @@ export function useEmployees(enabled: boolean): Employees {
     all: query.data ?? [],
     isLoading: enabled && query.isLoading,
     isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }
