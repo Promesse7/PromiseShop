@@ -35,6 +35,10 @@ class ShopProfileSerializer(serializers.ModelSerializer):
         model = ShopProfile
         fields = [
             "business_name", "tin", "po_box", "phone", "email", "address", "max_staff_discount_pct",
+            # Dashboard alert thresholds (Module H5).
+            "alert_discount_spike_ratio", "alert_overdue_days", "alert_cash_variance",
+            "alert_below_cost_count", "alert_below_cost_days", "alert_asset_replacements",
+            "alert_asset_window_days", "alert_billing_diff_pct", "alert_top_sellers",
         ]
 
 
