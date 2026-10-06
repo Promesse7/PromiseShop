@@ -75,3 +75,23 @@ def test_lock_and_counter_use_a_fifteen_minute_window(employee):
 
     lock_calls = [c for c in cache_set.call_args_list if c.args[0] == lockout.lock_key("admin1")]
     assert lock_calls and lock_calls[-1].args[2] == 15 * 60
+
+
+def test_production_cache_lives_in_postgres_not_redis():
+    # The free Upstash Redis the cache used was deleted after 14 idle days and every
+    # login 500'd. The lockout's cache now lives in the app's own database.
+    from config import settings as project_settings
+    backend = project_settings.CACHES["default"]
+    assert backend["BACKEND"] == "django.core.cache.backends.db.DatabaseCache"
+    assert backend["LOCATION"] == "django_cache"
+
+
+def test_lockout_works_on_the_database_cache(settings, employee):
+    # The cache table is created by a migration, so the test database has it too.
+    settings.CACHES = {"default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "django_cache",
+    }}
+    lockout.cache.clear()
+    for _ in range(5):
+        assert login("admin1", "wrong").status_code == 401
+    assert login("admin1", "rightpass").status_code == 429

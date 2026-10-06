@@ -65,7 +65,7 @@ injects it per-deployment (including previews) once the binding is declared.
      ```
      Local dev uses its own `development` branch instead (see `.neon` /
      `neon checkout`), so day-to-day work never touches the `production` branch.
-   - Redis: e.g. [Upstash](https://upstash.com) → gives a `rediss://...` URL.
+   - No Redis needed: the cache (login lockout) lives in Postgres (`django_cache` table, created by a migration).
 
 3. **Import the repo in Vercel** (Add New → Project). It should detect
    `vercel.json`'s `services` key and set the project's framework to
@@ -85,7 +85,6 @@ the dashboard.
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://<project>.vercel.app` |
 | `DATABASE_URL` | pooled connection string, Neon `production` branch (see above) |
 | `DATABASE_URL_UNPOOLED` | direct connection string, Neon `production` branch — used only for `migrate` (see `entrypoint.sh`) |
-| `REDIS_URL` | from Upstash (`rediss://...`) |
 
 **frontend-ui:**
 

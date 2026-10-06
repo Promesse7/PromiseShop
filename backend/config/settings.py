@@ -97,10 +97,13 @@ if env.bool("DB_POOL", default=True):
         "max_size": env.int("DB_POOL_MAX_SIZE", default=8),
     }
 
+# The cache (only the login lockout uses it) lives in the app's own Postgres. It used
+# to be a free Upstash Redis, which was deleted after 14 idle days and took every
+# login down with it. The table is created by accounts/migrations/0003_cache_table.
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": env("REDIS_URL"),
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
     }
 }
 
