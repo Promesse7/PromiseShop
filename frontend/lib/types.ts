@@ -63,6 +63,44 @@ export type InventoryAdjustmentType =
   | "to_in_use"
   | "from_in_use";
 
+export type StockMovementType =
+  | "purchase_receipt"
+  | "purchase_cancel"
+  | "sale"
+  | "sale_return"
+  | "sale_void"
+  | "adjust_count"
+  | "to_damaged"
+  | "from_damaged"
+  | "to_in_use"
+  | "from_in_use"
+  | "internal_consumption"
+  | "to_shop_asset"
+  | "opening"
+  | "merge_in"
+  | "merge_out"
+  | "bundle_breakdown";
+
+export type StockBucket = "in_stock" | "in_use" | "damaged";
+
+// One row of the stock ledger (GET stock/movements/). unit_cost is absent for staff.
+export interface StockMovement {
+  movement_id: number;
+  product: number;
+  product_name: string;
+  movement_type: StockMovementType;
+  bucket: StockBucket;
+  quantity_delta: number;
+  balance_after: number;
+  unit_cost?: string | null;
+  source_type: string;
+  source_id: number | null;
+  reason: string;
+  created_by: number | null;
+  created_by_name: string | null;
+  created_at: string;
+}
+
 // Audit row written by POST inventory/<id>/adjust/: who moved what, why, and the
 // three buckets before and after.
 export interface InventoryAdjustment {

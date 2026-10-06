@@ -118,7 +118,10 @@ export default function StockPageClient({ role }: StockPageClientProps) {
           className="max-w-[260px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
         />
         <SegmentedToggle name="stk" options={FILTER_OPTIONS} value={filter} onChange={(v) => setFilter(v as StockFilter)} />
-        <Link href="/stock/scan" className="ml-auto text-sm text-accent">
+        <Link href="/stock/movements" className="ml-auto text-sm text-accent">
+          Movements →
+        </Link>
+        <Link href="/stock/scan" className="text-sm text-accent">
           Quick status change →
         </Link>
       </PageHeader>

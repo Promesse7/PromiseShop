@@ -13,6 +13,7 @@ export function useReceivePurchase() {
       queryClient.invalidateQueries({ queryKey: ["purchases"] });
       // Receiving increments Inventory.quantity_in_stock for every line item server-side.
       queryClient.invalidateQueries({ queryKey: ["inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
     },
   });
 }

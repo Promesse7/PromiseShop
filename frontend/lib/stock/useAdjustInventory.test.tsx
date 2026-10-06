@@ -31,6 +31,6 @@ describe("useAdjustInventory", () => {
 
     const keys = invalidateSpy.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey);
     expect(keys).toContainEqual(["inventory"]);
-    expect(keys).toContainEqual(["inventory-adjustments", 9]);
+    expect(keys).toContainEqual(["stock-movements"]);
   });
 });
