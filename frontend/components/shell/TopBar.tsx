@@ -8,6 +8,7 @@ import { useNotifications } from "@/lib/notifications/useNotifications";
 import type { EmployeeRole } from "@/lib/types";
 import { motion } from "motion/react";
 import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
+import { useHasScrolled } from "@/lib/scroll/useHasScrolled";
 import { HelpButton } from "./HelpPanel";
 import { usePageTitleState } from "./PageTitleContext";
 import { UserMenu } from "./UserMenu";
@@ -52,6 +53,7 @@ export function TopBar({ role, username, onOpenSearch, onOpenHelp, onLogout, log
   const crumbs = breadcrumbFor(pathname, items);
   const isDetail = active !== undefined && pathname !== active.href;
   const reduced = useReducedMotionSafe();
+  const scrolled = useHasScrolled();
   const { title: pageTitle, titleVisible } = usePageTitleState();
   // Once the page's own heading scrolls under the bar, the bar takes over showing it.
   const tucked = pageTitle !== null && !titleVisible;
@@ -67,8 +69,14 @@ export function TopBar({ role, username, onOpenSearch, onOpenHelp, onLogout, log
 
   return (
     <header
+      data-testid="top-bar"
+      data-scrolled={scrolled ? "true" : "false"}
       style={{ viewTransitionName: "app-topbar" }}
-      className="sticky top-0 z-30 print:hidden glass-bar border-b border-divider"
+      className={[
+        "sticky top-0 z-30 print:hidden border-b transition-[background-color,box-shadow,border-color,backdrop-filter] duration-200 motion-reduce:transition-none",
+        // Flat over the page at the top; frosted with a soft shadow once content slides under it.
+        scrolled ? "glass-bar border-divider shadow-md" : "bg-transparent border-transparent",
+      ].join(" ")}
     >
       <div className="flex items-center gap-2 h-14 px-4 lg:px-6">
         {isDetail && (

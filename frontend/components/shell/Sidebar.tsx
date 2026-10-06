@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
@@ -23,6 +24,13 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
   const reduced = useReducedMotionSafe();
   const groups = getNavGroupsForRole(role);
   const active = findActiveItem(pathname, getNavItemsForRole(role));
+  const navRef = useRef<HTMLElement>(null);
+
+  // Keep the current page's link in view when the list is taller than the screen.
+  useEffect(() => {
+    const current = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    current?.scrollIntoView?.({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+  }, [active?.href, collapsed, reduced]);
 
   return (
     <motion.aside
@@ -38,7 +46,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         {!collapsed && <span className="font-medium text-sm whitespace-nowrap">Promise Electronic Shop</span>}
       </div>
 
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
+      <nav ref={navRef} className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
         {groups.map((group) => (
           <div key={group.id} className="mt-3 first:mt-0">
             {collapsed ? (
