@@ -15,6 +15,8 @@ import {
   UserCog,
   Receipt,
   Bell,
+  HandCoins,
+  Settings,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -43,6 +45,7 @@ const ADMIN_LINKS: NavLink[] = [
   { href: "/checkout", label: "Sales", icon: ShoppingCart },
   { href: "/suppliers", label: "Suppliers", icon: Building2 },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/debts", label: "Debts", icon: HandCoins },
 ];
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -60,6 +63,8 @@ export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
     ...base,
     { href: "/employees", label: "Employees", icon: UserCog },
     { href: "/expenses", label: "Expenses", icon: Receipt },
+    // Shop details and the staff bargaining limit; PATCH is admin-only.
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 }
 
