@@ -90,6 +90,14 @@ describe("Toolbar", () => {
     expect(screen.queryByRole("button", { name: /^Filters/ })).not.toBeInTheDocument();
   });
 
+  it("puts many filter chips in a horizontal scroll row instead of wrapping", () => {
+    render(<Toolbar filters={<button>Low stock</button>} />);
+    const row = screen.getByRole("region", { name: "Filters" });
+    expect(row).toContainElement(screen.getByRole("button", { name: "Low stock" }));
+    expect(row).toHaveAttribute("data-at-start");
+    expect(row.className).toContain("overflow-x-auto");
+  });
+
   it("collapses filters into a Filters (n) sheet on phone", async () => {
     act(() => setMatchMedia({ desktop: false }));
     render(<Toolbar search={<input aria-label="Search" />} filters={<button>Low stock</button>} activeFilterCount={2} />);
