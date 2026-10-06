@@ -1,4 +1,5 @@
 import { Card, CardKicker } from "@/components/ui/Card";
+import { formatRwf } from "@/lib/format";
 import type { MonthlyTrendPoint } from "@/lib/dashboard/useDashboardData";
 
 interface RevenueTrendChartProps {
@@ -11,9 +12,6 @@ const BASELINE = 190;
 const TOP = 20;
 const BAR_WIDTH = 16;
 
-function formatRwf(value: number): string {
-  return `RWF ${Math.round(value).toLocaleString()}`;
-}
 
 export function RevenueTrendChart({ points }: RevenueTrendChartProps) {
   const max = Math.max(1, ...points.flatMap((p) => [p.revenue, p.purchaseCost]));

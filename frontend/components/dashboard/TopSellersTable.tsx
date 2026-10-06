@@ -1,4 +1,5 @@
 import { Card, CardKicker } from "@/components/ui/Card";
+import { formatRwf } from "@/lib/format";
 import type { TopSellerRow } from "@/lib/dashboard/useDashboardData";
 
 interface TopSellersTableProps {
@@ -33,7 +34,7 @@ export function TopSellersTable({ rows }: TopSellersTableProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="text-sm truncate">{row.product_name}</span>
-                  <span className="text-sm font-medium whitespace-nowrap">{row.revenue.toLocaleString()}</span>
+                  <span className="text-sm font-medium whitespace-nowrap">{formatRwf(row.revenue)}</span>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <div className="flex-1 h-1.5 rounded-full bg-neutral-200 overflow-hidden">
@@ -47,7 +48,7 @@ export function TopSellersTable({ rows }: TopSellersTableProps) {
                   </span>
                   <span className="text-xs text-text/50 whitespace-nowrap">
                     {row.grossMargin != null && row.marginPct != null
-                      ? `margin ${row.grossMargin.toLocaleString()} · ${row.marginPct.toFixed(1)}%`
+                      ? `margin ${formatRwf(row.grossMargin)} · ${row.marginPct.toFixed(1)}%`
                       : "cost unknown"}
                   </span>
                 </div>
