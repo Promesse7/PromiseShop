@@ -6,6 +6,7 @@ export interface Customers {
   all: Customer[];
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 export function useCustomers(): Customers {
@@ -18,5 +19,6 @@ export function useCustomers(): Customers {
     all: query.data ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }

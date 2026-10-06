@@ -1,4 +1,4 @@
-import { Card, CardKicker } from "@/components/ui/Card";
+import { StatStrip } from "@/components/finance/StatStrip";
 import type { AgingBucket } from "@/lib/types";
 
 export const AGING_LABELS: Record<AgingBucket, string> = {
@@ -14,23 +14,20 @@ interface AgingTotalsProps {
   total: string;
 }
 
-/** Totals per aging bucket (days overdue), plus the grand total. */
+/** Totals per aging bucket (days overdue), plus the grand total. Overdue buckets turn red. */
 export function AgingTotals({ totals, total }: AgingTotalsProps) {
   const buckets = Object.keys(AGING_LABELS) as AgingBucket[];
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
-      <Card elevation="sm">
-        <CardKicker>Total</CardKicker>
-        <div className="font-sans font-medium text-lg">RWF {Number(total).toLocaleString()}</div>
-      </Card>
-      {buckets.map((bucket) => (
-        <Card key={bucket} elevation="sm">
-          <CardKicker>{AGING_LABELS[bucket]}</CardKicker>
-          <div className={`font-sans font-medium text-lg ${bucket !== "not_due" && Number(totals[bucket]) > 0 ? "text-red-400" : ""}`}>
-            RWF {Number(totals[bucket]).toLocaleString()}
-          </div>
-        </Card>
-      ))}
-    </div>
+    <StatStrip
+      label="Aging totals"
+      stats={[
+        { label: "Total", amount: total },
+        ...buckets.map((bucket) => ({
+          label: AGING_LABELS[bucket],
+          amount: totals[bucket],
+          tone: bucket !== "not_due" && Number(totals[bucket]) > 0 ? ("danger" as const) : ("default" as const),
+        })),
+      ]}
+    />
   );
 }

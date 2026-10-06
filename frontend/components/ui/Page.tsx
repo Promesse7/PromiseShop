@@ -49,6 +49,7 @@ export function Page({ title, description, breadcrumb, primaryAction, secondaryA
           {back && (
             <Link
               href={back}
+              transitionTypes={["nav-back"]}
               aria-label="Back"
               className="-ml-1 rounded-md p-1 text-text/60 hover:bg-text/[0.07] hover:text-text"
             >

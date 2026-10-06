@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SaleDetailPageClient from "./SaleDetailPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import * as useShopProfileModule from "@/lib/settings/useShopProfile";
 
 const baseSale = {
@@ -21,7 +22,9 @@ const baseSale = {
 };
 
 let sale: Record<string, unknown> = baseSale;
+let notFound = false;
 const fetchMock = vi.fn((url: string, options?: RequestInit) => {
+  if (notFound) return Promise.resolve({ ok: false, status: 404, json: async () => ({ detail: "Not found." }) });
   if (url.endsWith("sales/41/void/") && options?.method === "POST") {
     return Promise.resolve({ ok: true, json: async () => ({ ...baseSale, status: "voided" }) });
   }
@@ -29,12 +32,14 @@ const fetchMock = vi.fn((url: string, options?: RequestInit) => {
   return Promise.resolve({ ok: true, json: async () => ({}) });
 });
 
-function renderPage(canManage: boolean) {
+function renderPage(canManage: boolean, saleId = 41) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <SaleDetailPageClient saleId={41} canManage={canManage} />
+        <ConfirmProvider>
+          <SaleDetailPageClient saleId={saleId} canManage={canManage} />
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -43,6 +48,7 @@ function renderPage(canManage: boolean) {
 describe("SaleDetailPageClient", () => {
   beforeEach(() => {
     sale = baseSale;
+    notFound = false;
     fetchMock.mockClear();
     vi.stubGlobal("fetch", fetchMock);
     vi.spyOn(useShopProfileModule, "useShopProfile").mockReturnValue({
@@ -54,6 +60,7 @@ describe("SaleDetailPageClient", () => {
     renderPage(true);
     expect(await screen.findByRole("heading", { name: "Sale #S-41" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Cost" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("tab", { name: /Movements/ }));
     expect(screen.getByText("Sold · Speaker", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("-3 → 47")).toBeInTheDocument();
   });
@@ -84,9 +91,34 @@ describe("SaleDetailPageClient", () => {
     expect(screen.queryByRole("button", { name: "Void" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Return items" })).not.toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Cost" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Catalog" })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Reprint receipt" }));
     expect(screen.getByText("REPRINT")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "New sale" })).not.toBeInTheDocument();
+  });
+
+  it("leads with a summary strip and a back link to the sales list", async () => {
+    renderPage(true);
+    const strip = await screen.findByRole("list", { name: "Sale summary" });
+    expect(strip).toHaveTextContent("Total");
+    expect(strip).toHaveTextContent("RWF 300");
+    expect(strip).toHaveTextContent("Completed");
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/sales");
+  });
+
+  it("groups the detail into tabs", async () => {
+    renderPage(true);
+    await screen.findByRole("heading", { name: "Sale #S-41" });
+    expect(screen.getByRole("tab", { name: /Lines/ })).toHaveAttribute("aria-selected", "true");
+    await userEvent.click(screen.getByRole("tab", { name: /Payments/ }));
+    expect(screen.getByText("No payments")).toBeInTheDocument();
+  });
+
+  it("shows a not-found state for a sale that doesn't exist", async () => {
+    notFound = true;
+    renderPage(true, 999);
+    expect(await screen.findByText("Sale #S-999 not found")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to sales" })).toHaveAttribute("href", "/sales");
   });
 });

@@ -5,6 +5,7 @@ import {
   newPaymentLine, PAYMENT_METHOD_LABELS, summarisePayments, type PaymentLine,
 } from "@/lib/pos/payments";
 import type { PaymentMethod } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface PaymentPanelProps {
   total: number;
@@ -91,19 +92,19 @@ export function PaymentPanel({ total, lines, onChange, dueDate, onDueDateChange,
       <div className="text-sm flex flex-col gap-0.5">
         <div className="flex justify-between">
           <span className="text-text/70">Paid now</span>
-          <span>RWF {summary.applied.toLocaleString()}</span>
+          <span>{formatRwf(summary.applied)}</span>
         </div>
         {summary.change > 0 && (
           <div className="flex justify-between font-medium">
             <span>Change</span>
-            <span>RWF {summary.change.toLocaleString()}</span>
+            <span>{formatRwf(summary.change)}</span>
           </div>
         )}
         {summary.remaining > 0 && (
           <>
             <div className="flex justify-between text-amber-500 font-medium">
               <span>Remaining on credit</span>
-              <span>RWF {summary.remaining.toLocaleString()}</span>
+              <span>{formatRwf(summary.remaining)}</span>
             </div>
             <label className="flex items-center justify-between gap-2 text-xs text-text/70">
               Due date

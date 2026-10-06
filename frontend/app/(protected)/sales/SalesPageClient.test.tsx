@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import SalesPageClient from "./SalesPageClient";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 const page = <T,>(results: T[]) => ({ count: results.length, next: null, previous: null, results });
 
@@ -39,7 +40,8 @@ describe("SalesPageClient", () => {
     expect(link).toHaveAttribute("href", "/sales/41");
     expect(screen.getByText("Partly returned", { selector: "span" })).toBeInTheDocument();
     expect(screen.getByText("Discount")).toBeInTheDocument();
-    expect(screen.getByText("Owes 200")).toBeInTheDocument();
+    expect(screen.getByText("Owes RWF 200")).toBeInTheDocument();
+    expect(screen.getByText("RWF 300")).toBeInTheDocument();
   });
 
   it("sends the chosen filters to the backend", async () => {
@@ -60,5 +62,20 @@ describe("SalesPageClient", () => {
     expect(await screen.findByRole("heading", { name: "My sales today" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Sales filters")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Close day →" })).toHaveAttribute("href", "/close-day");
+  });
+
+  it("offers a New sale action", async () => {
+    renderPage(true);
+    expect(await screen.findByRole("link", { name: "+ New sale" })).toHaveAttribute("href", "/checkout");
+  });
+
+  it("shows sales as cards and tucks the filters behind a Filters button on a phone", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage(true);
+    const card = (await screen.findByRole("link", { name: /#S-41/ })).closest("li")!;
+    expect(card).toHaveTextContent("RWF 300");
+    expect(screen.queryByLabelText("Payment method")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Filters/ }));
+    expect(await screen.findByLabelText("Payment method")).toBeInTheDocument();
   });
 });
