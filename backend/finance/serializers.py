@@ -97,7 +97,8 @@ class DailyCloseApprovalSerializer(serializers.Serializer):
 
 
 class CreateDailyCloseSerializer(serializers.Serializer):
-    cashier = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all())
+    # Omitted: the signed-in employee closes their own day.
+    cashier = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all(), required=False, allow_null=True)
     business_date = serializers.DateField()
     opening_float = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0"), default=Decimal("0"))
     counted_cash = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0"))

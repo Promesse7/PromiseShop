@@ -192,11 +192,117 @@ export interface Sale {
   balance?: string;
   payment_status?: SalePaymentStatus;
   due_date?: string | null;
-  status: "completed" | "returned" | "cancelled";
+  status: SaleStatus;
+  // Σ refund_amount of every return; what is owed is total − returned − paid.
+  returned_amount?: string;
+  void_reason?: string;
+  voided_by?: number | null;
+  voided_by_name?: string | null;
+  voided_at?: string | null;
+  // Σ positive discount_amount over the lines (markups don't count).
+  discount_total?: string;
+  // Same Kigali day, completed, no returns. The role check is the caller's.
+  can_void?: boolean;
   items: SaleItem[];
   payments?: Payment[];
+  returns?: SaleReturn[];
+  // Only on GET /sales/<id>/: every stock movement the sale caused.
+  movements?: SaleMovement[];
   // Only on the POST /sales/ response: cash handed back.
   change_due?: string;
+}
+
+export type SaleStatus = "completed" | "partially_returned" | "returned" | "voided";
+
+export type ReturnCondition = "resellable" | "damaged";
+
+export type RefundMethod = PaymentMethod | "balance";
+
+export interface SaleReturnItem {
+  return_item_id: number;
+  sale_item: number;
+  product_name: string;
+  quantity: number;
+  refund_amount: string;
+  condition: ReturnCondition;
+}
+
+export interface SaleReturn {
+  return_id: number;
+  sale: number;
+  reason: string;
+  refund_method: RefundMethod;
+  refund_reference: string;
+  refund_total: string;
+  paid_out: string;
+  balance_reduced: string;
+  refund_payment: number | null;
+  created_by: number;
+  created_by_name: string;
+  approved_by: number | null;
+  created_at: string;
+  items: SaleReturnItem[];
+}
+
+export interface SaleMovement {
+  movement_id: number;
+  product: number;
+  product_name: string;
+  movement_type: string;
+  bucket: string;
+  quantity_delta: number;
+  balance_after: number;
+  reason: string;
+  created_at: string;
+  created_by_name: string | null;
+  unit_cost?: string | null;
+}
+
+export interface DrawerMethodFigures {
+  in: string;
+  out: string;
+  net: string;
+  references: { payment_id: number; sale_id: number; reference: string; amount: string }[];
+}
+
+export interface DayFigures {
+  cashier: number;
+  cashier_name: string;
+  business_date: string;
+  opening_float: string;
+  expected_cash: string;
+  by_method: Record<PaymentMethod, DrawerMethodFigures>;
+  sales_count: number;
+  sales_total: string;
+  voided_count: number;
+  discounts_given: string;
+  returns_count: number;
+  returns_refunded: string;
+  returns_paid_out: string;
+  debt_collected: string;
+  new_credit: string;
+  already_closed: boolean;
+}
+
+export interface DailyClose {
+  close_id: number;
+  cashier: number;
+  cashier_name: string;
+  business_date: string;
+  opening_float: string;
+  expected_cash: string;
+  expected_by_method: Record<PaymentMethod, DrawerMethodFigures>;
+  summary: Pick<
+    DayFigures,
+    "sales_count" | "sales_total" | "voided_count" | "discounts_given" | "returns_count" |
+    "returns_refunded" | "returns_paid_out" | "debt_collected" | "new_credit"
+  >;
+  counted_cash: string;
+  variance: string;
+  note: string;
+  closed_by: number;
+  closed_by_name: string;
+  closed_at: string;
 }
 
 export type AgingBucket = "not_due" | "1_30" | "31_60" | "61_90" | "90_plus";

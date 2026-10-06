@@ -151,7 +151,7 @@ def test_daily_close_api_round_trip(staff, manager, product):
     assert preview["expected_cash"] == "600.00"
 
     created = client.post("/api/daily-close/", {
-        "cashier": staff.pk, "business_date": today, "opening_float": "500",
+        "business_date": today, "opening_float": "500",
         "counted_cash": "600", "note": "", "approval": APPROVAL,
     }, format="json")
     assert created.status_code == 201

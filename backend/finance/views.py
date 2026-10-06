@@ -225,7 +225,7 @@ class DailyCloseViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         close = close_day(
-            data["cashier"], data["business_date"], data["opening_float"], data["counted_cash"],
+            data.get("cashier") or request.user, data["business_date"], data["opening_float"], data["counted_cash"],
             request.user, dict(data["approval"]), note=data.get("note", ""),
         )
         return Response(DailyCloseSerializer(close).data, status=http_status.HTTP_201_CREATED)
