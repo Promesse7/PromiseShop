@@ -1,7 +1,9 @@
 "use client";
 
+import { Receipt } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Table } from "@/components/ui/Table";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { EXPENSE_CATEGORIES } from "@/lib/expenses/expenseForm";
 import type { Expense } from "@/lib/types";
@@ -15,37 +17,38 @@ function categoryLabel(category: Expense["category"]): string {
   return EXPENSE_CATEGORIES.find((c) => c.value === category)?.label ?? category;
 }
 
-function formatRwf(amount: string): string {
-  return `RWF ${Math.round(Number(amount)).toLocaleString()}`;
-}
-
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 export function ExpenseTable({ expenses, onEdit }: ExpenseTableProps) {
-  const columns = [
-    { key: "expense_date", header: "Date", render: (e: Expense) => formatDate(e.expense_date) },
+  const columns: DataColumn<Expense>[] = [
     {
       key: "category",
       header: "Category",
-      render: (e: Expense) => <Tag>{categoryLabel(e.category)}</Tag>,
+      primary: true,
+      render: (e) => <Tag>{categoryLabel(e.category)}</Tag>,
+      sortValue: (e) => categoryLabel(e.category),
     },
     {
-      key: "amount",
-      header: "Amount",
-      render: (e: Expense) => <span className="font-mono">{formatRwf(e.amount)}</span>,
+      key: "expense_date",
+      header: "Date",
+      mobile: true,
+      render: (e) => formatDate(e.expense_date),
+      sortValue: (e) => e.expense_date,
     },
-    { key: "description", header: "Description", render: (e: Expense) => e.description || "—" },
+    { key: "amount", header: "Amount", money: true, mobile: true, sortValue: (e) => Number(e.amount) },
+    { key: "description", header: "Description", mobile: true, render: (e) => e.description || "—" },
     {
       key: "recorded_by",
       header: "Recorded by",
-      render: (e: Expense) => <span className="text-xs text-text/50">Employee #{e.recorded_by}</span>,
+      render: (e) => <span className="text-xs text-text/50">Employee #{e.recorded_by}</span>,
     },
     {
       key: "edit",
       header: "",
-      render: (e: Expense) => (
+      mobile: true,
+      render: (e) => (
         <Button variant="ghost" className="text-xs" onClick={() => onEdit(e)}>
           Edit
         </Button>
@@ -54,6 +57,18 @@ export function ExpenseTable({ expenses, onEdit }: ExpenseTableProps) {
   ];
 
   return (
-    <Table columns={columns} rows={expenses} rowKey={(e) => String(e.expense_id)} emptyMessage="No expenses recorded yet" />
+    <DataTable
+      label="Expenses"
+      columns={columns}
+      rows={expenses}
+      rowKey={(e) => String(e.expense_id)}
+      empty={
+        <EmptyState
+          icon={Receipt}
+          title="No expenses recorded yet"
+          message="Rent, utilities, salaries and repairs you record show up here."
+        />
+      }
+    />
   );
 }

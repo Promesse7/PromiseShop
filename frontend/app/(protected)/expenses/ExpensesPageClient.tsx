@@ -7,11 +7,12 @@ import { ExpenseTable } from "@/components/expenses/ExpenseTable";
 import { ExpenseFormDialog } from "@/components/expenses/ExpenseFormDialog";
 import { AdminOnlyNotice } from "@/components/expenses/AdminOnlyNotice";
 import { Button } from "@/components/ui/Button";
-import { Tag } from "@/components/ui/Tag";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Card, CardKicker } from "@/components/ui/Card";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { formatRwf } from "@/lib/format";
 import type { Expense, ExpenseCategory } from "@/lib/types";
 
 interface ExpensesPageClientProps {
@@ -19,10 +20,6 @@ interface ExpensesPageClientProps {
 }
 
 const FILTER_OPTIONS = [{ value: "all", label: "All" }, ...EXPENSE_CATEGORIES];
-
-function formatRwf(amount: number): string {
-  return `RWF ${Math.round(amount).toLocaleString()}`;
-}
 
 export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps) {
   const expenses = useExpenses(isAdmin);
@@ -34,44 +31,48 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
     return expenses.all.filter((e) => e.category === filter);
   }, [expenses.all, filter]);
 
-  const totalFiltered = useMemo(
-    () => filtered.reduce((sum, e) => sum + Number(e.amount), 0),
-    [filtered]
-  );
+  const totalFiltered = useMemo(() => filtered.reduce((sum, e) => sum + Number(e.amount), 0), [filtered]);
 
   if (!isAdmin) {
-    return <AdminOnlyNotice />;
-  }
-
-  if (expenses.isError) {
     return (
-      <ErrorState message="Couldn't load expenses." />
+      <Page title="Expenses">
+        <AdminOnlyNotice />
+      </Page>
     );
   }
 
-  if (expenses.isLoading) {
-    return <p className="text-sm text-text/50">Loading expenses…</p>;
-  }
-
   return (
-    <div>
-      <PageHeader title="Expenses">
-        <Tag variant="outline">Admin only</Tag>
-        <SegmentedToggle
-          name="expense-filter"
-          options={FILTER_OPTIONS}
-          value={filter}
-          onChange={(v) => setFilter(v as ExpenseCategory | "all")}
+    <Page
+      title="Expenses"
+      description="Money the shop spends to run: rent, utilities, salaries, repairs."
+      primaryAction={<Button onClick={() => setDialog({ mode: "create" })}>+ New expense</Button>}
+      toolbar={
+        <Toolbar
+          activeFilterCount={filter === "all" ? 0 : 1}
+          filters={
+            <SegmentedToggle
+              name="expense-filter"
+              options={FILTER_OPTIONS}
+              value={filter}
+              onChange={(v) => setFilter(v as ExpenseCategory | "all")}
+            />
+          }
         />
-        <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
-          + New expense
-        </Button>
-      </PageHeader>
-      <Card variant="glass" className="mb-4 max-w-xs">
-        <CardKicker>Total {filter === "all" ? "(all)" : "(filtered)"}</CardKicker>
-        <span className="font-sans font-medium text-2xl">{formatRwf(totalFiltered)}</span>
-      </Card>
-      <ExpenseTable expenses={filtered} onEdit={(expense) => setDialog({ mode: "edit", expense })} />
+      }
+    >
+      {expenses.isError ? (
+        <ErrorState message="Couldn't load expenses." onRetry={expenses.refetch} />
+      ) : expenses.isLoading ? (
+        <LoadingState variant="table" label="Loading expenses…" />
+      ) : (
+        <div className="flex flex-col gap-4">
+          <Card variant="glass" className="max-w-xs">
+            <CardKicker>Total {filter === "all" ? "(all)" : "(filtered)"}</CardKicker>
+            <span className="font-sans text-2xl font-medium tabular-nums">{formatRwf(totalFiltered)}</span>
+          </Card>
+          <ExpenseTable expenses={filtered} onEdit={(expense) => setDialog({ mode: "edit", expense })} />
+        </div>
+      )}
       <ExpenseFormDialog
         open={dialog !== null}
         mode={dialog?.mode ?? "create"}
@@ -79,6 +80,6 @@ export default function ExpensesPageClient({ isAdmin }: ExpensesPageClientProps)
         onClose={() => setDialog(null)}
         onSaved={() => setDialog(null)}
       />
-    </div>
+    </Page>
   );
 }
