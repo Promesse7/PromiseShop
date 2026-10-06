@@ -6,6 +6,8 @@ export interface Suppliers {
   all: Supplier[];
   isLoading: boolean;
   isError: boolean;
+  /** Re-run the query (the error state's Try again). */
+  refetch?: () => void;
 }
 
 export function useSuppliers(): Suppliers {
@@ -18,5 +20,6 @@ export function useSuppliers(): Suppliers {
     all: query.data ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }

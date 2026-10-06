@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import { PurchaseTable } from "./PurchaseTable";
 import type { PurchaseListRow } from "@/lib/purchasing/usePurchases";
 
@@ -17,8 +19,8 @@ const rows: PurchaseListRow[] = [
 ];
 
 describe("PurchaseTable", () => {
-  it("shows an empty-state message with no purchases", () => {
-    render(<PurchaseTable rows={[]} showTotals={false} />);
+  it("shows the empty state passed in when there are no purchases", () => {
+    render(<PurchaseTable rows={[]} showTotals={false} empty={<p>No purchases yet</p>} />);
     expect(screen.getByText("No purchases yet")).toBeInTheDocument();
   });
 
@@ -40,14 +42,14 @@ describe("PurchaseTable", () => {
   it("shows the Total paid column, formatted, with a dash when the API omitted it, when showTotals is true", () => {
     render(<PurchaseTable rows={rows} showTotals={true} />);
     expect(screen.getByRole("columnheader", { name: "Total paid" })).toBeInTheDocument();
-    expect(screen.getByText("3,002,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 3,002,000")).toBeInTheDocument();
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
   it("shows the Total invoiced column beside Total paid when showTotals is true", () => {
     render(<PurchaseTable rows={rows} showTotals={true} />);
     expect(screen.getByRole("columnheader", { name: "Total invoiced" })).toBeInTheDocument();
-    expect(screen.getByText("3,034,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 3,034,000")).toBeInTheDocument();
   });
 
   it("hides the Total invoiced column when showTotals is false", () => {
@@ -57,7 +59,8 @@ describe("PurchaseTable", () => {
 
   it("links each row to its purchase workspace", () => {
     render(<PurchaseTable rows={rows} showTotals={false} />);
-    expect(screen.getAllByRole("link", { name: "Open" })[0]).toHaveAttribute("href", "/purchases/1");
+    expect(screen.getByRole("link", { name: "Kigali Electronics Ltd" })).toHaveAttribute("href", "/purchases/1");
+    expect(screen.getByRole("link", { name: "Dubai Traders FZE" })).toHaveAttribute("href", "/purchases/2");
   });
 
   it("renders a Cancelled status tag for a cancelled purchase", () => {
@@ -68,5 +71,22 @@ describe("PurchaseTable", () => {
       />
     );
     expect(screen.getByText("Cancelled")).toBeInTheDocument();
+  });
+
+  it("sorts by date when the Date header is clicked", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    render(<PurchaseTable rows={rows} showTotals={false} />);
+    await userEvent.click(screen.getByRole("button", { name: "Date" }));
+    const links = screen.getAllByRole("link").map((l) => l.textContent);
+    expect(links).toEqual(["Dubai Traders FZE", "Kigali Electronics Ltd"]);
+  });
+
+  it("shows each purchase as a tappable card on phone", () => {
+    act(() => setMatchMedia({ desktop: false }));
+    render(<PurchaseTable rows={rows} showTotals={false} />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    const card = screen.getByRole("link", { name: /Kigali Electronics Ltd/ });
+    expect(card).toHaveAttribute("href", "/purchases/1");
+    expect(card).toHaveTextContent("Draft");
   });
 });

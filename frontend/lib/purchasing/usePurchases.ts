@@ -19,6 +19,8 @@ export interface Purchases {
   rows: PurchaseListRow[];
   isLoading: boolean;
   isError: boolean;
+  /** Re-run the purchase and supplier queries (the error state's Try again). */
+  refetch?: () => void;
 }
 
 export function usePurchases(): Purchases {
@@ -46,5 +48,10 @@ export function usePurchases(): Purchases {
     }));
   }, [purchases.data, suppliers.all]);
 
-  return { rows, isLoading, isError };
+  const refetch = () => {
+    void purchases.refetch();
+    suppliers.refetch?.();
+  };
+
+  return { rows, isLoading, isError, refetch };
 }
