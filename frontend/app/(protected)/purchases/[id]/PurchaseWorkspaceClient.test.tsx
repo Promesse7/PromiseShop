@@ -54,6 +54,10 @@ describe("PurchaseWorkspaceClient", () => {
         if (url.includes("/products/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
         if (url.includes("/categories/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
         if (url.includes("/recent-products/")) return Promise.resolve({ ok: true, json: async () => ({ results: [] }) });
+        if (url.includes("/product-pricing/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
+        if (url.includes("/inventory/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
+        if (url.includes("/equipment-units/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
+        if (url.includes("/bundle-templates/")) return Promise.resolve({ ok: true, json: async () => paginated([]) });
         if (url.includes("/receive/")) {
           return Promise.resolve({ ok: true, json: async () => draftPurchase({ status: "received" }) });
         }
@@ -83,6 +87,31 @@ describe("PurchaseWorkspaceClient", () => {
     expect(screen.getByPlaceholderText("Search catalog first — reuse if it exists…")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("radio", { name: "Bulk" }));
     expect(screen.getByRole("button", { name: "Print all new labels" })).toBeInTheDocument();
+  });
+
+  it("offers Pack and Bundle line kinds", async () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase(), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace();
+    await userEvent.click(screen.getByRole("radio", { name: "Pack" }));
+    expect(screen.getByRole("button", { name: "Add pack line" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("radio", { name: "Bundle" }));
+    expect(screen.getByRole("button", { name: "Add bundle line" })).toBeInTheDocument();
+  });
+
+  it("opens the print-labels dialog with the per-unit count after receiving", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase({
+        items: [{ purchase_item_id: 1, purchase: 7, product: 3, line_kind: "pack", units_per_pack: 12, quantity: 2,
+          units_received: 24, price_discrepancy_note: "" }],
+      }),
+      isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Receive purchase → stock increases" }));
+    expect(await screen.findByRole("button", { name: "Print labels — 24 labels for the units just received" })).toBeInTheDocument();
   });
 
   it("links a draft to the scan-to-add page", () => {

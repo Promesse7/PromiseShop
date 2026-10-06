@@ -50,7 +50,10 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
   }, [purchase]);
 
   // A product already on this purchase gets +1 on its line instead of a second line.
-  const existingLine = scanned ? purchase?.items.find((i) => i.product === scanned.product_id) : undefined;
+  const existingLine = scanned ? purchase?.items.find(
+        // Only a single-unit line takes "+1"; a pack or bundle line counts packs/bundles.
+        (i) => i.product === scanned.product_id && (i.line_kind ?? "single") === "single"
+      ) : undefined;
 
   async function handleAddOne() {
     if (!existingLine) return;

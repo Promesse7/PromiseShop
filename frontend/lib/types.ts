@@ -242,16 +242,72 @@ export interface NotificationLogEntry {
   read_at: string | null;
 }
 
+// Release Module F: a purchase line is a single product, a pack of one product,
+// or a bundle of several. `quantity` counts what the supplier sold (units, packs or
+// bundles) and the unit costs are per one of those; `units_received` is always
+// single units.
+export type PurchaseLineKind = "single" | "pack" | "bundle";
+
+export interface PurchaseItemComponent {
+  component_id: number;
+  product: number;
+  product_name: string;
+  product_barcode: string;
+  qty_per_bundle: number;
+  units: number;
+  // Per one bundle; admin/manager only.
+  allocated_paid_cost?: string;
+  allocated_invoiced_cost?: string;
+  unit_paid_cost?: string;
+  unit_invoiced_cost?: string;
+}
+
 export interface PurchaseItem {
   purchase_item_id: number;
   purchase: number;
-  product: number;
+  // null only on a bundle line, whose products are its components.
+  product: number | null;
+  line_kind?: PurchaseLineKind;
+  units_per_pack?: number;
+  bundle_name?: string;
   quantity: number;
+  units_received?: number;
   unit_cost_paid?: string;
   unit_cost_invoiced?: string;
+  unit_cost_paid_per_unit?: string | null;
+  unit_cost_invoiced_per_unit?: string | null;
   price_discrepancy_note: string | null;
   subtotal_paid?: string;
   subtotal_invoiced?: string;
+  components?: PurchaseItemComponent[];
+}
+
+export interface BundleTemplateComponent {
+  template_component_id: number;
+  product: number;
+  product_name: string;
+  product_barcode: string;
+  qty_per_bundle: number;
+}
+
+export interface BundleTemplate {
+  template_id: number;
+  name: string;
+  supplier: number | null;
+  components: BundleTemplateComponent[];
+  created_by: number | null;
+  created_at: string;
+}
+
+// POST /purchasing/bundle-split-preview/
+export interface BundleSplitRow {
+  product: number | null;
+  qty_per_bundle: number;
+  retail_price: string | null;
+  allocated_paid_cost: string;
+  allocated_invoiced_cost: string;
+  unit_paid_cost: string;
+  unit_invoiced_cost: string;
 }
 
 // GET /products/search/ (release Module E1)
@@ -357,8 +413,9 @@ export interface SupplierRecentProduct {
 
 // A row saved by POST /purchases/<id>/items/bulk/
 export interface BulkSavedPurchaseItem extends PurchaseItem {
-  product_name: string;
-  product_barcode: string;
+  // null on a bundle line (its components carry their own product fields).
+  product_name: string | null;
+  product_barcode: string | null;
   product_retail_price: string | null;
 }
 

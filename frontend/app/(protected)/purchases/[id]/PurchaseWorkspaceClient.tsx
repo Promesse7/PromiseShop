@@ -9,6 +9,9 @@ import { useReceivePurchase } from "@/lib/purchasing/useReceivePurchase";
 import { useCancelPurchase } from "@/lib/purchasing/useCancelPurchase";
 import { AddProductSingleForm } from "@/components/purchasing/AddProductSingleForm";
 import { AddProductBulkTable } from "@/components/purchasing/AddProductBulkTable";
+import { AddPackForm } from "@/components/purchasing/AddPackForm";
+import { AddBundleForm } from "@/components/purchasing/AddBundleForm";
+import { ReceivedLabelsDialog } from "@/components/purchasing/ReceivedLabelsDialog";
 import { PurchaseItemsList } from "@/components/purchasing/PurchaseItemsList";
 import { PurchaseSummaryCard } from "@/components/purchasing/PurchaseSummaryCard";
 import { PurchaseSteps } from "@/components/purchasing/PurchaseSteps";
@@ -18,12 +21,17 @@ import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
-import type { EmployeeRole } from "@/lib/types";
+import type { EmployeeRole, PurchaseItem } from "@/lib/types";
 
+// Single and Bulk add single-unit lines; Pack and Bundle are the Module F line kinds.
 const ADD_MODE_OPTIONS = [
   { value: "single", label: "Single" },
   { value: "bulk", label: "Bulk" },
+  { value: "pack", label: "Pack" },
+  { value: "bundle", label: "Bundle" },
 ];
+
+type AddMode = "single" | "bulk" | "pack" | "bundle";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
 
@@ -47,7 +55,9 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
   const suppliers = useSuppliers();
   const receivePurchase = useReceivePurchase();
   const cancelPurchase = useCancelPurchase();
-  const [addMode, setAddMode] = useState<"single" | "bulk">("single");
+  const [addMode, setAddMode] = useState<AddMode>("single");
+  // The lines just received, for the "print labels / scan serials" dialog.
+  const [received, setReceived] = useState<PurchaseItem[] | null>(null);
   const isAdmin = ADMIN_ROLES.includes(role);
 
   if (isError) {
@@ -70,6 +80,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
     try {
       await receivePurchase.mutateAsync(purchaseId);
       show("Purchase received — stock updated.", "success");
+      setReceived(purchase?.items ?? []);
     } catch (error) {
       const message =
         error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
@@ -108,16 +119,21 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
         <>
           <div className="flex items-center gap-3 mb-3">
             <span className="text-xs uppercase tracking-wide text-accent">Add product</span>
-            <SegmentedToggle name="add-mode" options={ADD_MODE_OPTIONS} value={addMode} onChange={(v) => setAddMode(v as "single" | "bulk")} />
+            <SegmentedToggle name="add-mode" options={ADD_MODE_OPTIONS} value={addMode} onChange={(v) => setAddMode(v as AddMode)} />
             <Link href={`/purchases/${purchaseId}/scan`} className="text-sm ml-auto">
               Scan to add →
             </Link>
           </div>
           <div className="mb-6">
-            {addMode === "single" ? (
+            {addMode === "single" && (
               <AddProductSingleForm purchaseId={purchaseId} onAdded={() => {}} initialSearch={prefill} />
-            ) : (
+            )}
+            {addMode === "bulk" && (
               <AddProductBulkTable purchaseId={purchaseId} supplierId={purchase.supplier} onAdded={() => {}} />
+            )}
+            {addMode === "pack" && <AddPackForm purchaseId={purchaseId} onAdded={() => {}} />}
+            {addMode === "bundle" && (
+              <AddBundleForm purchaseId={purchaseId} supplierId={purchase.supplier} onAdded={() => {}} />
             )}
           </div>
         </>
@@ -150,6 +166,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
           )}
         </div>
       </div>
+      <ReceivedLabelsDialog open={received !== null} onClose={() => setReceived(null)} items={received ?? []} />
     </div>
   );
 }
