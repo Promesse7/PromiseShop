@@ -16,6 +16,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { SetupChecklist } from "@/components/shell/SetupChecklist";
 import { presetRange, type DateRange, type PeriodPreset } from "@/lib/dashboard/money";
 import type { EmployeeRole } from "@/lib/types";
 
@@ -51,10 +52,11 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
     return <DashboardSkeleton />;
   }
 
-  // First-run setup steps live in the layout's GuidanceBar (visible to every role),
-  // so the dashboard renders its figures from day one.
+  // First-run setup steps show here until the first purchase is received (other pages
+  // reach them through the help panel); the figures render from day one.
   return (
     <div>
+      <SetupChecklist />
       <PageHeader title="Dashboard" subtitle="Monthly summary">
         <span className="flex items-center gap-1.5 text-xs text-emerald-600">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" aria-hidden />

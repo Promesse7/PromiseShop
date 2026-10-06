@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import DashboardPageClient from "./DashboardPageClient";
 import { useDashboardData, type DashboardData } from "@/lib/dashboard/useDashboardData";
 
+// The setup checklist reads workflow hints through TanStack Query; it has its own tests.
+vi.mock("@/components/shell/SetupChecklist", () => ({ SetupChecklist: () => null }));
 vi.mock("@/lib/dashboard/useDashboardData", () => ({
   useDashboardData: vi.fn(),
 }));
@@ -66,7 +68,7 @@ describe("DashboardPageClient", () => {
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
   });
 
-  it("renders the KPI dashboard even before the first purchase is received (setup steps live in the guidance bar)", () => {
+  it("renders the KPI dashboard even before the first purchase is received (setup steps show in the setup checklist)", () => {
     mockedUseDashboardData.mockReturnValue(baseData({ hasReceivedPurchase: false, categoryCount: 0, productCount: 0 }));
     render(<DashboardPageClient role="admin" />);
     expect(screen.queryByText("Let's get your shop set up")).not.toBeInTheDocument();
