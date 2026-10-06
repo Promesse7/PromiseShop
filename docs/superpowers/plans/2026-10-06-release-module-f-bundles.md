@@ -47,3 +47,13 @@ Spec: `docs/superpowers/specs/2026-10-06-release-dev-handoff.md`, "Module F". Ba
     it also offers "Scan serials now", which creates units through the existing endpoints (register, then
     change-status to in_stock). Both are optional.
 11. Selling a bundle as one kit at the till stays out of scope.
+
+## Frontend decisions
+
+12. **Where the kind switch lives.** It's part of the workspace add-mode toggle: Single, Bulk, Pack, Bundle.
+    The spreadsheet-style Bulk table and paste-from-Excel stay single-unit only; the API accepts pack and
+    bundle rows in bulk, but the table doesn't offer them yet.
+13. **Templates in the UI.** Templates are created with "Save as template" on a bundle line and picked from
+    the supplier's list in the bundle form. There is no separate page for managing templates; the
+    admin/manager CRUD API exists for that later.
+14. **Scan to add.** "+1" only adds to a single-unit line of the scanned product, never to a pack or bundle.
