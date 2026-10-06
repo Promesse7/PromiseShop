@@ -1,7 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { act } from "react";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import PurchasesPageClient from "./PurchasesPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as usePurchasesModule from "@/lib/purchasing/usePurchases";
@@ -20,6 +22,11 @@ const rows: Purchases["rows"] = [
     purchase_id: 1, supplier_name: "Kigali Electronics Ltd", invoice_number: "KE-8841",
     purchase_date: "2026-08-23", payment_status: "paid", status: "draft",
     total_paid: "3002000", total_invoiced: "3034000",
+  },
+  {
+    purchase_id: 2, supplier_name: "Dubai Traders FZE", invoice_number: null,
+    purchase_date: "2026-08-10", payment_status: "unpaid", status: "received",
+    total_paid: "500000", total_invoiced: "500000",
   },
 ];
 
@@ -42,9 +49,51 @@ describe("PurchasesPageClient", () => {
     } satisfies Purchases);
   });
 
-  it("shows the purchase list", () => {
+  it("shows the purchase list under a Purchases page heading", () => {
     renderWithProviders(<PurchasesPageClient role="admin" />);
-    expect(screen.getByText("Kigali Electronics Ltd")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Purchases" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Kigali Electronics Ltd" })).toHaveAttribute("href", "/purchases/1");
+  });
+
+  it("filters by search text across supplier and invoice number", async () => {
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search purchases" }), "dubai");
+    expect(screen.getByRole("link", { name: "Dubai Traders FZE" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Kigali Electronics Ltd" })).not.toBeInTheDocument();
+  });
+
+  it("filters by status", async () => {
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    await userEvent.selectOptions(screen.getByLabelText("Status"), "received");
+    expect(screen.getByRole("link", { name: "Dubai Traders FZE" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Kigali Electronics Ltd" })).not.toBeInTheDocument();
+  });
+
+  it("says nothing matches, with a way to clear the filters, when filters hide every purchase", async () => {
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    await userEvent.type(screen.getByRole("searchbox", { name: "Search purchases" }), "zzz");
+    expect(screen.getByText("No purchases match")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(screen.getByRole("link", { name: "Kigali Electronics Ltd" })).toBeInTheDocument();
+  });
+
+  it("shows an empty state with the New purchase action when there are no purchases", () => {
+    vi.spyOn(usePurchasesModule, "usePurchases").mockReturnValue({
+      rows: [], isLoading: false, isError: false,
+    } satisfies Purchases);
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    expect(screen.getByText("No purchases yet")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "+ New purchase" }).length).toBeGreaterThan(0);
+  });
+
+  it("on phone shows cards and moves the filters into a Filters sheet", async () => {
+    act(() => setMatchMedia({ desktop: false }));
+    renderWithProviders(<PurchasesPageClient role="admin" />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Kigali Electronics Ltd/ })).toHaveAttribute("href", "/purchases/1");
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
   });
 
   it("shows the + New purchase button for every role (purchasing is open to staff and admin alike)", () => {
@@ -78,8 +127,8 @@ describe("PurchasesPageClient", () => {
       })
     );
     renderWithProviders(<PurchasesPageClient role="admin" />);
-    await screen.findByRole("option", { name: "Kigali Electronics Ltd" });
-    await userEvent.selectOptions(screen.getByLabelText("Supplier"), "1");
+    await within(screen.getByRole("dialog")).findByRole("option", { name: "Kigali Electronics Ltd" });
+    await userEvent.selectOptions(within(screen.getByRole("dialog")).getByLabelText("Supplier"), "1");
     await userEvent.click(screen.getByRole("button", { name: "Create" }));
     await waitFor(() =>
       expect(pushMock).toHaveBeenCalledWith("/purchases/9?prefill=Scales%2060kg")
@@ -109,14 +158,17 @@ describe("PurchasesPageClient", () => {
       rows: [], isLoading: true, isError: false,
     } satisfies Purchases);
     renderWithProviders(<PurchasesPageClient role="admin" />);
-    expect(screen.getByText("Loading purchases…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading purchases…" })).toBeInTheDocument();
   });
 
-  it("shows an error state with a retry option", () => {
+  it("shows an error state whose Try again re-runs the query", async () => {
+    const refetch = vi.fn();
     vi.spyOn(usePurchasesModule, "usePurchases").mockReturnValue({
-      rows: [], isLoading: false, isError: true,
+      rows: [], isLoading: false, isError: true, refetch,
     } satisfies Purchases);
     renderWithProviders(<PurchasesPageClient role="admin" />);
     expect(screen.getByText(/Couldn't load purchases/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalled();
   });
 });

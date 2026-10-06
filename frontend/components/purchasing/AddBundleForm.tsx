@@ -15,6 +15,7 @@ import {
   useBundleTemplates,
   type BundleComponentInput,
 } from "@/lib/purchasing/useBundles";
+import { formatRwf } from "@/lib/format";
 import type { BundleTemplate, Category } from "@/lib/types";
 
 interface AddBundleFormProps {
@@ -54,7 +55,7 @@ function componentInput(row: ComponentRow): BundleComponentInput {
 function remainingLabel(value: string): string {
   const n = Number(value);
   if (n === 0) return "fully allocated";
-  return n > 0 ? `${n.toLocaleString()} left to allocate` : `${Math.abs(n).toLocaleString()} over`;
+  return n > 0 ? `${formatRwf(n)} left to allocate` : `${formatRwf(Math.abs(n))} over`;
 }
 
 /**

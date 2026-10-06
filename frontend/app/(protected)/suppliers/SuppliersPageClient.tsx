@@ -1,13 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Building2 } from "lucide-react";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
 import { SupplierCardGrid } from "@/components/suppliers/SupplierCardGrid";
 import { SupplierFormDialog } from "@/components/suppliers/SupplierFormDialog";
+import { SearchInput } from "@/components/purchasing/ListControls";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { Supplier } from "@/lib/types";
 
 interface SuppliersPageClientProps {
@@ -32,36 +35,68 @@ export default function SuppliersPageClient({ canEdit }: SuppliersPageClientProp
     );
   }, [suppliers.all, search]);
 
+  const newSupplierButton = canEdit ? (
+    <Button onClick={() => setDialog({ mode: "create" })}>+ New supplier</Button>
+  ) : undefined;
+
+  let content;
   if (suppliers.isError) {
-    return (
-      <ErrorState message="Couldn't load suppliers." />
-    );
-  }
-
-  if (suppliers.isLoading) {
-    return <CardGridSkeleton label="Loading suppliers…" />;
-  }
-
-  return (
-    <div>
-      <PageHeader title="Suppliers">
-        <input
-          aria-label="Search suppliers"
-          placeholder="Search…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-[220px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
-        />
-        {canEdit && (
-          <Button onClick={() => setDialog({ mode: "create" })} className="ml-auto">
-            + New supplier
-          </Button>
-        )}
-      </PageHeader>
+    content = <ErrorState message="Couldn't load suppliers." onRetry={suppliers.refetch} />;
+  } else if (suppliers.isLoading) {
+    content = <LoadingState variant="cards" label="Loading suppliers…" />;
+  } else {
+    content = (
       <SupplierCardGrid
         suppliers={filtered}
         onEdit={canEdit ? (supplier) => setDialog({ mode: "edit", supplier }) : undefined}
+        empty={
+          search.trim() ? (
+            <EmptyState
+              icon={Building2}
+              title="No suppliers match"
+              message="Try another name, contact, phone or email."
+              action={
+                <Button variant="secondary" onClick={() => setSearch("")}>
+                  Clear search
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={Building2}
+              title="No suppliers yet"
+              message={
+                canEdit
+                  ? "Add the businesses you buy stock from, then pick them when recording a purchase."
+                  : "An admin or manager adds suppliers."
+              }
+              action={newSupplierButton}
+            />
+          )
+        }
       />
+    );
+  }
+
+  return (
+    <Page
+      title="Suppliers"
+      description="Who you buy stock from"
+      primaryAction={newSupplierButton}
+      toolbar={
+        <Toolbar
+          search={
+            <SearchInput
+              label="Search suppliers"
+              placeholder="Name, contact, phone or email…"
+              value={search}
+              onChange={setSearch}
+            />
+          }
+        />
+      }
+    >
+      {content}
       <SupplierFormDialog
         open={dialog !== null}
         mode={dialog?.mode ?? "create"}
@@ -69,6 +104,6 @@ export default function SuppliersPageClient({ canEdit }: SuppliersPageClientProp
         onClose={() => setDialog(null)}
         onSaved={() => setDialog(null)}
       />
-    </div>
+    </Page>
   );
 }
