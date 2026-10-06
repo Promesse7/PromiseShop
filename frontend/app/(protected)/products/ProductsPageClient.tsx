@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
 import { useCatalogProducts, type CatalogProduct } from "@/lib/products/useCatalogProducts";
 import { ProductTable } from "@/components/products/ProductTable";
 import { ProductCardGrid } from "@/components/products/ProductCardGrid";
@@ -10,13 +11,14 @@ import { CategoryManagerDialog } from "@/components/products/CategoryManagerDial
 import { DuplicatesDialog } from "@/components/products/DuplicatesDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar, type PageAction } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { LabelSheet } from "@/components/ui/LabelSheet";
 import { ProductLabel } from "@/components/products/ProductLabel";
 import { useToast } from "@/components/layout/ToastProvider";
 import { apiFetch } from "@/lib/api-client";
+import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -41,6 +43,8 @@ const SORT_OPTIONS = [
 ];
 type SortOption = (typeof SORT_OPTIONS)[number]["value"];
 
+const INPUT_CLASS = "min-h-9 w-full rounded-md border border-divider bg-surface px-2.5 py-1.5 text-sm text-text";
+
 interface ProductsPageClientProps {
   role: EmployeeRole;
 }
@@ -50,6 +54,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const isAdmin = ADMIN_ROLES.includes(role);
   // Merging duplicates is admin only (it is irreversible).
   const isStrictAdmin = role === "admin";
+  const reduced = useReducedMotionSafe();
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -137,93 +142,120 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
     ...catalog.categories.map((c) => ({ value: String(c.category_id), label: c.name })),
   ];
 
-  if (catalog.isError) {
-    return (
-      <ErrorState message="Couldn't load products." />
-    );
-  }
+  const activeFilterCount =
+    (categoryFilter !== "all" ? 1 : 0) +
+    (stockFilter !== "all" ? 1 : 0) +
+    (showInactive ? 1 : 0) +
+    (sortBy !== "none" ? 1 : 0);
 
-  if (catalog.isLoading) {
-    return <CardGridSkeleton label="Loading products…" />;
-  }
+  const secondaryActions: PageAction[] = isAdmin
+    ? [
+        { label: "Manage categories", onSelect: () => setCategoriesOpen(true) },
+        ...(isStrictAdmin ? [{ label: "Find duplicates", onSelect: () => setDuplicatesOpen(true) }] : []),
+      ]
+    : [];
 
-  return (
-    <div>
-      <PageHeader title="Products">
+  const toolbar = (
+    <Toolbar
+      search={
         <input
           aria-label="Search products"
           placeholder="Search name, brand, model, barcode…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-[300px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
+          className={INPUT_CLASS}
         />
-        <SegmentedToggle name="category" options={categoryOptions} value={categoryFilter} onChange={setCategoryFilter} />
-        <SegmentedToggle name="stock" options={STOCK_OPTIONS} value={stockFilter} onChange={setStockFilter} />
-        <label className="flex items-center gap-1.5 text-sm text-text/70">
-          <input
-            type="checkbox"
-            aria-label="Show inactive"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-          />
-          Show inactive
-        </label>
-        <select
-          aria-label="Sort by"
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortOption)}
-          className="min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
-        >
-          {SORT_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+      }
+      activeFilterCount={activeFilterCount}
+      filters={
+        <>
+          <SegmentedToggle name="category" options={categoryOptions} value={categoryFilter} onChange={setCategoryFilter} />
+          <SegmentedToggle name="stock" options={STOCK_OPTIONS} value={stockFilter} onChange={setStockFilter} />
+          <select
+            aria-label="Sort by"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="min-h-9 rounded-md border border-divider bg-surface px-2.5 py-1.5 text-sm text-text"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <label className="flex items-center gap-1.5 text-sm text-text/70">
+            <input
+              type="checkbox"
+              aria-label="Show inactive"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Show inactive
+          </label>
+        </>
+      }
+      trailing={
         <SegmentedToggle name="view" options={VIEW_OPTIONS} value={view} onChange={(v) => setView(v as "grid" | "table")} />
-        {isAdmin && (
-          <div className="ml-auto flex gap-2">
-            {isStrictAdmin && (
-              <Button variant="secondary" onClick={() => setDuplicatesOpen(true)}>
-                Find duplicates
-              </Button>
-            )}
-            <Button variant="secondary" onClick={() => setCategoriesOpen(true)}>
-              Manage categories
+      }
+    />
+  );
+
+  let content;
+  if (catalog.isError) {
+    content = <ErrorState message="Couldn't load products." onRetry={catalog.refetch} />;
+  } else if (catalog.isLoading) {
+    content = <LoadingState variant={view === "grid" ? "cards" : "table"} label="Loading products…" />;
+  } else if (view === "grid") {
+    content = (
+      <ProductCardGrid
+        products={filtered}
+        showWholesale={isAdmin}
+        selectedIds={selectedIds}
+        onToggleSelect={toggleSelect}
+        onPrintLabel={(product) => setPrintQueue([product])}
+      />
+    );
+  } else {
+    content = <ProductTable products={filtered} showWholesale={isAdmin} />;
+  }
+
+  const bulkBar =
+    selectedIds.size > 0 ? (
+      <motion.div
+        key="bulk"
+        role="region"
+        aria-label="Selected products"
+        className="fixed inset-x-3 bottom-24 z-20 flex items-center gap-2 rounded-lg border border-accent/20 bg-surface p-2 text-sm shadow-lg lg:static lg:inset-auto lg:z-auto lg:bg-accent/10 lg:shadow-none"
+        initial={reduced ? false : { opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE.out } }}
+        exit={reduced ? undefined : { opacity: 0, y: 12, transition: { duration: DURATION.fast } }}
+      >
+        <span className="pl-1">{selectedIds.size} selected</span>
+        <div className="ml-auto flex flex-wrap justify-end gap-2">
+          {isAdmin && (
+            <Button variant="secondary" onClick={handleBulkDeactivate} disabled={deactivating}>
+              {deactivating ? "Deactivating…" : `Deactivate ${selectedIds.size} products`}
             </Button>
-            <Button onClick={() => setCreateOpen(true)}>+ New product</Button>
-          </div>
-        )}
-      </PageHeader>
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-accent/10 text-sm">
-          <span>{selectedIds.size} selected</span>
-          <div className="ml-auto flex gap-2">
-            {isAdmin && (
-              <Button variant="secondary" onClick={handleBulkDeactivate} disabled={deactivating}>
-                {deactivating ? "Deactivating…" : `Deactivate ${selectedIds.size} products`}
-              </Button>
-            )}
-            <Button
-              variant="secondary"
-              onClick={() => setPrintQueue(filtered.filter((p) => selectedIds.has(p.product_id)))}
-            >
-              Print {selectedIds.size} labels
-            </Button>
-          </div>
+          )}
+          <Button variant="secondary" onClick={() => setPrintQueue(filtered.filter((p) => selectedIds.has(p.product_id)))}>
+            Print {selectedIds.size} labels
+          </Button>
         </div>
-      )}
-      {view === "grid" ? (
-        <ProductCardGrid
-          products={filtered}
-          showWholesale={isAdmin}
-          selectedIds={selectedIds}
-          onToggleSelect={toggleSelect}
-          onPrintLabel={(product) => setPrintQueue([product])}
-        />
-      ) : (
-        <ProductTable products={filtered} showWholesale={isAdmin} />
-      )}
+      </motion.div>
+    ) : null;
+
+  return (
+    <Page
+      title="Products"
+      description="Everything the shop sells, with price and stock at a glance"
+      primaryAction={isAdmin ? <Button onClick={() => setCreateOpen(true)}>+ New product</Button> : undefined}
+      secondaryActions={secondaryActions}
+      toolbar={toolbar}
+    >
+      <div className="flex flex-col gap-3">
+        {reduced ? bulkBar : <AnimatePresence>{bulkBar}</AnimatePresence>}
+        {content}
+      </div>
       <ProductFormDialog
         open={createOpen}
         mode="create"
@@ -245,6 +277,6 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
           ))}
         </LabelSheet>
       )}
-    </div>
+    </Page>
   );
 }

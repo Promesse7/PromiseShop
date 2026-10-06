@@ -30,6 +30,8 @@ export interface CatalogProducts {
   categories: Category[];
   isLoading: boolean;
   isError: boolean;
+  /** Re-runs whichever of the four catalog requests failed. */
+  refetch?: () => void;
 }
 
 function deriveStatus(quantityInStock: number, reorderLevel: number): CatalogProduct["status"] {
@@ -97,5 +99,11 @@ export function useCatalogProducts(): CatalogProducts {
     });
   }, [products.data, categories.data, pricing.data, inventory.data]);
 
-  return { all, categories: categories.data ?? [], isLoading, isError };
+  const refetch = () => {
+    for (const query of [products, categories, pricing, inventory]) {
+      if (query.isError) void query.refetch();
+    }
+  };
+
+  return { all, categories: categories.data ?? [], isLoading, isError, refetch };
 }

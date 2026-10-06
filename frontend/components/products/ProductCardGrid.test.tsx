@@ -29,9 +29,13 @@ describe("ProductCardGrid", () => {
 
   it("links each card to its product detail page", () => {
     render(<ProductCardGrid products={products} showWholesale={false} />);
-    const links = screen.getAllByRole("link", { name: /Open/ });
-    expect(links[0]).toHaveAttribute("href", "/products/1");
-    expect(links[1]).toHaveAttribute("href", "/products/2");
+    expect(screen.getByRole("link", { name: "Samsung TV" })).toHaveAttribute("href", "/products/1");
+    expect(screen.getByRole("link", { name: "JBL Flip 6" })).toHaveAttribute("href", "/products/2");
+  });
+
+  it("shows the retail price in RWF", () => {
+    render(<ProductCardGrid products={products} showWholesale={false} />);
+    expect(screen.getByText("RWF 385,000")).toBeInTheDocument();
   });
 
   it("shows an empty state when there are no products", () => {
