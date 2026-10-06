@@ -8,7 +8,8 @@ import { Card, CardMeta, CardTitle } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { ASSET_STATUS_LABELS, ASSET_STATUS_TAG, formatValue } from "@/lib/operations/labels";
-import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 import type { ShopAsset } from "@/lib/types";
 
 interface AssetCardGridProps {
@@ -25,14 +26,13 @@ export function AssetCardGrid({ assets, showValue }: AssetCardGridProps) {
   return (
     <motion.ul
       className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      {...(reduced ? { initial: false as const } : { variants: listContainer, initial: "hidden", animate: "show" })}
     >
       <AnimatePresence initial={false}>
-        {assets.map((a) => (
+        {assets.map((a, index) => (
           <motion.li
             key={a.asset_id}
             layout={!reduced}
-            variants={reduced ? undefined : listItem}
+            {...revealItemProps(index, reduced)}
             exit={reduced ? undefined : "exit"}
             whileTap={reduced ? undefined : { scale: 0.985 }}
           >

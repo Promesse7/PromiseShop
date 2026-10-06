@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useDragControls, type PanInfo } from "motion/r
 import { X } from "lucide-react";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { backdropVariants, dialogVariants, sheetVariants, useReducedMotionSafe } from "@/lib/motion";
+import { ScrollArea } from "./ScrollArea";
 
 type DialogSize = "sm" | "md" | "lg";
 
@@ -184,13 +185,13 @@ function DialogFrame({ title, description, footer, size, onClose, reduced, child
             <X className="h-4 w-4" aria-hidden />
           </button>
         </div>
-        <div
-          data-testid="dialog-body"
-          data-dialog-body
-          className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 print:overflow-visible print:p-0"
-        >
-          {children}
-        </div>
+        {/* Long forms scroll here with a fade where more fields hide. The fade is a mask, so it
+            is switched off for print: labels and receipts printed from a dialog stay crisp. */}
+        <ScrollArea className="min-h-0 flex-1 print:overflow-visible print:![mask-image:none] print:![-webkit-mask-image:none]">
+          <div data-testid="dialog-body" data-dialog-body className="px-4 pb-4 print:p-0">
+            {children}
+          </div>
+        </ScrollArea>
         {footer && (
           <div
             data-testid="dialog-footer"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronRight } from "lucide-react";
@@ -8,6 +8,8 @@ import { useIsDesktop } from "@/lib/useMediaQuery";
 import { formatRwf } from "@/lib/format";
 import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
 import { LoadingState } from "./LoadingState";
+import { ScrollArea } from "./ScrollArea";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 
 export interface DataColumn<T> {
   key: string;
@@ -78,6 +80,27 @@ export function DataTable<T>({
   const isDesktop = useIsDesktop();
   const reduced = useReducedMotionSafe();
   const [sort, setSort] = useState<{ key: string; dir: SortDir } | null>(defaultSort ?? null);
+  const areaRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const [stuck, setStuck] = useState(false);
+
+  // The header is "stuck" once the sentinel above the table has scrolled out of its area.
+  const hasTable = isDesktop && !loading && rows.length > 0;
+  useEffect(() => {
+    const area = areaRef.current;
+    const sentinel = sentinelRef.current;
+    if (!hasTable || !area || !sentinel || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        const top = entry.rootBounds?.top ?? 0;
+        setStuck(!entry.isIntersecting && entry.boundingClientRect.top < top);
+      },
+      { root: area, threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasTable]);
 
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
@@ -116,9 +139,9 @@ export function DataTable<T>({
     const primaryColumn = columns.find((c) => c.key === primaryKey);
 
     return (
-      <motion.ul aria-label={label} className="m-0 flex list-none flex-col gap-2 p-0" {...motionProps}>
+      <motion.ul aria-label={label} className="m-0 flex list-none flex-col gap-2 p-0">
         <AnimatePresence initial={false}>
-          {sortedRows.map((row) => {
+          {sortedRows.map((row, index) => {
             const href = rowHref?.(row);
             const body = (
               <>
@@ -143,7 +166,14 @@ export function DataTable<T>({
             const cardClass =
               "block rounded-lg border border-divider bg-surface px-3.5 py-3 shadow-sm no-underline text-text";
             return (
-              <motion.li key={rowKey(row)} layout={!reduced} variants={reduced ? undefined : listItem} exit={reduced ? undefined : "exit"}>
+              // Each card rises in the first time it scrolls into view (the first screenful in a
+              // quick stagger), and still animates out when removed or re-sorted.
+              <motion.li
+                key={rowKey(row)}
+                layout={!reduced}
+                {...revealItemProps(index, reduced)}
+                exit={reduced ? undefined : "exit"}
+              >
                 {href ? (
                   <Link href={href} className={`${cardClass} active:bg-text/[0.04]`}>
                     {body}
@@ -172,9 +202,17 @@ export function DataTable<T>({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-divider bg-surface">
+    // Wide tables scroll sideways with a fade on the hidden edge; long ones scroll inside a
+    // 70vh window where the header stays pinned (overscroll-auto hands the wheel back to the
+    // page at either end, so the table never traps scrolling).
+    <ScrollArea
+      ref={areaRef}
+      orientation="horizontal"
+      className="!overflow-y-auto !overscroll-auto max-h-[70vh] rounded-lg border border-divider bg-surface"
+    >
+      <div ref={sentinelRef} aria-hidden className="h-px" />
       <table aria-label={label} className="w-full border-collapse text-sm">
-        <thead>
+        <thead data-stuck={stuck} className="group">
           <tr>
             {columns.map((column) => {
               const active = sort?.key === column.key;
@@ -186,6 +224,8 @@ export function DataTable<T>({
                   aria-sort={ariaSort}
                   className={[
                     "sticky top-0 z-[1] border-b border-divider bg-surface px-3 py-2 font-medium text-text/70",
+                    // Rows sliding under the pinned header get a soft shadow to show depth.
+                    "transition-shadow duration-200 group-data-[stuck=true]:shadow-[0_6px_10px_-6px_rgba(20,21,31,0.18)]",
                     isRightAligned(column) ? "text-right" : "text-left",
                   ].join(" ")}
                 >
@@ -245,6 +285,6 @@ export function DataTable<T>({
           </AnimatePresence>
         </motion.tbody>
       </table>
-    </div>
+    </ScrollArea>
   );
 }

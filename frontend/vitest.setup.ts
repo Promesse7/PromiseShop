@@ -8,6 +8,24 @@ import { installMatchMedia, resetMatchMedia } from "./lib/test/matchMedia";
 installMatchMedia();
 afterEach(() => resetMatchMedia());
 
+// jsdom has no IntersectionObserver / ResizeObserver. Scroll-reveal (motion whileInView) and
+// ScrollArea need them; a no-op default keeps every component renderable. Tests that check
+// observer behaviour stub their own with vi.stubGlobal, which overrides these.
+class NoopObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+}
+if (!globalThis.IntersectionObserver) {
+  globalThis.IntersectionObserver = NoopObserver as unknown as typeof IntersectionObserver;
+}
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = NoopObserver as unknown as typeof ResizeObserver;
+}
+
 // Polyfill canvas for jsbarcode text measurement in jsdom
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
 

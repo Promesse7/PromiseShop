@@ -8,6 +8,7 @@ import { AlertsList } from "@/components/dashboard/AlertsList";
 import { LeakageCards } from "@/components/dashboard/LeakageCards";
 import { MoneyWaterfall } from "@/components/dashboard/MoneyWaterfall";
 import { PeopleTables } from "@/components/dashboard/PeopleTables";
+import { Reveal } from "@/components/ui/Reveal";
 import {
   downloadCsv,
   rwf,
@@ -108,7 +109,11 @@ export function MoneyDashboard({ range, tab }: MoneyDashboardProps) {
           </p>
         </Card>
       )}
-      {leakage.data?.cards && <LeakageCards cards={leakage.data.cards} vat={data.vat} />}
+      {leakage.data?.cards && (
+        <Reveal>
+          <LeakageCards cards={leakage.data.cards} vat={data.vat} />
+        </Reveal>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { Tabs } from "@/components/ui/Tabs";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { SetupChecklist } from "@/components/shell/SetupChecklist";
+import { Reveal } from "@/components/ui/Reveal";
 import { presetRange, type DateRange, type PeriodPreset } from "@/lib/dashboard/money";
 import type { EmployeeRole } from "@/lib/types";
 
@@ -98,14 +99,15 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
             active === "overview" ? (
               <div className="flex flex-col gap-4">
                 <StatCards data={data} />
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
+                {/* Sections below the stat cards rise in as they scroll into view, once. */}
+                <Reveal className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
                   <RevenueTrendChart points={data.trend} />
                   <LowStockTable rows={data.lowStockRows} />
-                </div>
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                </Reveal>
+                <Reveal className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   <TopSellersTable rows={data.topSellers} />
                   <SlowMoversTable rows={data.slowMovers} />
-                </div>
+                </Reveal>
               </div>
             ) : (
               <MoneyDashboard range={range} tab={active as "money" | "people"} />

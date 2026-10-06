@@ -8,7 +8,8 @@ import { Card, CardKicker, CardTitle, CardMeta } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { formatRwf } from "@/lib/format";
-import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 const STATUS_TAG: Record<CatalogProduct["status"], { label: string; variant: "accent" | "outline" | "neutral" }> = {
@@ -41,17 +42,16 @@ export function ProductCardGrid({
   return (
     <motion.ul
       className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      {...(reduced ? { initial: false as const } : { variants: listContainer, initial: "hidden", animate: "show" })}
     >
       <AnimatePresence initial={false}>
-        {products.map((p) => {
+        {products.map((p, index) => {
           const tag = STATUS_TAG[p.status];
           const selected = selectedIds?.has(p.product_id) ?? false;
           return (
             <motion.li
               key={p.product_id}
               layout={!reduced}
-              variants={reduced ? undefined : listItem}
+              {...revealItemProps(index, reduced)}
               exit={reduced ? undefined : "exit"}
               whileTap={reduced ? undefined : { scale: 0.985 }}
             >

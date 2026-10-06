@@ -6,7 +6,8 @@ import { Boxes } from "lucide-react";
 import { Card, CardTitle, CardMeta } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
-import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 import type { StockOverviewRow } from "@/lib/stock/useStockOverview";
 
 const FLAG_TAG: Record<StockOverviewRow["flag"], { label: string; variant: "accent" | "outline" | "neutral" } | null> = {
@@ -33,17 +34,16 @@ export function StockOverviewCardGrid({ rows, onSelectProduct, onAdjust, selecte
   return (
     <motion.ul
       className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      {...(reduced ? { initial: false as const } : { variants: listContainer, initial: "hidden", animate: "show" })}
     >
       <AnimatePresence initial={false}>
-        {rows.map((row) => {
+        {rows.map((row, index) => {
           const tag = FLAG_TAG[row.flag];
           const selected = row.product_id === selectedProductId;
           return (
             <motion.li
               key={row.product_id}
               layout={!reduced}
-              variants={reduced ? undefined : listItem}
+              {...revealItemProps(index, reduced)}
               exit={reduced ? undefined : "exit"}
               whileTap={reduced ? undefined : { scale: 0.985 }}
             >

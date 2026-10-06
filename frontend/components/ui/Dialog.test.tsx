@@ -98,6 +98,20 @@ describe("Dialog", () => {
     expect(screen.getByTestId("dialog-body")).not.toContainElement(screen.getByRole("button", { name: "Save" }));
   });
 
+  it("scrolls a long body in its own area that fades where fields are hidden, never when printing", () => {
+    render(
+      <Dialog open onClose={() => {}} title="Form" footer={<button>Save</button>}>
+        <p>long form</p>
+      </Dialog>
+    );
+    const area = screen.getByTestId("dialog-body").closest("[data-at-start]");
+    expect(area).not.toBeNull();
+    expect(area).toContainElement(screen.getByText("long form"));
+    expect(area).not.toContainElement(screen.getByRole("button", { name: "Save" }));
+    // The fade is a mask; printed labels and receipts inside a dialog must not be faded.
+    expect(area?.className).toContain("print:![mask-image:none]");
+  });
+
   it("locks page scroll while open", () => {
     const { rerender } = render(
       <Dialog open onClose={() => {}} title="Lock">
