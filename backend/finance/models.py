@@ -41,6 +41,19 @@ class ShopProfile(models.Model):
         max_digits=5, decimal_places=2, default=Decimal("10.00"),
         validators=[MinValueValidator(Decimal("0")), MaxValueValidator(Decimal("100"))],
     )
+    # Dashboard alert thresholds (Module H5), editable on the admin Settings page.
+    alert_discount_spike_ratio = models.DecimalField(
+        max_digits=5, decimal_places=2, default=Decimal("2.00"),
+        help_text="A cashier's discount % this week above this multiple of their 8-week average.",
+    )
+    alert_overdue_days = models.PositiveIntegerField(default=60)
+    alert_cash_variance = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal("5000.00"))
+    alert_below_cost_count = models.PositiveIntegerField(default=3)
+    alert_below_cost_days = models.PositiveIntegerField(default=7)
+    alert_asset_replacements = models.PositiveIntegerField(default=2)
+    alert_asset_window_days = models.PositiveIntegerField(default=90)
+    alert_billing_diff_pct = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal("2.00"))
+    alert_top_sellers = models.PositiveIntegerField(default=20)
 
     def save(self, *args, **kwargs):
         self.pk = 1

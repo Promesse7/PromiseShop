@@ -42,6 +42,8 @@ class Purchase(models.Model):
     # "unpaid" before payments existed: the owner must confirm what was paid.
     payment_needs_review = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    # Module H4: only a purchase with a proper VAT invoice gives input VAT back.
+    has_vat_invoice = models.BooleanField(default=True)
 
     def __str__(self):
         return f"Purchase #{self.purchase_id} - {self.supplier}"
@@ -75,6 +77,9 @@ class PurchaseItem(models.Model):
     price_discrepancy_note = models.TextField(blank=True, null=True)
     subtotal_paid = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal_invoiced = models.DecimalField(max_digits=12, decimal_places=2)
+    # VAT category of the product when bought (Module H4); null on a bundle line,
+    # whose components carry their own.
+    tax_category = models.CharField(max_length=1, null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -91,6 +96,11 @@ class PurchaseItem(models.Model):
                 name="purchase_item_units_per_pack_positive",
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.tax_category is None and self.product_id:
+            self.tax_category = self.product.tax_category
+        super().save(*args, **kwargs)
 
     @property
     def units_received(self):
@@ -116,6 +126,8 @@ class PurchaseItemComponent(models.Model):
     # Per ONE bundle; summed over the components they equal the line's unit costs exactly.
     allocated_paid_cost = models.DecimalField(max_digits=14, decimal_places=2)
     allocated_invoiced_cost = models.DecimalField(max_digits=14, decimal_places=2)
+    # VAT category of the component product when bought (Module H4).
+    tax_category = models.CharField(max_length=1, null=True, blank=True)
 
     class Meta:
         ordering = ["component_id"]
@@ -127,6 +139,11 @@ class PurchaseItemComponent(models.Model):
                 fields=["purchase_item", "product"], name="purchase_component_product_once_per_bundle"
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.tax_category is None and self.product_id:
+            self.tax_category = self.product.tax_category
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.product} x{self.qty_per_bundle} in {self.purchase_item}"
