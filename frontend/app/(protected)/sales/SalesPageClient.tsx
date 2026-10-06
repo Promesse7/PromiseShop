@@ -17,6 +17,8 @@ import type { Customer, PaymentMethod, Sale } from "@/lib/types";
 interface SalesPageClientProps {
   // Admin and manager see every sale and every filter; staff see their own sales from today.
   canSeeAll: boolean;
+  /** Filters preset from the URL (dashboard leakage links). */
+  initialFilters?: Partial<SalesFilters>;
 }
 
 function money(value: string | number | null | undefined) {
@@ -31,8 +33,8 @@ function when(iso: string) {
 
 const SELECT = "min-h-9 py-1.5 px-2 text-sm text-text bg-surface border border-divider rounded-md";
 
-export default function SalesPageClient({ canSeeAll }: SalesPageClientProps) {
-  const [filters, setFilters] = useState<SalesFilters>(EMPTY_SALES_FILTERS);
+export default function SalesPageClient({ canSeeAll, initialFilters }: SalesPageClientProps) {
+  const [filters, setFilters] = useState<SalesFilters>({ ...EMPTY_SALES_FILTERS, ...initialFilters });
   const [page, setPage] = useState(1);
   const sales = useSalesHistory(filters, page);
   const customers = useQuery({

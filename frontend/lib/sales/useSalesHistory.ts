@@ -41,6 +41,20 @@ export function salesQuery(filters: SalesFilters, page = 1): string {
   return params.toString();
 }
 
+/** Sales filters named in a URL's query string (dashboard links); unknown keys and empty values are ignored. */
+export function salesFiltersFromParams(
+  params: Record<string, string | string[] | undefined>
+): Partial<SalesFilters> {
+  const result: Record<string, string | boolean> = {};
+  for (const key of Object.keys(EMPTY_SALES_FILTERS) as (keyof SalesFilters)[]) {
+    const value = params[key];
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (raw == null || raw === "") continue;
+    result[key] = typeof EMPTY_SALES_FILTERS[key] === "boolean" ? raw === "true" : raw;
+  }
+  return result as Partial<SalesFilters>;
+}
+
 export function useSalesHistory(filters: SalesFilters, page: number) {
   return useQuery({
     queryKey: ["sales", "history", filters, page],

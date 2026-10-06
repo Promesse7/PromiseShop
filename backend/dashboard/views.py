@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 
 from accounts.permissions import IsAdminOrManager
 from catalog.models import Product
+from dashboard import money as money_reports
 from dashboard.services import resolve_period_range
 from finance.models import Expense
 from notifications.models import NotificationLog
@@ -19,6 +20,17 @@ from sales.models import Sale, SaleItem
 from stock.models import EquipmentUnit, Inventory
 
 
+def _kept_sales():
+    """Sales that still count: everything but voided ones (Module G)."""
+    return Sale.objects.exclude(status=Sale.SaleStatus.VOIDED)
+
+
+def _kept_revenue(sales):
+    return sales.aggregate(
+        total=Sum(F("total_amount") - F("returned_amount"), output_field=DecimalField(max_digits=18, decimal_places=2))
+    )["total"] or Decimal("0.00")
+
+
 class SalesSummaryView(APIView):
     permission_classes = [IsAdminOrManager]
 
@@ -26,19 +38,18 @@ class SalesSummaryView(APIView):
         period = request.query_params.get("period")
         start, end = resolve_period_range(period)
 
-        completed_sales = Sale.objects.filter(
-            status=Sale.SaleStatus.COMPLETED, sale_date__date__range=(start, end)
-        )
-        total_revenue = completed_sales.aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
-        sale_count = completed_sales.count()
+        # Same rule as the money chain (Module H): voided sales don't count, returns
+        # come off the sale they were made on, a fully returned sale adds nothing.
+        sales = _kept_sales().filter(sale_date__date__range=(start, end))
+        total_revenue = _kept_revenue(sales)
+        sale_count = sales.exclude(status=Sale.SaleStatus.RETURNED).count()
 
         top_products = (
-            SaleItem.objects.filter(
-                sale__status=Sale.SaleStatus.COMPLETED,
-                sale__sale_date__date__range=(start, end),
-            )
+            SaleItem.objects.filter(sale__in=sales)
+            .annotate(returned_value=money_reports._returned_value())
             .values("product_id", "product__name")
-            .annotate(revenue=Sum("subtotal"))
+            .annotate(revenue=Sum(F("subtotal") - F("returned_value"), output_field=DecimalField(max_digits=18, decimal_places=2)))
+            .filter(revenue__gt=0)
             .order_by("-revenue")[:5]
         )
 
@@ -82,9 +93,7 @@ class FinancialSnapshotView(APIView):
         period = request.query_params.get("period")
         start, end = resolve_period_range(period)
 
-        total_revenue = Sale.objects.filter(
-            status=Sale.SaleStatus.COMPLETED, sale_date__date__range=(start, end)
-        ).aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+        total_revenue = _kept_revenue(_kept_sales().filter(sale_date__date__range=(start, end)))
 
         expenses_in_period = Expense.objects.filter(expense_date__range=(start, end))
         total_expenses = expenses_in_period.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
@@ -217,22 +226,27 @@ class ProfitabilityView(APIView):
             except ValueError:
                 raise ValidationError({"product": f"Invalid product id: {product_id_param!r}."})
 
-        sale_qs = SaleItem.objects.filter(sale__status=Sale.SaleStatus.COMPLETED)
+        # Kept units only (Module G): voided sales are out, returned units and their
+        # refunds come off the line they were sold on.
+        sale_qs = SaleItem.objects.exclude(sale__status=Sale.SaleStatus.VOIDED)
         if date_range is not None:
             sale_qs = sale_qs.filter(sale__sale_date__date__range=date_range)
         if only_product is not None:
             sale_qs = sale_qs.filter(product=only_product)
+        sale_qs = sale_qs.annotate(
+            returned_qty=money_reports._returned_qty(), returned_value=money_reports._returned_value(),
+        )
 
         # Per single unit, whatever the line kind (Module F: packs and bundle components).
         costs = received_cost_totals([only_product.pk] if only_product is not None else None)
         sales = {
             row["product_id"]: row
             for row in sale_qs.values("product_id").annotate(
-                units=Sum("quantity"),
-                revenue=Sum("subtotal"),
+                units=Sum(F("quantity") - F("returned_qty")),
+                revenue=Sum(F("subtotal") - F("returned_value"), output_field=DecimalField(max_digits=18, decimal_places=2)),
                 projected=Sum(
-                    F("list_price") * F("quantity"),
-                    output_field=DecimalField(max_digits=14, decimal_places=2),
+                    F("list_price") * (F("quantity") - F("returned_qty")),
+                    output_field=DecimalField(max_digits=18, decimal_places=2),
                 ),
             )
         }
@@ -321,3 +335,61 @@ class ActivityFeedView(APIView):
 
         items.sort(key=lambda item: item["timestamp"], reverse=True)
         return Response(items[:limit])
+
+
+# --- Module H: money dashboards -------------------------------------------------
+
+
+def _jsonable(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+class _MoneyView(APIView):
+    permission_classes = [IsAdminOrManager]
+
+    def compute(self, start, end, request, **kwargs):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def get(self, request, **kwargs):
+        start, end = money_reports.parse_range(request.query_params)
+        return Response(_jsonable(self.compute(start, end, request, **kwargs)))
+
+
+class MoneySummaryView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.summary(start, end)
+
+
+class MoneyChainView(_MoneyView):
+    def compute(self, start, end, request):
+        result = money_reports.chain(start, end)
+        result["vat"] = money_reports.vat_position(start, end, output_vat=result["figures"]["output_vat"])
+        return result
+
+
+class MoneyLeakageView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.leakage(start, end)
+
+
+class MoneyProductView(_MoneyView):
+    def compute(self, start, end, request, product_id=None):
+        return money_reports.product_drilldown(get_object_or_404(Product, pk=product_id), start, end)
+
+
+class MoneyPeopleView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.people(start, end)
+
+
+class MoneyAlertsView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.alerts(as_of=end)

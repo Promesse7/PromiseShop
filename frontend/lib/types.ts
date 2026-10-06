@@ -459,6 +459,16 @@ export interface ShopProfile {
   email: string | null;
   address: string | null;
   max_staff_discount_pct?: string;
+  // Dashboard alert thresholds (Module H5).
+  alert_discount_spike_ratio?: string;
+  alert_overdue_days?: number;
+  alert_cash_variance?: string;
+  alert_below_cost_count?: number;
+  alert_below_cost_days?: number;
+  alert_asset_replacements?: number;
+  alert_asset_window_days?: number;
+  alert_billing_diff_pct?: string;
+  alert_top_sellers?: number;
 }
 
 export type EmployeeStatus = "active" | "inactive" | "terminated";

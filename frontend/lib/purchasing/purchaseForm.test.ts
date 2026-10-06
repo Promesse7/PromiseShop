@@ -13,13 +13,15 @@ describe("purchaseForm", () => {
   it("builds a payload, trimming invoice number and nulling blanks; never sends a payment status", () => {
     const payload = buildPurchasePayload({
       supplier: 3, invoice_number: "  KE-8841  ", purchase_date: "2026-08-23", due_date: "2026-09-22",
+      has_vat_invoice: true,
     });
     expect(payload).toEqual({
       supplier: 3, invoice_number: "KE-8841", purchase_date: "2026-08-23", due_date: "2026-09-22",
+      has_vat_invoice: true,
     });
 
     const blank = buildPurchasePayload({
-      supplier: 3, invoice_number: "   ", purchase_date: "2026-08-23", due_date: "",
+      supplier: 3, invoice_number: "   ", purchase_date: "2026-08-23", due_date: "", has_vat_invoice: true,
     });
     expect(blank.invoice_number).toBeNull();
     expect(blank.due_date).toBeNull();
@@ -34,5 +36,11 @@ describe("purchaseForm", () => {
       validatePurchaseForm({ ...emptyPurchaseFormValues(), supplier: 1, purchase_date: "" })
     ).toEqual({ purchase_date: "Purchase date is required." });
     expect(validatePurchaseForm({ ...emptyPurchaseFormValues(), supplier: 1 })).toEqual({});
+  });
+
+  it("assumes a VAT invoice unless the user unticks it, and sends the flag", () => {
+    expect(emptyPurchaseFormValues().has_vat_invoice).toBe(true);
+    const payload = buildPurchasePayload({ ...emptyPurchaseFormValues(), supplier: 2, has_vat_invoice: false });
+    expect(payload.has_vat_invoice).toBe(false);
   });
 });

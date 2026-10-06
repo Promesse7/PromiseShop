@@ -45,7 +45,14 @@ export default function StockMovementsPageClient({ role }: StockMovementsPageCli
   const searchParams = useSearchParams();
   const showCost = role != null && ADMIN_ROLES.includes(role);
   const initialProduct = Number(searchParams.get("product")) || null;
-  const [filters, setFilters] = useState<MovementFilters>({ product: initialProduct, type: "", bucket: "", from: "", to: "" });
+  // Dashboard leakage cards link here with a type and period preset (?type=to_damaged&from=&to=).
+  const [filters, setFilters] = useState<MovementFilters>({
+    product: initialProduct,
+    type: (searchParams.get("type") ?? "") as MovementFilters["type"],
+    bucket: "",
+    from: searchParams.get("from") ?? "",
+    to: searchParams.get("to") ?? "",
+  });
   const productId = useId();
   const typeId = useId();
   const bucketId = useId();

@@ -114,6 +114,14 @@ function NewPurchaseFields({
         value={values.due_date}
         onChange={(v) => setField("due_date", v)}
       />
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={values.has_vat_invoice}
+          onChange={(e) => setField("has_vat_invoice", e.target.checked)}
+        />
+        Supplier gave a VAT invoice
+      </label>
       <p className="text-xs text-text/50">
         What has been paid is recorded as supplier payments on the purchase, not chosen here.
       </p>

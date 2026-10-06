@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardKicker } from "@/components/ui/Card";
 import type { ProfitabilityRow } from "@/lib/types";
 
@@ -5,6 +6,8 @@ interface CostMarginCardProps {
   row: ProfitabilityRow | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** When given, links to the per-period money drill-down (Module H2). */
+  productId?: number;
 }
 
 function rwf(value: string | number): string {
@@ -16,7 +19,7 @@ function marginLabel(amount: string | null, pct: string | null): string {
   return `${rwf(amount)} · ${Number(pct).toFixed(1)}%`;
 }
 
-export function CostMarginCard({ row, isLoading, isError }: CostMarginCardProps) {
+export function CostMarginCard({ row, isLoading, isError, productId }: CostMarginCardProps) {
   let body;
   if (isLoading) {
     body = <p className="text-sm text-text/50">Loading cost &amp; margin…</p>;
@@ -73,6 +76,11 @@ export function CostMarginCard({ row, isLoading, isError }: CostMarginCardProps)
     <Card elevation="sm">
       <CardKicker>Cost &amp; margin · all time</CardKicker>
       {body}
+      {productId != null && (
+        <Link href={`/dashboard/products/${productId}`} className="text-xs text-accent mt-1 self-start">
+          Money drill-down by period →
+        </Link>
+      )}
     </Card>
   );
 }

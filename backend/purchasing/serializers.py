@@ -130,7 +130,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
         fields = [
             "purchase_id", "supplier", "employee", "invoice_number", "purchase_date",
             "total_paid", "total_invoiced", "payment_status", "status", "items",
-            "amount_paid", "due_date", "payment_needs_review",
+            "amount_paid", "due_date", "payment_needs_review", "has_vat_invoice",
         ]
         # payment_status and amount_paid are derived from finance.Payment rows.
         read_only_fields = [

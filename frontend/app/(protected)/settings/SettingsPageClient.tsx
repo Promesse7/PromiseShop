@@ -12,12 +12,30 @@ import { Field } from "@/components/ui/Field";
 import { PageHeader } from "@/components/ui/PageHeader";
 import type { ShopProfile } from "@/lib/types";
 
+// Dashboard alert thresholds (Module H5): field, label, default (the handoff's values).
+const ALERT_FIELDS = [
+  ["alert_discount_spike_ratio", "Discount spike: this week's average above × the 8-week average", "2.00"],
+  ["alert_overdue_days", "Customer debt overdue more than (days)", "60"],
+  ["alert_cash_variance", "Day closed with a cash variance beyond ± (RWF)", "5000.00"],
+  ["alert_below_cost_count", "Product sold below cost more than (times)", "3"],
+  ["alert_below_cost_days", "… within (days)", "7"],
+  ["alert_asset_replacements", "Shop asset replaced more than (times)", "2"],
+  ["alert_asset_window_days", "… within (days)", "90"],
+  ["alert_billing_diff_pct", "Supplier billing differences above (% of purchases this month)", "2.00"],
+  ["alert_top_sellers", "Low stock alert on the top (sellers)", "20"],
+] as const;
+
+type AlertField = (typeof ALERT_FIELDS)[number][0];
+
 type ProfileForm = Record<
-  "business_name" | "tin" | "po_box" | "phone" | "email" | "address" | "max_staff_discount_pct",
+  "business_name" | "tin" | "po_box" | "phone" | "email" | "address" | "max_staff_discount_pct" | AlertField,
   string
 >;
 
 function toForm(profile: ShopProfile): ProfileForm {
+  const alerts = Object.fromEntries(
+    ALERT_FIELDS.map(([key, , fallback]) => [key, profile[key] != null ? String(profile[key]) : fallback])
+  ) as Record<AlertField, string>;
   return {
     business_name: profile.business_name,
     tin: profile.tin ?? "",
@@ -26,6 +44,7 @@ function toForm(profile: ShopProfile): ProfileForm {
     email: profile.email ?? "",
     address: profile.address ?? "",
     max_staff_discount_pct: profile.max_staff_discount_pct ?? "10.00",
+    ...alerts,
   };
 }
 
@@ -63,6 +82,11 @@ function SettingsForm({ initial }: { initial: ProfileForm }) {
       setError("The staff discount limit must be between 0 and 100%.");
       return;
     }
+    const badAlert = ALERT_FIELDS.find(([key]) => values[key] === "" || Number.isNaN(Number(values[key])) || Number(values[key]) < 0);
+    if (badAlert) {
+      setError(`"${badAlert[1]}" must be a number of 0 or more.`);
+      return;
+    }
     setError(null);
     setSaving(true);
     try {
@@ -76,10 +100,12 @@ function SettingsForm({ initial }: { initial: ProfileForm }) {
           email: values.email.trim() || null,
           address: values.address.trim() || null,
           max_staff_discount_pct: pct.toFixed(2),
+          ...Object.fromEntries(ALERT_FIELDS.map(([key]) => [key, values[key]])),
         }),
       });
       queryClient.invalidateQueries({ queryKey: ["shop-profile"] });
       queryClient.invalidateQueries({ queryKey: ["price-check"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-money", "alerts"] });
       show("Settings saved.", "success");
     } catch (e) {
       setError(e instanceof ApiError ? extractErrorMessage(e.body) : "Couldn't save the settings.");
@@ -113,6 +139,12 @@ function SettingsForm({ initial }: { initial: ProfileForm }) {
           Beyond this, or below a product&apos;s minimum price, a manager or admin must approve with their PIN.
           Markups have no limit.
         </p>
+      </Card>
+      <Card elevation="sm">
+        <CardKicker>Dashboard alerts</CardKicker>
+        {ALERT_FIELDS.map(([key, label]) => (
+          <Field key={key} label={label} name={key} type="number" value={values[key]} onChange={set(key)} />
+        ))}
       </Card>
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div>
