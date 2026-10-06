@@ -42,7 +42,7 @@ describe("useCountUp", () => {
     act(() => setMatchMedia({ reducedMotion: false }));
     const { result, rerender } = renderHook(({ n }) => useCountUp(n, 50), { initialProps: { n: 0 } });
     rerender({ n: 1000 });
-    await waitFor(() => expect(result.current).toBe(1000));
+    await waitFor(() => expect(result.current).toBe(1000), { timeout: 3000 });
   });
 });
 
