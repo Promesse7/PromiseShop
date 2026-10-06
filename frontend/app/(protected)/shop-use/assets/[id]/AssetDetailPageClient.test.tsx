@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -64,8 +64,8 @@ function renderPage(role: EmployeeRole) {
 describe("AssetDetailPageClient", () => {
   it("shows details, value and the timeline with replacement links for an admin", async () => {
     renderPage("admin");
-    expect(await screen.findByRole("heading", { name: "Office printer" })).toBeInTheDocument();
-    expect(screen.getByText("RWF 200,000")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "Office printer" })).toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "Asset facts" })).getByText("RWF 200,000")).toBeInTheDocument();
     expect(await screen.findByText("In service → Damaged")).toBeInTheDocument();
     expect(screen.getByText(/approved by Manager One/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Office printer" })).toHaveAttribute("href", "/shop-use/assets/12");
@@ -74,7 +74,7 @@ describe("AssetDetailPageClient", () => {
 
   it("gives staff only Report broken / Replace, and no value", async () => {
     renderPage("sales_staff");
-    await screen.findByRole("heading", { name: "Office printer" });
+    await screen.findByRole("heading", { level: 1, name: "Office printer" });
     expect(screen.getByRole("button", { name: "Report broken / Replace" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change status" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Return to stock" })).not.toBeInTheDocument();
@@ -106,7 +106,13 @@ describe("AssetDetailPageClient", () => {
   it("offers no actions on a retired asset", async () => {
     asset = { ...asset, status: "retired" };
     renderPage("admin");
-    await screen.findByRole("heading", { name: "Office printer" });
+    await screen.findByRole("heading", { level: 1, name: "Office printer" });
     expect(screen.queryByRole("button", { name: "Report broken / Replace" })).not.toBeInTheDocument();
+  });
+
+  it("has a back link to Shop use", async () => {
+    renderPage("admin");
+    await screen.findByRole("heading", { level: 1, name: "Office printer" });
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/shop-use");
   });
 });

@@ -44,7 +44,7 @@ function CategoryManagerList({ categories }: { categories: Category[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 min-w-[320px]">
+    <div className="flex flex-col gap-2 sm:min-w-[320px]">
       {categories.length === 0 ? (
         <p className="text-sm text-text/50">No categories yet.</p>
       ) : (

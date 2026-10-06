@@ -68,7 +68,7 @@ export function OpeningStockDialog({ open, productId, productName, currentInStoc
 
   return (
     <Dialog open={open} onClose={onClose} title={`Set opening stock — ${productName}`}>
-      <div className="flex flex-col gap-3 min-w-[340px]">
+      <div className="flex flex-col gap-3 sm:min-w-[340px]">
         <p className="text-sm text-text/70">
           For stock the shop already had before using PromiseShop. It counts toward the product&apos;s average cost.
           {currentInStock > 0 && ` ${currentInStock} are already recorded in stock; only the difference is added.`}

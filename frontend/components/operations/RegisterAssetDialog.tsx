@@ -43,7 +43,7 @@ export function RegisterAssetDialog({ open, onClose }: RegisterAssetDialogProps)
 
   return (
     <Dialog open={open} onClose={onClose} title="Register shop asset">
-      <div className="flex flex-col gap-3 min-w-[320px]">
+      <div className="flex flex-col gap-3 sm:min-w-[320px]">
         <p className="text-xs text-text/60">Something the shop already owns (its printer, a laptop). Stock is not touched.</p>
         <Field label="Name" name="name" value={name} onChange={setName} />
         <Field label="Serial (optional)" name="serial" value={serial} onChange={setSerial} />

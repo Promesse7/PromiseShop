@@ -182,7 +182,7 @@ function ProductFormFields({
   }
 
   return (
-      <div className="flex flex-col gap-3 min-w-[420px]">
+      <div className="flex flex-col gap-3 sm:min-w-[420px]">
         <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
         {similarProduct && (
           <p className="text-xs text-text/50">
@@ -302,7 +302,8 @@ function ProductFormFields({
             onChange={(v) => setField("storage_location", v)}
           />
         )}
-        <div className="flex gap-2 justify-end mt-2">
+        {/* Sticky so Save stays reachable on a long form and with the phone keyboard open. */}
+        <div className="sticky bottom-0 -mx-1 mt-2 flex justify-end gap-2 border-t border-divider bg-surface px-1 pt-3">
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>

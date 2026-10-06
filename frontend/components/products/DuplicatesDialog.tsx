@@ -139,7 +139,7 @@ export function DuplicatesDialog({ open, onClose }: DuplicatesDialogProps) {
 
   return (
     <Dialog open={open} onClose={onClose} title={selected ? "Merge duplicate products" : "Possible duplicates"}>
-      <div className="min-w-[420px] max-w-[640px]">
+      <div className="sm:min-w-[420px] max-w-[640px]">
         {selected ? (
           <MergeStep pair={selected} onBack={() => setSelected(null)} onMerged={() => setSelected(null)} />
         ) : (

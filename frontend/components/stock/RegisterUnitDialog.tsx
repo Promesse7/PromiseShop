@@ -71,7 +71,7 @@ export function RegisterUnitDialog({ open, productId, productName, onClose, onSa
   if (savedUnit) {
     return (
       <Dialog open={open} onClose={onClose} title="Unit registered">
-        <div className="flex flex-col gap-3 min-w-[320px]">
+        <div className="flex flex-col gap-3 sm:min-w-[320px]">
           <p className="text-sm">
             <span className="font-mono">{savedUnit.serial_number}</span> saved. Print a label for it now?
           </p>
@@ -91,7 +91,7 @@ export function RegisterUnitDialog({ open, productId, productName, onClose, onSa
 
   return (
     <Dialog open={open} onClose={onClose} title="Register unit">
-      <div className="flex flex-col gap-3 min-w-[320px]">
+      <div className="flex flex-col gap-3 sm:min-w-[320px]">
         <Field label="Serial number" name="serial_number" value={serialNumber} onChange={setSerialNumber} />
         <Field label="Storage location" name="storage_location" value={storageLocation} onChange={setStorageLocation} />
         <Field label="Condition notes" name="condition_notes" value={conditionNotes} onChange={setConditionNotes} />
