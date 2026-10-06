@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DebtsPageClient from "./DebtsPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 const buckets = { not_due: "0.00", "1_30": "0.00", "31_60": "50000.00", "61_90": "0.00", "90_plus": "0.00" };
 
@@ -81,9 +82,24 @@ describe("DebtsPageClient", () => {
 
   it("lists supplier payables with the migration review flag", async () => {
     renderPage();
-    await userEvent.click(screen.getByRole("radio", { name: "We owe suppliers" }));
+    await userEvent.click(screen.getByRole("tab", { name: "We owe suppliers" }));
     expect(await screen.findByText("Kigali Electronics")).toBeInTheDocument();
     expect(screen.getByText("Migrated — confirm amount paid")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Confirm as recorded" })).toBeInTheDocument();
+  });
+
+  it("shows the aging totals as a stat strip and switches views with tabs", async () => {
+    renderPage();
+    expect(await screen.findByRole("list", { name: "Aging totals" })).toHaveTextContent("RWF 50,000");
+    expect(screen.getByRole("tab", { name: "Customers owe us" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("lists customers as tappable cards on a phone, with Record payment on each", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage();
+    const card = (await screen.findByRole("link", { name: "Aline Uwase" })).closest("li")!;
+    expect(card).toHaveTextContent("RWF 50,000");
+    expect(card.querySelector("button")).toHaveTextContent("Record payment");
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 });
