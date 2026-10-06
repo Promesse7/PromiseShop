@@ -8,7 +8,56 @@ from rest_framework.response import Response
 from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
 from catalog.models import Category, Product, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
+from catalog.search import DEFAULT_LIMIT, MAX_LIMIT, TIER_NAMES, search_products
 from catalog.services import generate_barcode
+
+
+def _can_see_cost(user):
+    return user.role in (user.Role.ADMIN, user.Role.MANAGER)
+
+
+def _search_rows(products, include_cost):
+    """Shape search hits, fetching stock, price and last paid cost in bulk."""
+    from purchasing.models import Purchase, PurchaseItem
+    from stock.models import Inventory
+
+    ids = [p.product_id for p in products]
+    stock = dict(Inventory.objects.filter(product_id__in=ids).values_list("product_id", "quantity_in_stock"))
+    prices = dict(
+        ProductPricing.objects.filter(product_id__in=ids, is_current=True).values_list("product_id", "retail_price")
+    )
+    last_cost = {}
+    if include_cost:
+        received = (
+            PurchaseItem.objects.filter(product_id__in=ids, purchase__status=Purchase.Status.RECEIVED)
+            .order_by("product_id", "-purchase__purchase_date", "-purchase_item_id")
+            .distinct("product_id")
+            .values_list("product_id", "unit_cost_paid")
+        )
+        last_cost = dict(received)
+
+    rows = []
+    for p in products:
+        price = prices.get(p.product_id)
+        row = {
+            "product_id": p.product_id,
+            "name": p.name,
+            "brand": p.brand,
+            "model_number": p.model_number,
+            "barcode": p.barcode,
+            "category": p.category_id,
+            "category_name": p.category.name,
+            "is_active": p.is_active,
+            "in_stock": stock.get(p.product_id),
+            "retail_price": str(price) if price is not None else None,
+            "match": TIER_NAMES[p.match_tier],
+            "score": 1.0 if p.match_tier <= 2 else round(float(p.match_score or 0), 3),
+        }
+        if include_cost:
+            cost = last_cost.get(p.product_id)
+            row["last_paid_cost"] = str(cost) if cost is not None else None
+        rows.append(row)
+    return rows
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -58,6 +107,24 @@ class ProductViewSet(viewsets.ModelViewSet):
             category = serializer.validated_data["category"]
             barcode = generate_barcode(category)
             serializer.save(barcode=barcode)
+
+    @action(detail=False, methods=["get"], url_path="search")
+    def search(self, request):
+        raw_limit = request.query_params.get("limit")
+        if raw_limit in (None, ""):
+            limit = DEFAULT_LIMIT
+        else:
+            try:
+                limit = int(raw_limit)
+            except ValueError:
+                raise ValidationError({"limit": "Must be a whole number."})
+            limit = max(1, min(limit, MAX_LIMIT))
+        products = search_products(
+            request.query_params.get("q", ""),
+            include_inactive=request.query_params.get("include_inactive") == "true",
+            limit=limit,
+        )
+        return Response({"results": _search_rows(products, include_cost=_can_see_cost(request.user))})
 
     @action(detail=True, methods=["post"], url_path="set-active", permission_classes=[IsAdminOrManager])
     def set_active(self, request, pk=None):

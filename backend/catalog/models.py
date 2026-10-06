@@ -1,4 +1,7 @@
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
+
+from catalog.search import normalise_text
 
 
 class Category(models.Model):
@@ -31,9 +34,40 @@ class Product(models.Model):
     tax_category = models.CharField(max_length=1, choices=TaxCategory.choices, default=TaxCategory.STANDARD)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Maintained on save for product search (Module E1): lowercase, single-spaced.
+    # normalized_name answers "is this exactly the same name?"; search_text (name +
+    # brand + model) carries the trigram index for fuzzy matching.
+    normalized_name = models.CharField(max_length=150, default="", editable=False, db_index=True)
+    search_text = models.CharField(max_length=320, default="", editable=False)
+
+    class Meta:
+        indexes = [
+            GinIndex(fields=["search_text"], name="product_search_trgm", opclasses=["gin_trgm_ops"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.normalized_name = normalise_text(self.name)
+        self.search_text = normalise_text(" ".join([self.name or "", self.brand or "", self.model_number or ""]))
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {"normalized_name", "search_text"}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.barcode})"
+
+
+class ProductBarcodeAlias(models.Model):
+    """An extra barcode that scans as its product — e.g. the label of a duplicate
+    that was merged into it (Module E4), so old stickers keep working."""
+
+    alias_id = models.AutoField(primary_key=True)
+    barcode = models.CharField(max_length=50, unique=True)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="barcode_aliases")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.barcode} -> {self.product}"
 
 
 class ProductPricing(models.Model):
