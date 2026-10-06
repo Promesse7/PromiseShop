@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from catalog.models import Product, ProductPricing
+from catalog.search import normalise_text
 from catalog.services import generate_barcode
 from purchasing.models import Purchase, PurchaseItem
 from stock.models import Inventory
@@ -45,9 +46,9 @@ def add_existing_product_item(purchase, product, quantity, unit_cost_paid, unit_
 
 
 def _find_existing_product_by_name(name):
-    # Case- and whitespace-insensitive, oldest first so a catalog that already
-    # holds duplicates resolves deterministically instead of by chance.
-    return Product.objects.filter(name__iexact=name).order_by("product_id").first()
+    # Case- and whitespace-insensitive (via the maintained normalized_name), oldest
+    # first so a catalog that already holds duplicates resolves deterministically.
+    return Product.objects.filter(normalized_name=normalise_text(name)).order_by("product_id").first()
 
 
 def add_new_product_item(purchase, *, category, name, quantity, unit_cost_paid, unit_cost_invoiced,
@@ -97,6 +98,92 @@ def remove_item(purchase, item):
             raise ValidationError("Cannot remove items from a purchase that is not a draft.")
         item.delete()
         _recompute_purchase_totals(purchase)
+
+
+class BulkRowErrors(Exception):
+    """Raised by add_items_bulk when any row fails; carries {row_index: errors}."""
+
+    def __init__(self, row_errors):
+        super().__init__("Some rows failed; nothing was saved.")
+        self.row_errors = row_errors
+
+
+def add_items_bulk(purchase, rows):
+    """Add every row to a draft purchase, or none of them.
+
+    rows: validated BulkPurchaseItemRowSerializer data. Each row goes through the
+    same add_existing_product_item / add_new_product_item paths as a single add
+    (so new products keep the same-name dedupe). Any failure rolls everything
+    back — including products created by earlier rows — and raises BulkRowErrors.
+    """
+    if not rows:
+        raise ValidationError("Add at least one row.")
+    with transaction.atomic():
+        locked = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if locked.status != Purchase.Status.DRAFT:
+            raise ValidationError("Cannot add items to a purchase that is not a draft.")
+        items, row_errors = [], {}
+        for index, row in enumerate(rows):
+            try:
+                with transaction.atomic():
+                    new_product = row.get("new_product")
+                    common = dict(
+                        quantity=row["quantity"], unit_cost_paid=row["unit_cost_paid"],
+                        unit_cost_invoiced=row["unit_cost_invoiced"],
+                        price_discrepancy_note=row.get("price_discrepancy_note", ""),
+                    )
+                    if new_product is not None:
+                        items.append(add_new_product_item(locked, **new_product, **common))
+                    else:
+                        items.append(add_existing_product_item(locked, row["product"], **common))
+            except ValidationError as exc:
+                row_errors[index] = exc.detail
+        if row_errors:
+            transaction.set_rollback(True)
+            raise BulkRowErrors(row_errors)
+    return items
+
+
+def update_item(purchase, item, **changes):
+    """Change quantity / costs / note on a draft purchase line and re-total."""
+    if item.purchase_id != purchase.pk:
+        raise ValidationError("Item does not belong to this purchase.")
+    with transaction.atomic():
+        locked = Purchase.objects.select_for_update().get(pk=purchase.pk)
+        if locked.status != Purchase.Status.DRAFT:
+            raise ValidationError("Cannot edit items on a purchase that is not a draft.")
+        item = PurchaseItem.objects.select_for_update().get(pk=item.pk)
+        for field in ("quantity", "unit_cost_paid", "unit_cost_invoiced", "price_discrepancy_note"):
+            if field in changes:
+                setattr(item, field, changes[field])
+        _validate_discrepancy_note(item.unit_cost_paid, item.unit_cost_invoiced, item.price_discrepancy_note)
+        item.subtotal_paid = item.quantity * item.unit_cost_paid
+        item.subtotal_invoiced = item.quantity * item.unit_cost_invoiced
+        item.save()
+        _recompute_purchase_totals(locked)
+    return item
+
+
+def recent_products_for_supplier(supplier, limit=20):
+    """The last `limit` distinct products bought from a supplier, newest first.
+
+    Cancelled purchases don't count; drafts do (they are what's being typed in now).
+    """
+    seen, rows = set(), []
+    lines = (
+        PurchaseItem.objects.filter(purchase__supplier=supplier)
+        .exclude(purchase__status=Purchase.Status.CANCELLED)
+        .select_related("product", "purchase")
+        .order_by("-purchase__purchase_date", "-purchase_id", "-purchase_item_id")
+    )
+    for line in lines.iterator(chunk_size=200):
+        if line.product_id in seen:
+            continue
+        seen.add(line.product_id)
+        rows.append(line)
+        if len(rows) == limit:
+            break
+    return rows
 
 
 def cancel_purchase(purchase):

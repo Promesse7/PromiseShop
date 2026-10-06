@@ -89,3 +89,60 @@ class AddPurchaseItemSerializer(serializers.Serializer):
                 )
         attrs["_is_new_product"] = is_new_product
         return attrs
+
+
+class BulkNewProductSerializer(serializers.Serializer):
+    """The explicit "create this product" half of a bulk purchase row."""
+
+    category = serializers.PrimaryKeyRelatedField(queryset=Category.objects.all())
+    name = serializers.CharField(max_length=150)
+    selling_price = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    brand = serializers.CharField(required=False, allow_blank=True, default="", max_length=80)
+    model_number = serializers.CharField(required=False, allow_blank=True, default="", max_length=80)
+    specifications = serializers.CharField(required=False, allow_blank=True, default="")
+    usage_instructions = serializers.CharField(required=False, allow_blank=True, default="")
+    warranty_months = serializers.IntegerField(required=False, default=0, min_value=0)
+    reorder_level = serializers.IntegerField(required=False, default=5, min_value=0)
+
+
+class BulkPurchaseItemRowSerializer(serializers.Serializer):
+    """One row of POST /purchases/<id>/items/bulk/.
+
+    Exactly one of `product` (an existing catalog product) or `new_product` (an
+    explicit request to create one) — a row naming neither is refused, so no
+    product is ever created silently.
+    """
+
+    product = serializers.PrimaryKeyRelatedField(queryset=Product.objects.all(), required=False)
+    new_product = BulkNewProductSerializer(required=False)
+    quantity = serializers.IntegerField(min_value=1)
+    unit_cost_paid = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    unit_cost_invoiced = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    price_discrepancy_note = serializers.CharField(required=False, allow_blank=True, default="")
+
+    def validate(self, attrs):
+        has_product = attrs.get("product") is not None
+        has_new = attrs.get("new_product") is not None
+        if has_product == has_new:
+            raise serializers.ValidationError(
+                {"product": "Choose an existing product or explicitly create a new one (not both)."}
+            )
+        if attrs["unit_cost_paid"] != attrs["unit_cost_invoiced"] and not attrs.get("price_discrepancy_note"):
+            raise serializers.ValidationError({
+                "price_discrepancy_note": "Required when unit_cost_paid differs from unit_cost_invoiced."
+            })
+        return attrs
+
+
+class UpdatePurchaseItemSerializer(serializers.Serializer):
+    """PATCH /purchases/<id>/items/<item_id>/ — any subset of these fields."""
+
+    quantity = serializers.IntegerField(min_value=1, required=False)
+    unit_cost_paid = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False
+    )
+    unit_cost_invoiced = serializers.DecimalField(
+        max_digits=12, decimal_places=2, min_value=Decimal("0"), required=False
+    )
+    price_discrepancy_note = serializers.CharField(required=False, allow_blank=True)
+
