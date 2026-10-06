@@ -60,6 +60,12 @@ describe("UnitDetailPageClient", () => {
       unit: undefined, isLoading: true, isError: false,
     });
     renderWithProviders(<UnitDetailPageClient unitId={3} />);
-    expect(screen.getByText("Loading unit…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading unit…" })).toBeInTheDocument();
+  });
+
+  it("has a back link to the stock overview and shows the unit's key facts", () => {
+    renderWithProviders(<UnitDetailPageClient unitId={3} />);
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/stock");
+    expect(screen.getByRole("list", { name: "Unit details" })).toBeInTheDocument();
   });
 });

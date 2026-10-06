@@ -76,7 +76,7 @@ export function AdjustStockDialog({ open, inventoryId, productName, quantities, 
 
   return (
     <Dialog open={open} onClose={onClose} title={`Adjust stock — ${productName}`}>
-      <div className="flex flex-col gap-3 min-w-[360px]">
+      <div className="flex flex-col gap-3 sm:min-w-[360px]">
         <p className="text-sm text-text/70">
           {quantities.in_stock} in stock · {quantities.in_use} in use · {quantities.damaged} damaged
         </p>

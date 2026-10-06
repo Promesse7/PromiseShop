@@ -66,7 +66,7 @@ function SetPriceFields({ productId, isAdmin, onClose, onSaved }: Omit<SetPriceD
   }
 
   return (
-    <div className="flex flex-col gap-3 min-w-[320px]">
+    <div className="flex flex-col gap-3 sm:min-w-[320px]">
       <Field label="Retail price" name="retail_price" type="number" value={retailPrice} onChange={setRetailPrice} />
       {isAdmin && (
         <Field label="Wholesale price" name="wholesale_price" type="number" value={wholesalePrice} onChange={setWholesalePrice} />

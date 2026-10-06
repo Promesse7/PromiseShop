@@ -100,9 +100,44 @@ export function ReplaceAssetWizard({ open, asset, onClose, onDone }: ReplaceAsse
 
   return (
     <>
-      <Dialog open={open && !flow.prompt} onClose={onClose} title={`Report broken / Replace — ${asset.name}`}>
-        <div className="flex flex-col gap-3 min-w-[340px]">
-          <p className="text-xs text-text/50">Step {step} of 4</p>
+      <Dialog
+        open={open && !flow.prompt}
+        onClose={onClose}
+        title={`Report broken / Replace — ${asset.name}`}
+        footer={
+          <div className="flex justify-end gap-2">
+            {step > 1 ? (
+              <Button variant="secondary" onClick={() => setStep((s) => (s - 1) as Step)}>Back</Button>
+            ) : (
+              <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            )}
+            {step < 4 ? (
+              <Button
+                disabled={(step === 1 && !reason.trim()) || (step === 3 && !sourceReady)}
+                onClick={() => setStep((s) => (s + 1) as Step)}
+              >
+                Next
+              </Button>
+            ) : (
+              <Button disabled={flow.submitting} onClick={confirm}>{flow.submitting ? "Saving…" : "Confirm"}</Button>
+            )}
+          </div>
+        }
+      >
+        <div className="flex flex-col gap-3 sm:min-w-[340px]">
+          <div className="flex items-center gap-2">
+            <p className="m-0 text-xs text-text/50">Step {step} of 4</p>
+            <div
+              className="h-1 flex-1 overflow-hidden rounded-full bg-neutral-200"
+              role="progressbar"
+              aria-label="Progress"
+              aria-valuemin={1}
+              aria-valuemax={4}
+              aria-valuenow={step}
+            >
+              <div className="h-full rounded-full bg-accent transition-[width] duration-200" style={{ width: `${(step / 4) * 100}%` }} />
+            </div>
+          </div>
           {step === 1 && (
             <Field label="What happened?" name="what_happened" value={reason} onChange={setReason} placeholder="e.g. Fuser burnt out" />
           )}
@@ -191,23 +226,6 @@ export function ReplaceAssetWizard({ open, asset, onClose, onDone }: ReplaceAsse
             </ul>
           )}
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex gap-2 justify-end">
-            {step > 1 ? (
-              <Button variant="secondary" onClick={() => setStep((s) => (s - 1) as Step)}>Back</Button>
-            ) : (
-              <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            )}
-            {step < 4 ? (
-              <Button
-                disabled={(step === 1 && !reason.trim()) || (step === 3 && !sourceReady)}
-                onClick={() => setStep((s) => (s + 1) as Step)}
-              >
-                Next
-              </Button>
-            ) : (
-              <Button disabled={flow.submitting} onClick={confirm}>{flow.submitting ? "Saving…" : "Confirm"}</Button>
-            )}
-          </div>
         </div>
       </Dialog>
       <ApprovalDialog

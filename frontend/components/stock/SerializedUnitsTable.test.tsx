@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SerializedUnitsTable } from "./SerializedUnitsTable";
 import type { EquipmentUnit } from "@/lib/types";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 const units: EquipmentUnit[] = [
   { unit_id: 1, product: 2, serial_number: "JBL6-KX2201", status: "in_stock", assigned_to: null, storage_location: "Shelf B2", condition_notes: null, status_changed_at: "2026-08-18T00:00:00Z" },
@@ -10,14 +11,18 @@ const units: EquipmentUnit[] = [
 ];
 
 describe("SerializedUnitsTable", () => {
-  it("renders each unit with a status tag and a History link to its detail page", () => {
+  it("renders each unit with its serial linking to the unit's history page", () => {
     render(<SerializedUnitsTable units={units} />);
 
-    expect(screen.getByText("JBL6-KX2201")).toBeInTheDocument();
-    expect(screen.getByText("JBL6-KX2093")).toBeInTheDocument();
-    const links = screen.getAllByRole("link", { name: "History" });
-    expect(links).toHaveLength(2);
-    expect(links[1]).toHaveAttribute("href", "/stock/units/2");
+    expect(screen.getByRole("link", { name: "JBL6-KX2201" })).toHaveAttribute("href", "/stock/units/1");
+    expect(screen.getByRole("link", { name: "JBL6-KX2093" })).toHaveAttribute("href", "/stock/units/2");
+  });
+
+  it("shows each unit as a tappable card on phone", () => {
+    setMatchMedia({ desktop: false });
+    render(<SerializedUnitsTable units={units} onToggleSelect={() => {}} onPrintLabel={() => {}} />);
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /JBL6-KX2093/ })).toHaveAttribute("href", "/stock/units/2");
   });
 
   it("shows who a unit is assigned to and when its status last changed", () => {

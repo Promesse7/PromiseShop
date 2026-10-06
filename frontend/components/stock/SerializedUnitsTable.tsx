@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { Table } from "@/components/ui/Table";
+import { Cpu } from "lucide-react";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import type { EquipmentUnit, EquipmentUnitStatus } from "@/lib/types";
 
@@ -28,12 +29,14 @@ function formatDate(value: string): string {
 }
 
 export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPrintLabel, employeeNames }: SerializedUnitsTableProps) {
-  const columns = [
+  const columns: DataColumn<EquipmentUnit>[] = [
     ...(onToggleSelect
       ? [
           {
             key: "select",
             header: "",
+            // Selection (for bulk label printing) is a desktop task; on phone the card is a link.
+            mobile: false,
             render: (unit: EquipmentUnit) => (
               <input
                 type="checkbox"
@@ -48,12 +51,16 @@ export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPri
     {
       key: "serial_number",
       header: "Serial",
-      render: (unit: EquipmentUnit) => <span className="font-mono text-xs">{unit.serial_number}</span>,
+      primary: true,
+      sortValue: (unit) => unit.serial_number,
+      render: (unit) => <span className="font-mono text-xs">{unit.serial_number}</span>,
     },
     {
       key: "status",
       header: "Status",
-      render: (unit: EquipmentUnit) => {
+      mobile: true,
+      sortValue: (unit) => unit.status ?? "",
+      render: (unit) => {
         const tag = unit.status ? STATUS_TAG[unit.status] : undefined;
         return tag ? <Tag variant={tag.variant}>{tag.label}</Tag> : "—";
       },
@@ -61,58 +68,46 @@ export function SerializedUnitsTable({ units, selectedIds, onToggleSelect, onPri
     {
       key: "assigned_to",
       header: "Assigned to",
-      render: (unit: EquipmentUnit) =>
+      mobile: true,
+      render: (unit) =>
         unit.assigned_to == null ? "—" : employeeNames?.get(unit.assigned_to) ?? `Employee #${unit.assigned_to}`,
     },
-    {
-      key: "storage_location",
-      header: "Location",
-      render: (unit: EquipmentUnit) => unit.storage_location ?? "—",
-    },
+    { key: "storage_location", header: "Location", mobile: true, render: (unit) => unit.storage_location ?? "—" },
     {
       key: "condition_notes",
       header: "Condition notes",
-      render: (unit: EquipmentUnit) => <span className="text-text/50">{unit.condition_notes ?? "—"}</span>,
+      render: (unit) => <span className="text-text/50">{unit.condition_notes ?? "—"}</span>,
     },
     {
       key: "status_changed_at",
       header: "Changed",
-      render: (unit: EquipmentUnit) => <span className="text-xs">{formatDate(unit.status_changed_at)}</span>,
+      sortValue: (unit) => unit.status_changed_at,
+      render: (unit) => <span className="text-xs">{formatDate(unit.status_changed_at)}</span>,
     },
     ...(onPrintLabel
       ? [
           {
             key: "print",
             header: "",
+            mobile: false,
             render: (unit: EquipmentUnit) => (
-              <button
-                type="button"
-                className="text-xs text-accent underline"
-                onClick={() => onPrintLabel(unit)}
-              >
+              <button type="button" className="text-xs text-accent underline" onClick={() => onPrintLabel(unit)}>
                 Print label
               </button>
             ),
           },
         ]
       : []),
-    {
-      key: "history",
-      header: "",
-      render: (unit: EquipmentUnit) => (
-        <Link href={`/stock/units/${unit.unit_id}`} className="text-xs text-accent">
-          History
-        </Link>
-      ),
-    },
   ];
 
   return (
-    <Table
+    <DataTable
+      label="Serialized units"
       columns={columns}
       rows={units}
       rowKey={(unit) => String(unit.unit_id)}
-      emptyMessage="No serialized units for this product"
+      rowHref={(unit) => `/stock/units/${unit.unit_id}`}
+      empty={<EmptyState icon={Cpu} title="No serialized units for this product" />}
     />
   );
 }

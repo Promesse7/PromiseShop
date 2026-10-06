@@ -4,8 +4,14 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProductsPageClient from "./ProductsPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import * as useCatalogProductsModule from "@/lib/products/useCatalogProducts";
 import type { CatalogProducts } from "@/lib/products/useCatalogProducts";
+import { setMatchMedia } from "@/lib/test/matchMedia";
+
+async function openMoreActions() {
+  await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+}
 
 const products: CatalogProducts["all"] = [
   { product_id: 1, name: "Samsung TV", brand: "Samsung", model_number: "UA43DU7000", barcode: "PES-TV-00082", category_id: 10, category_name: "Televisions", retail_price: 385000, wholesale_price: 318000, quantity_in_stock: 12, reorder_level: 5, status: "ok", is_active: true, has_price: true, has_inventory: true },
@@ -17,7 +23,9 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>{ui}</ToastProvider>
+      <ToastProvider>
+        <ConfirmProvider>{ui}</ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
@@ -80,8 +88,8 @@ describe("ProductsPageClient", () => {
   it("sorts by price low to high", async () => {
     renderWithProviders(<ProductsPageClient role="admin" />);
     await userEvent.selectOptions(screen.getByLabelText("Sort by"), "price");
-    // "Products" (the PageHeader title) is also an h3, so it's the first heading in document order.
-    const [, ...productNames] = screen.getAllByRole("heading", { level: 3 }).map((el) => el.textContent);
+    // The page title is an h1; each product card title is an h3.
+    const productNames = screen.getAllByRole("heading", { level: 3 }).map((el) => el.textContent);
     expect(productNames).toEqual(["JBL Flip 6", "Samsung TV"]);
   });
 
@@ -152,11 +160,10 @@ describe("ProductsPageClient", () => {
     vi.restoreAllMocks();
   });
 
-  it("shows the Manage categories button for admin and opens the dialog", async () => {
+  it("offers Manage categories to admin in the More actions menu and opens the dialog", async () => {
     renderWithProviders(<ProductsPageClient role="admin" />);
-    const button = screen.getByRole("button", { name: "Manage categories" });
-    expect(button).toBeInTheDocument();
-    await userEvent.click(button);
+    await openMoreActions();
+    await userEvent.click(screen.getByRole("menuitem", { name: "Manage categories" }));
     const dialog = within(screen.getByTestId("dialog-backdrop"));
     expect(dialog.getByText("Manage categories", { selector: "h4" })).toBeInTheDocument();
     // "Televisions" also appears as a category filter pill in the page header behind the
@@ -164,9 +171,10 @@ describe("ProductsPageClient", () => {
     expect(dialog.getByText("Televisions")).toBeInTheDocument();
   });
 
-  it("hides the Manage categories button for sales_staff", () => {
+  it("gives sales_staff no admin actions at all", () => {
     renderWithProviders(<ProductsPageClient role="sales_staff" />);
-    expect(screen.queryByRole("button", { name: "Manage categories" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "More actions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "+ New product" })).not.toBeInTheDocument();
   });
 
   it("shows a Deactivate N products button for admin once products are selected", async () => {
@@ -202,12 +210,35 @@ describe("ProductsPageClient", () => {
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
 
-  it("offers Find duplicates to an admin only", () => {
+  it("offers Find duplicates to an admin only", async () => {
     const { unmount } = renderWithProviders(<ProductsPageClient role="admin" />);
-    expect(screen.getByRole("button", { name: "Find duplicates" })).toBeInTheDocument();
+    await openMoreActions();
+    expect(screen.getByRole("menuitem", { name: "Find duplicates" })).toBeInTheDocument();
     unmount();
     renderWithProviders(<ProductsPageClient role="manager" />);
-    expect(screen.queryByRole("button", { name: "Find duplicates" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Manage categories" })).toBeInTheDocument();
+    await openMoreActions();
+    expect(screen.queryByRole("menuitem", { name: "Find duplicates" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Manage categories" })).toBeInTheDocument();
+  });
+
+  it("moves the filters into a Filters sheet on phone and counts the active ones", async () => {
+    setMatchMedia({ desktop: false });
+    renderWithProviders(<ProductsPageClient role="admin" />);
+    expect(screen.queryByRole("radio", { name: "Televisions" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Televisions" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
+    expect(screen.queryByText("JBL Flip 6")).not.toBeInTheDocument();
+  });
+
+  it("opens the New product dialog straight away when arriving from jump search (?new=1)", () => {
+    renderWithProviders(<ProductsPageClient role="manager" openNew />);
+    expect(screen.getByRole("heading", { name: "New product" })).toBeInTheDocument();
+  });
+
+  it("ignores ?new=1 for staff, who can't create products", () => {
+    renderWithProviders(<ProductsPageClient role="sales_staff" openNew />);
+    expect(screen.queryByRole("heading", { name: "New product" })).not.toBeInTheDocument();
   });
 });

@@ -52,8 +52,16 @@ export function AssetActionDialog({ open, asset, mode, statuses = [], onClose }:
         open={open && !flow.prompt}
         onClose={onClose}
         title={mode === "status" ? `Change status — ${asset.name}` : `Return to stock — ${asset.name}`}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button disabled={!reason.trim() || flow.submitting} onClick={save}>
+              {flow.submitting ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        }
       >
-        <div className="flex flex-col gap-3 min-w-[320px]">
+        <div className="flex flex-col gap-3 sm:min-w-[320px]">
           {mode === "status" ? (
             <SegmentedToggle
               name="asset-status"
@@ -77,12 +85,6 @@ export function AssetActionDialog({ open, asset, mode, statuses = [], onClose }:
           )}
           <Field label="Reason" name="reason" value={reason} onChange={setReason} />
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex gap-2 justify-end">
-            <Button variant="secondary" onClick={onClose}>Cancel</Button>
-            <Button disabled={!reason.trim() || flow.submitting} onClick={save}>
-              {flow.submitting ? "Saving…" : "Save"}
-            </Button>
-          </div>
         </div>
       </Dialog>
       <ApprovalDialog

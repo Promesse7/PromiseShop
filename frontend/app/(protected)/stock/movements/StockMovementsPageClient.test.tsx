@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import StockMovementsPageClient from "./StockMovementsPageClient";
 import type { EmployeeRole } from "@/lib/types";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
@@ -91,9 +92,25 @@ describe("StockMovementsPageClient", () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderPage();
     await screen.findByText("Sale #1");
-    await userEvent.click(screen.getByRole("button", { name: "Export CSV" }));
+    await userEvent.click(screen.getByRole("button", { name: "More actions" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Export CSV" }));
     expect(createObjectURL).toHaveBeenCalledTimes(1);
     expect(click).toHaveBeenCalledTimes(1);
     click.mockRestore();
+  });
+
+  it("collapses the five filters into a Filters sheet on phone", async () => {
+    setMatchMedia({ desktop: false });
+    mockSearchParams = new URLSearchParams("type=to_damaged");
+    renderPage();
+    // Phone cards show the change and balance, not the free-text reason.
+    await screen.findByText("-1");
+    expect(screen.queryByLabelText("Type")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
+  });
+
+  it("links back to the stock overview", () => {
+    renderPage();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/stock");
   });
 });

@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import { ProductTable } from "./ProductTable";
 import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
@@ -29,7 +30,7 @@ describe("ProductTable", () => {
     expect(screen.getByText("Samsung TV")).toBeInTheDocument();
     expect(screen.getByText("Televisions")).toBeInTheDocument();
     expect(screen.getByText("PES-TV-00082")).toBeInTheDocument();
-    expect(screen.getByText("385,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 385,000")).toBeInTheDocument();
     expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("OK")).toBeInTheDocument();
     expect(screen.getByText("Low stock")).toBeInTheDocument();
@@ -38,19 +39,19 @@ describe("ProductTable", () => {
   it("hides the Wholesale column when showWholesale is false", () => {
     render(<ProductTable products={products} showWholesale={false} />);
     expect(screen.queryByRole("columnheader", { name: "Wholesale" })).not.toBeInTheDocument();
-    expect(screen.queryByText("318,000")).not.toBeInTheDocument();
+    expect(screen.queryByText("RWF 318,000")).not.toBeInTheDocument();
   });
 
   it("shows the Wholesale column with a dash for a missing price when showWholesale is true", () => {
     render(<ProductTable products={products} showWholesale={true} />);
     expect(screen.getByRole("columnheader", { name: "Wholesale" })).toBeInTheDocument();
-    expect(screen.getByText("318,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 318,000")).toBeInTheDocument();
     expect(screen.getByText("—")).toBeInTheDocument();
   });
 
   it("links each row to its product detail page", () => {
     render(<ProductTable products={products} showWholesale={false} />);
-    expect(screen.getAllByRole("link", { name: "Open" })[0]).toHaveAttribute("href", "/products/1");
+    expect(screen.getByRole("link", { name: /Samsung TV/ })).toHaveAttribute("href", "/products/1");
   });
 
   it("shows an Inactive tag for a product with is_active false", () => {
@@ -79,5 +80,13 @@ describe("ProductTable", () => {
     );
     expect(screen.getByText("Not yet received")).toBeInTheDocument();
     expect(screen.queryByText("Out of stock")).not.toBeInTheDocument();
+  });
+
+  it("shows tappable product cards on phone", () => {
+    setMatchMedia({ desktop: false });
+    render(<ProductTable products={products} showWholesale={false} />);
+    expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /JBL Flip 6/ })).toHaveAttribute("href", "/products/2");
+    expect(screen.getByText("RWF 145,000")).toBeInTheDocument();
   });
 });

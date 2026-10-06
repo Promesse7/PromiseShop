@@ -58,4 +58,11 @@ describe("ScanPageClient", () => {
     await userEvent.type(screen.getByLabelText("Scan serial or search unit…"), "SHOP-PRINTER-1");
     await vi.waitFor(() => expect(pushMock).toHaveBeenCalledWith("/shop-use/assets/7"));
   });
+
+  it("is a page with a back link to Stock and a focused scan box", () => {
+    renderWithProviders(<ScanPageClient />);
+    expect(screen.getByRole("heading", { level: 1, name: "Quick status change" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/stock");
+    expect(screen.getByLabelText("Scan serial or search unit…")).toHaveFocus();
+  });
 });

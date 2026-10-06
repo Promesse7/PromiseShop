@@ -68,7 +68,7 @@ export function ChangeStatusDialog({ open, unitId, currentStatus, onClose, onSav
 
   return (
     <Dialog open={open} onClose={onClose} title="Change status">
-      <div className="flex flex-col gap-3 min-w-[320px]">
+      <div className="flex flex-col gap-3 sm:min-w-[320px]">
         <div className="flex flex-col gap-1">
           <label className="block text-xs text-text/70">New status</label>
           <SegmentedToggle name="new-status" options={STATUS_OPTIONS} value={newStatus} onChange={(v) => setNewStatus(v as EquipmentUnitStatus)} />

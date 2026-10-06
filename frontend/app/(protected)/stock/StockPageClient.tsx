@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
+import { ArrowLeftRight, ScanLine } from "lucide-react";
 import { useStockOverview } from "@/lib/stock/useStockOverview";
 import { useEquipmentUnits } from "@/lib/stock/useEquipmentUnits";
 import { useEmployees } from "@/lib/employees/useEmployees";
@@ -12,12 +14,13 @@ import { RegisterUnitDialog } from "@/components/stock/RegisterUnitDialog";
 import { AdjustStockDialog } from "@/components/stock/AdjustStockDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
-import { CardKicker } from "@/components/ui/Card";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { LabelSheet } from "@/components/ui/LabelSheet";
 import { UnitLabel } from "@/components/stock/UnitLabel";
+import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
 import type { EmployeeRole, EquipmentUnit } from "@/lib/types";
 
 type StockFilter = "all" | "low_out" | "serialized";
@@ -30,6 +33,9 @@ const FILTER_OPTIONS = [
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
 
+const LINK_BUTTON =
+  "inline-flex items-center gap-1.5 rounded-md border border-divider bg-surface px-2.5 py-1.5 text-sm text-text no-underline hover:border-accent/40 hover:text-accent";
+
 interface StockPageClientProps {
   role?: EmployeeRole;
 }
@@ -37,6 +43,7 @@ interface StockPageClientProps {
 export default function StockPageClient({ role }: StockPageClientProps) {
   const overview = useStockOverview();
   const searchParams = useSearchParams();
+  const reduced = useReducedMotionSafe();
   const isAdmin = role != null && ADMIN_ROLES.includes(role);
   const employees = useEmployees(isAdmin);
   const [filter, setFilter] = useState<StockFilter>("all");
@@ -97,75 +104,98 @@ export default function StockPageClient({ role }: StockPageClientProps) {
   const selectedProduct = overview.rows.find((r) => r.product_id === selectedProductId);
   const adjustRow = overview.rows.find((r) => r.product_id === adjustProductId);
 
-  if (overview.isError) {
-    return (
-      <ErrorState message="Couldn't load stock." />
-    );
-  }
-
-  if (overview.isLoading) {
-    return <CardGridSkeleton label="Loading stock…" />;
-  }
-
-  return (
-    <div>
-      <PageHeader title="Stock overview">
+  const toolbar = (
+    <Toolbar
+      search={
         <input
           aria-label="Search stock"
           placeholder="Search product or location…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-[260px] min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md ml-4"
+          className="min-h-9 w-full rounded-md border border-divider bg-surface px-2.5 py-1.5 text-sm text-text"
         />
+      }
+      activeFilterCount={filter !== "all" ? 1 : 0}
+      filters={
         <SegmentedToggle name="stk" options={FILTER_OPTIONS} value={filter} onChange={(v) => setFilter(v as StockFilter)} />
-        <Link href="/stock/movements" className="ml-auto text-sm text-accent">
-          Movements →
-        </Link>
-        <Link href="/stock/scan" className="text-sm text-accent">
-          Quick status change →
-        </Link>
-      </PageHeader>
+      }
+      trailing={
+        <>
+          <Link href="/stock/movements" className={LINK_BUTTON}>
+            <ArrowLeftRight className="h-4 w-4" aria-hidden />
+            Movements
+          </Link>
+          <Link href="/stock/scan" className={LINK_BUTTON} aria-label="Quick status change">
+            <ScanLine className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Quick status change</span>
+          </Link>
+        </>
+      }
+    />
+  );
+
+  let grid;
+  if (overview.isError) grid = <ErrorState message="Couldn't load stock." />;
+  else if (overview.isLoading) grid = <LoadingState variant="cards" label="Loading stock…" />;
+  else
+    grid = (
       <StockOverviewCardGrid
         rows={filteredRows}
         onSelectProduct={handleSelectProduct}
         onAdjust={isAdmin ? setAdjustProductId : undefined}
+        selectedProductId={selectedProductId}
       />
-      <hr className="my-4 border-divider" />
-      <div className="flex items-baseline gap-3 mb-2">
-        <CardKicker>
-          {selectedProduct ? `Serialized units — ${selectedProduct.name}` : "Serialized units"}
-        </CardKicker>
-        {selectedProduct && (
-          <Button variant="ghost" className="ml-auto" onClick={() => setRegisterOpen(true)}>
-            + Register unit
-          </Button>
-        )}
+    );
+
+  const unitsBar =
+    selectedUnitIds.size > 0 ? (
+      <motion.div
+        key="units-bar"
+        className="mb-3 flex items-center gap-2 rounded-md bg-accent/10 p-2 text-sm"
+        initial={reduced ? false : { opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0, transition: { duration: DURATION.fast, ease: EASE.out } }}
+        exit={reduced ? undefined : { opacity: 0, transition: { duration: DURATION.fast } }}
+      >
+        <span>{selectedUnitIds.size} selected</span>
+        <Button
+          variant="secondary"
+          className="ml-auto"
+          onClick={() => setPrintQueue(selectedProductUnits.units.filter((u) => selectedUnitIds.has(u.unit_id)))}
+        >
+          Print {selectedUnitIds.size} labels
+        </Button>
+      </motion.div>
+    ) : null;
+
+  return (
+    <Page title="Stock" description="What's on the shelf, in use and damaged, product by product" toolbar={toolbar}>
+      <div className="flex flex-col gap-6">
+        {grid}
+        <section aria-labelledby="units-heading" className="flex flex-col gap-2">
+          <div className="flex items-baseline gap-3">
+            <h2 id="units-heading" className="m-0 text-base font-medium">
+              {selectedProduct ? `Serialized units — ${selectedProduct.name}` : "Serialized units"}
+            </h2>
+            {selectedProduct && (
+              <Button variant="ghost" className="ml-auto" onClick={() => setRegisterOpen(true)}>
+                + Register unit
+              </Button>
+            )}
+          </div>
+          {reduced ? unitsBar : <AnimatePresence>{unitsBar}</AnimatePresence>}
+          {selectedProduct ? (
+            <SerializedUnitsTable
+              units={selectedProductUnits.units}
+              selectedIds={selectedUnitIds}
+              onToggleSelect={toggleSelectUnit}
+              onPrintLabel={(unit) => setPrintQueue([unit])}
+              employeeNames={employeeNames}
+            />
+          ) : (
+            <EmptyState title="Select a product above to view its serialized units" />
+          )}
+        </section>
       </div>
-      {selectedUnitIds.size > 0 && (
-        <div className="flex items-center gap-2 mb-3 p-2 rounded-md bg-accent/10 text-sm">
-          <span>{selectedUnitIds.size} selected</span>
-          <Button
-            variant="secondary"
-            className="ml-auto"
-            onClick={() =>
-              setPrintQueue(selectedProductUnits.units.filter((u) => selectedUnitIds.has(u.unit_id)))
-            }
-          >
-            Print {selectedUnitIds.size} labels
-          </Button>
-        </div>
-      )}
-      {selectedProduct ? (
-        <SerializedUnitsTable
-          units={selectedProductUnits.units}
-          selectedIds={selectedUnitIds}
-          onToggleSelect={toggleSelectUnit}
-          onPrintLabel={(unit) => setPrintQueue([unit])}
-          employeeNames={employeeNames}
-        />
-      ) : (
-        <p className="text-sm text-text/50">Select a product above to view its serialized units</p>
-      )}
       {selectedProductId !== null && (
         <RegisterUnitDialog
           open={registerOpen}
@@ -196,6 +226,6 @@ export default function StockPageClient({ role }: StockPageClientProps) {
           ))}
         </LabelSheet>
       )}
-    </div>
+    </Page>
   );
 }

@@ -4,6 +4,7 @@ import { Card, CardKicker } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import type { ProductPricing } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface PriceHistoryCardProps {
   history: ProductPricing[];
@@ -40,10 +41,10 @@ export function PriceHistoryCard({ history, onSetNewPrice, showWholesale, canSet
                 </td>
                 {showWholesale && (
                   <td className="py-2 px-2 text-right">
-                    {row.wholesale_price != null ? Number(row.wholesale_price).toLocaleString() : "—"}
+                    {row.wholesale_price != null ? formatRwf(row.wholesale_price) : "—"}
                   </td>
                 )}
-                <td className="py-2 px-2 text-right">{Number(row.retail_price).toLocaleString()}</td>
+                <td className="py-2 px-2 text-right">{formatRwf(row.retail_price)}</td>
                 <td className="py-2 px-2">{row.is_current && <Tag variant="accent">current</Tag>}</td>
               </tr>
             ))}

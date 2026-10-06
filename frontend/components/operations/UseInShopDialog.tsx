@@ -99,7 +99,7 @@ export function UseInShopDialog({ open, product, inStock, onClose }: UseInShopDi
   return (
     <>
       <Dialog open={open && !flow.prompt} onClose={close} title={`Use in shop — ${product.name}`}>
-        <div className="flex flex-col gap-3 min-w-[320px]">
+        <div className="flex flex-col gap-3 sm:min-w-[320px]">
           <SegmentedToggle
             name="use-in-shop-mode"
             options={[
@@ -149,7 +149,7 @@ export function UseInShopDialog({ open, product, inStock, onClose }: UseInShopDi
           )}
           <Field label="Reason" name="reason" value={reason} onChange={setReason} placeholder="What it was used for" />
           {error && <p className="text-xs text-red-400">{error}</p>}
-          <div className="flex gap-2 justify-end">
+          <div className="sticky bottom-0 -mx-1 flex justify-end gap-2 border-t border-divider bg-surface px-1 pt-3">
             <Button variant="secondary" onClick={close}>Cancel</Button>
             <Button disabled={!canSubmit} onClick={submit}>
               {flow.submitting ? "Saving…" : mode === "consume" ? "Record use" : "Make shop asset"}

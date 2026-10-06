@@ -11,7 +11,10 @@ import { ConsumptionTable } from "@/components/operations/ConsumptionTable";
 import { ReplaceAssetWizard } from "@/components/operations/ReplaceAssetWizard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
+import { Page } from "@/components/ui/Page";
+import { StatStrip } from "@/components/finance/StatStrip";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { Tag } from "@/components/ui/Tag";
 import type { EmployeeRole, ShopAssetStatus } from "@/lib/types";
 
@@ -32,8 +35,14 @@ export default function AssetDetailPageClient({ assetId, role }: AssetDetailPage
   const router = useRouter();
   const isManager = ADMIN_ROLES.includes(role);
 
-  if (isError) return <ErrorState message="Couldn't load this asset." />;
-  if (isLoading || !asset) return <p className="text-sm text-text/50">Loading asset…</p>;
+  if (isError) {
+    return (
+      <Page title="Shop asset" back="/shop-use">
+        <ErrorState message="Couldn't load this asset." />
+      </Page>
+    );
+  }
+  if (isLoading || !asset) return <LoadingState variant="detail" label="Loading asset…" />;
 
   const closed = asset.status === "retired" || asset.status === "returned_to_stock";
   const statusChoices = isManager
@@ -42,77 +51,85 @@ export default function AssetDetailPageClient({ assetId, role }: AssetDetailPage
       ? TECHNICIAN_STATUSES
       : [];
 
+  const actions = !closed ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {statusChoices.length > 0 && (
+        <Button variant="secondary" onClick={() => setDialog("status")}>Change status</Button>
+      )}
+      {role === "admin" && asset.product !== null && (
+        <Button variant="secondary" onClick={() => setDialog("return")}>Return to stock</Button>
+      )}
+      <Button onClick={() => setDialog("replace")}>Report broken / Replace</Button>
+    </div>
+  ) : undefined;
+
   return (
-    <div>
-      <Link href="/shop-use" className="text-sm text-accent">← Shop use</Link>
-      <div className="flex flex-wrap items-center gap-3 my-4">
-        <h3 className="m-0">{asset.name}</h3>
-        <Tag variant={ASSET_STATUS_TAG[asset.status]}>{ASSET_STATUS_LABELS[asset.status]}</Tag>
-        {asset.is_spare && <Tag variant="outline">Spare</Tag>}
-        {asset.serial && <span className="font-mono text-xs text-text/50">{asset.serial}</span>}
-        {!closed && (
-          <div className="ml-auto flex gap-2">
-            <Button onClick={() => setDialog("replace")}>Report broken / Replace</Button>
-            {statusChoices.length > 0 && (
-              <Button variant="secondary" onClick={() => setDialog("status")}>Change status</Button>
-            )}
-            {role === "admin" && asset.product !== null && (
-              <Button variant="secondary" onClick={() => setDialog("return")}>Return to stock</Button>
-            )}
-          </div>
-        )}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
-        <Card elevation="sm">
-          <CardKicker>Details</CardKicker>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-            <dt className="text-text/60">Product</dt>
-            <dd>
-              {asset.product ? (
-                <Link href={`/products/${asset.product}`} className="text-accent">{asset.product_name}</Link>
-              ) : (
-                "—"
+    <Page
+      title={asset.name}
+      breadcrumb={[{ label: "Stock" }, { label: "Shop use", href: "/shop-use" }, { label: asset.name }]}
+      back="/shop-use"
+      primaryAction={actions}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Tag variant={ASSET_STATUS_TAG[asset.status]}>{ASSET_STATUS_LABELS[asset.status]}</Tag>
+          {asset.is_spare && <Tag variant="outline">Spare</Tag>}
+          {asset.serial && <span className="font-mono text-xs text-text/50">{asset.serial}</span>}
+        </div>
+
+        <StatStrip
+          label="Asset facts"
+          stats={[
+            { label: "Location", value: asset.location || "—" },
+            { label: "Assigned to", value: asset.assigned_to_name ?? "—" },
+            { label: "Since", value: asset.acquired_at },
+            isManager
+              ? { label: "Value", value: formatValue(asset.acquisition_value) }
+              : { label: "Source", value: asset.source === "from_stock" ? "Taken from stock" : "Already owned" },
+          ]}
+        />
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card elevation="sm">
+            <CardKicker>History</CardKicker>
+            <AssetTimeline events={events} />
+          </Card>
+          <Card elevation="sm">
+            <CardKicker>Details</CardKicker>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+              <dt className="text-text/60">Product</dt>
+              <dd className="m-0">
+                {asset.product ? (
+                  <Link href={`/products/${asset.product}`} className="text-accent">{asset.product_name}</Link>
+                ) : (
+                  "—"
+                )}
+              </dd>
+              <dt className="text-text/60">Source</dt>
+              <dd className="m-0">{asset.source === "from_stock" ? "Taken from stock" : "Already owned"}</dd>
+              {asset.replaces && (
+                <>
+                  <dt className="text-text/60">Replaced</dt>
+                  <dd className="m-0">
+                    <Link href={`/shop-use/assets/${asset.replaces}`} className="text-accent">{asset.replaces_name}</Link>
+                  </dd>
+                </>
               )}
-            </dd>
-            <dt className="text-text/60">Location</dt>
-            <dd>{asset.location || "—"}</dd>
-            <dt className="text-text/60">Assigned to</dt>
-            <dd>{asset.assigned_to_name ?? "—"}</dd>
-            <dt className="text-text/60">Source</dt>
-            <dd>{asset.source === "from_stock" ? "Taken from stock" : "Already owned"}</dd>
-            <dt className="text-text/60">Since</dt>
-            <dd>{asset.acquired_at}</dd>
-            {isManager && (
-              <>
-                <dt className="text-text/60">Value</dt>
-                <dd>{formatValue(asset.acquisition_value)}</dd>
-              </>
-            )}
-            {asset.replaces && (
-              <>
-                <dt className="text-text/60">Replaced</dt>
-                <dd>
-                  <Link href={`/shop-use/assets/${asset.replaces}`} className="text-accent">{asset.replaces_name}</Link>
-                </dd>
-              </>
-            )}
-            {asset.notes && (
-              <>
-                <dt className="text-text/60">Notes</dt>
-                <dd>{asset.notes}</dd>
-              </>
-            )}
-          </dl>
-        </Card>
-        <Card elevation="sm">
-          <CardKicker>History</CardKicker>
-          <AssetTimeline events={events} />
-        </Card>
+              {asset.notes && (
+                <>
+                  <dt className="text-text/60">Notes</dt>
+                  <dd className="m-0">{asset.notes}</dd>
+                </>
+              )}
+            </dl>
+          </Card>
+        </div>
+
+        <section aria-labelledby="parts-heading" className="flex flex-col gap-2">
+          <h2 id="parts-heading" className="m-0 text-base font-medium">Parts used on it</h2>
+          <ConsumptionTable rows={parts.consumptions} showValue={isManager} emptyMessage="No parts used on it yet" />
+        </section>
       </div>
-      <Card elevation="sm" className="mt-4">
-        <CardKicker>Parts used on it</CardKicker>
-        <ConsumptionTable rows={parts.consumptions} showValue={isManager} />
-      </Card>
       {dialog === "replace" && (
         <ReplaceAssetWizard
           open
@@ -128,6 +145,6 @@ export default function AssetDetailPageClient({ assetId, role }: AssetDetailPage
         <AssetActionDialog open asset={asset} mode="status" statuses={statusChoices} onClose={() => setDialog(null)} />
       )}
       {dialog === "return" && <AssetActionDialog open asset={asset} mode="return" onClose={() => setDialog(null)} />}
-    </div>
+    </Page>
   );
 }
