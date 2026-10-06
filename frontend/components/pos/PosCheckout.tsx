@@ -4,27 +4,38 @@ import { useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePosCatalog } from "@/lib/pos/usePosCatalog";
-import { addItem, removeItem, setQuantity, setUnitPrice, totals, type CartLine } from "@/lib/pos/cart";
+import { usePriceCheck } from "@/lib/pos/usePriceCheck";
+import {
+  addItem, removeItem, saleItemsPayload, setPriceNote, setQuantity, setUnitPrice, totals, type CartLine,
+} from "@/lib/pos/cart";
+import { newPaymentLine, paymentLinesPayload, summarisePayments, type PaymentLine } from "@/lib/pos/payments";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ScanSearchField } from "./ScanSearchField";
 import { CartTable } from "./CartTable";
 import { CartCards } from "./CartCards";
 import { Receipt } from "./Receipt";
-import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
+import { CustomerPicker } from "./CustomerPicker";
+import { PaymentPanel } from "./PaymentPanel";
+import { ApprovalDialog, type Approval } from "./ApprovalDialog";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
-import type { PaymentMethod, PosProduct, Sale } from "@/lib/types";
-
-const PAYMENT_OPTIONS: { value: PaymentMethod; label: string }[] = [
-  { value: "cash", label: "Cash" },
-  { value: "mobile_money", label: "MoMo" },
-  { value: "card", label: "Card" },
-  { value: "bank_transfer", label: "Bank" },
-];
+import type { Customer, PosProduct, Sale } from "@/lib/types";
 
 interface PosCheckoutProps {
   servedBy: string;
+}
+
+// Credit is due in 30 days unless the cashier picks another date (Kigali local date).
+function defaultDueDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 30);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function errorCode(body: unknown): string | undefined {
+  return body && typeof body === "object" && "code" in body ? String((body as { code: unknown }).code) : undefined;
 }
 
 export function PosCheckout({ servedBy }: PosCheckoutProps) {
@@ -32,66 +43,88 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
   const queryClient = useQueryClient();
   const { show } = useToast();
   const [lines, setLines] = useState<CartLine[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  // null = the default: one cash payment for the whole total, following the cart.
+  const [payments, setPayments] = useState<PaymentLine[] | null>(null);
+  const [dueDate, setDueDate] = useState(defaultDueDate);
   const [submitting, setSubmitting] = useState(false);
+  const [approvalPrompt, setApprovalPrompt] = useState<{ reason: string; error: string | null } | null>(null);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [completedLines, setCompletedLines] = useState<CartLine[]>([]);
+  const verdicts = usePriceCheck(lines);
+
+  const { itemCount, subtotal, listSubtotal } = totals(lines);
+  const adjustment = subtotal - listSubtotal;
+  const paymentLines = payments ?? [{ ...newPaymentLine("cash", subtotal), id: "default-cash" }];
+  const paymentSummary = summarisePayments(paymentLines, subtotal);
 
   function handleAdd(product: PosProduct) {
     setLines((current) => addItem(current, product));
   }
 
-  function handleSetQuantity(productId: number, quantity: number) {
-    setLines((current) => setQuantity(current, productId, quantity));
-  }
-
-  function handleRemove(productId: number) {
-    setLines((current) => removeItem(current, productId));
-  }
-
-  function handleSetUnitPrice(productId: number, unitPrice: number) {
-    setLines((current) => setUnitPrice(current, productId, unitPrice));
-  }
-
   const unpricedLines = lines.filter((line) => line.unitPrice <= 0);
+  const missingNotes = lines.filter(
+    (line) => verdicts.get(line.product.product_id)?.needs_note && !(line.priceNote ?? "").trim()
+  );
+  const needsCustomer = paymentSummary.remaining > 0 && customer === null;
+  const canComplete =
+    lines.length > 0 &&
+    unpricedLines.length === 0 &&
+    missingNotes.length === 0 &&
+    !paymentSummary.nonCashOver &&
+    !paymentSummary.missingReference &&
+    !needsCustomer &&
+    !submitting;
 
-  async function handleCompleteSale() {
-    if (lines.length === 0 || unpricedLines.length > 0) return;
+  async function submitSale(approval?: Approval) {
     setSubmitting(true);
     try {
       const sale = await apiFetch<Sale>("sales/", {
         method: "POST",
         body: JSON.stringify({
-          // unit_price is only sent for lines the cashier changed, so the catalog
-          // price stays server-authoritative for everything else.
-          items: lines.map((line) => ({
-            product: line.product.product_id,
-            quantity: line.quantity,
-            ...(line.unitPrice !== line.product.retail_price ? { unit_price: line.unitPrice.toFixed(2) } : {}),
-          })),
-          payment_method: paymentMethod,
+          items: saleItemsPayload(lines),
+          payments: paymentLinesPayload(paymentLines),
+          ...(customer ? { customer: customer.customer_id } : {}),
+          ...(paymentSummary.remaining > 0 && dueDate ? { due_date: dueDate } : {}),
+          ...(approval ? { approval } : {}),
         }),
       });
       setCompletedSale(sale);
-      queryClient.invalidateQueries({ queryKey: ["inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["stock-movements"] });
+      for (const key of ["inventory", "stock-movements", "customers", "debts", "sales", "payments"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
       queryClient.invalidateQueries({ queryKey: ["product-pricing", "current"] });
       setCompletedLines(lines);
       setLines([]);
+      setCustomer(null);
+      setPayments(null);
+      setDueDate(defaultDueDate());
+      setApprovalPrompt(null);
     } catch (error) {
-      const message =
-        error instanceof ApiError
-          ? extractErrorMessage(error.body)
-          : "Something went wrong — try again.";
-      show(message, "error");
+      const body = error instanceof ApiError ? error.body : null;
+      const message = body ? extractErrorMessage(body) : "Something went wrong — try again.";
+      const code = errorCode(body);
+      if (code === "approval_required") {
+        setApprovalPrompt({ reason: message, error: null });
+      } else if (approvalPrompt && (code === "approval_refused" || code === "throttled")) {
+        setApprovalPrompt({ ...approvalPrompt, error: message });
+      } else {
+        setApprovalPrompt(null);
+        show(message, "error");
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
-  function handleNewSale() {
-    setCompletedSale(null);
-    setCompletedLines([]);
+  function handleCompleteSale() {
+    if (!canComplete) return;
+    const needsApproval = lines.some((line) => verdicts.get(line.product.product_id)?.needs_approval);
+    if (needsApproval) {
+      setApprovalPrompt({ reason: "One or more prices need a manager's approval.", error: null });
+      return;
+    }
+    submitSale();
   }
 
   if (completedSale) {
@@ -101,13 +134,13 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         lines={completedLines}
         servedBy={servedBy}
         onPrint={() => window.print()}
-        onNewSale={handleNewSale}
+        onNewSale={() => {
+          setCompletedSale(null);
+          setCompletedLines([]);
+        }}
       />
     );
   }
-
-  const { itemCount, subtotal, listSubtotal } = totals(lines);
-  const adjustment = subtotal - listSubtotal;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-6">
@@ -116,11 +149,7 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         {catalog.isError ? (
           <div className="mb-4 text-sm text-red-400">
             Couldn&apos;t load the product catalog.{" "}
-            <button
-              type="button"
-              className="underline"
-              onClick={() => window.location.reload()}
-            >
+            <button type="button" className="underline" onClick={() => window.location.reload()}>
               Try again
             </button>
           </div>
@@ -131,11 +160,19 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         )}
         <CartTable
           lines={lines}
-          onSetQuantity={handleSetQuantity}
-          onSetUnitPrice={handleSetUnitPrice}
-          onRemove={handleRemove}
+          onSetQuantity={(id, quantity) => setLines((current) => setQuantity(current, id, quantity))}
+          onSetUnitPrice={(id, price) => setLines((current) => setUnitPrice(current, id, price))}
+          onRemove={(id) => setLines((current) => removeItem(current, id))}
+          verdicts={verdicts}
+          onSetPriceNote={(id, note) => setLines((current) => setPriceNote(current, id, note))}
         />
-        <CartCards lines={lines} onSetQuantity={handleSetQuantity} onSetUnitPrice={handleSetUnitPrice} />
+        <CartCards
+          lines={lines}
+          onSetQuantity={(id, quantity) => setLines((current) => setQuantity(current, id, quantity))}
+          onSetUnitPrice={(id, price) => setLines((current) => setUnitPrice(current, id, price))}
+          verdicts={verdicts}
+          onSetPriceNote={(id, note) => setLines((current) => setPriceNote(current, id, note))}
+        />
         {unpricedLines.length > 0 && (
           <p className="text-sm text-red-400 mt-2">
             Set a price for{" "}
@@ -149,6 +186,9 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
             ))}{" "}
             before completing the sale.
           </p>
+        )}
+        {missingNotes.length > 0 && (
+          <p className="text-sm text-red-400 mt-2">Add a note for each line below the minimum price.</p>
         )}
       </div>
       <div className="flex flex-col gap-4">
@@ -172,33 +212,32 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
           </div>
         </Card>
         <div>
-          <label className="block text-xs text-text/70 mb-1">Payment method</label>
-          <SegmentedToggle
-            name="payment"
-            options={PAYMENT_OPTIONS}
-            value={paymentMethod}
-            onChange={(value) => setPaymentMethod(value as PaymentMethod)}
-          />
-        </div>
-        <div>
           <label className="block text-xs text-text/70 mb-1">
-            Customer (optional — walk-in if blank)
+            Customer (optional — walk-in if blank; needed for credit)
           </label>
-          <input
-            className="w-full min-h-9 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md hover:border-text/45 focus-visible:border-accent focus-visible:outline-none"
-            placeholder="Search name or phone…"
-            disabled
-          />
+          <CustomerPicker value={customer} onChange={setCustomer} />
         </div>
-        <Button
-          block
-          disabled={lines.length === 0 || unpricedLines.length > 0 || submitting}
-          onClick={handleCompleteSale}
-          className="min-h-11"
-        >
+        <PaymentPanel
+          total={subtotal}
+          lines={paymentLines}
+          onChange={setPayments}
+          dueDate={dueDate}
+          onDueDateChange={setDueDate}
+          hasCustomer={customer !== null}
+        />
+        <Button block disabled={!canComplete} onClick={handleCompleteSale} className="min-h-11">
           {submitting ? "Completing…" : "Complete sale"}
         </Button>
       </div>
+      <ApprovalDialog
+        key={approvalPrompt ? "open" : "closed"}
+        open={approvalPrompt !== null}
+        reason={approvalPrompt?.reason ?? ""}
+        error={approvalPrompt?.error}
+        submitting={submitting}
+        onApprove={(approval) => submitSale(approval)}
+        onClose={() => setApprovalPrompt(null)}
+      />
     </div>
   );
 }

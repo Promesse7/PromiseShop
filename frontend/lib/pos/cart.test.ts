@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { addItem, setQuantity, setUnitPrice, removeItem, lineSubtotal, totals, type CartLine } from "./cart";
+import {
+  addItem, setQuantity, setUnitPrice, setPriceNote, removeItem, lineSubtotal, totals, saleItemsPayload,
+  type CartLine,
+} from "./cart";
 import type { PosProduct } from "@/lib/types";
 
 function makeProduct(overrides: Partial<PosProduct> = {}): PosProduct {
@@ -121,5 +124,25 @@ describe("totals", () => {
 
   it("returns zeros for an empty cart", () => {
     expect(totals([])).toEqual({ itemCount: 0, subtotal: 0, listSubtotal: 0 });
+  });
+});
+
+describe("setPriceNote", () => {
+  it("sets the note on the matching line only", () => {
+    const other = makeProduct({ product_id: 2, barcode: "PES-TV-00082", name: "TV" });
+    const result = setPriceNote([makeLine(makeProduct(), 1), makeLine(other, 1)], 1, "Display unit");
+    expect(result[0].priceNote).toBe("Display unit");
+    expect(result[1].priceNote ?? "").toBe("");
+  });
+});
+
+describe("saleItemsPayload", () => {
+  it("sends unit_price only for changed lines and price_note only when written", () => {
+    const changed = { ...makeLine(makeProduct(), 2, 120000), priceNote: " old stock " };
+    const other = makeLine(makeProduct({ product_id: 2, barcode: "X", name: "TV", retail_price: 1000 }), 1);
+    expect(saleItemsPayload([changed, other])).toEqual([
+      { product: 1, quantity: 2, unit_price: "120000.00", price_note: "old stock" },
+      { product: 2, quantity: 1 },
+    ]);
   });
 });

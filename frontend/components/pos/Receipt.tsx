@@ -56,6 +56,9 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
   const groups = taxGroupTotals(sale);
   const totalTax = groups.reduce((sum, g) => sum + g.tax, 0);
   const qrPayload = `SAMPLE RECEIPT #${sale.sale_id} — NOT FISCALLY VALID`;
+  const payments = sale.payments ?? [];
+  const balance = Number(sale.balance ?? 0);
+  const changeDue = Number(sale.change_due ?? 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,10 +91,21 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
           <span className="text-text/55">Served by</span>
           <span>{servedBy}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-text/55">Payment</span>
-          <span>{sale.payment_method ? PAYMENT_LABELS[sale.payment_method] : "—"}</span>
-        </div>
+        {sale.customer_name && (
+          <div className="flex justify-between">
+            <span className="text-text/55">Customer</span>
+            <span>
+              {sale.customer_name}
+              {sale.customer_phone ? ` · ${sale.customer_phone}` : ""}
+            </span>
+          </div>
+        )}
+        {!payments.length && (
+          <div className="flex justify-between">
+            <span className="text-text/55">Payment</span>
+            <span>{sale.payment_method ? PAYMENT_LABELS[sale.payment_method] : "—"}</span>
+          </div>
+        )}
 
         <hr className="border-divider my-3" />
 
@@ -99,15 +113,20 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
           const line = lines.find((l) => l.product.product_id === item.product);
           const unitPrice = Number(item.unit_price);
           const listPrice = Number(item.list_price);
-          const priceLabel =
-            `@ ${unitPrice.toLocaleString()}` +
-            (unitPrice !== listPrice ? ` (list ${listPrice.toLocaleString()})` : "");
+          const bargained = item.list_price !== undefined && unitPrice !== listPrice;
           return (
             <div key={item.sale_item_id} className="flex justify-between gap-2 py-0.5">
               <span>
-                {line?.product.name ?? `Product #${item.product}`} × {item.quantity}
+                {line?.product.name ?? item.product_name ?? `Product #${item.product}`} × {item.quantity}
               </span>
-              <span className="flex-1 text-right text-xs text-text/50 self-center">{priceLabel}</span>
+              <span className="flex-1 text-right text-xs text-text/50 self-center">
+                {bargained && (
+                  <s aria-label="Catalog price" className="mr-1">
+                    {listPrice.toLocaleString()}
+                  </s>
+                )}
+                <span>@ {unitPrice.toLocaleString()}</span>
+              </span>
               <span>{Number(item.subtotal).toLocaleString()}</span>
             </div>
           );
@@ -130,6 +149,44 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
           <span>Total</span>
           <span>RWF {Number(sale.total_amount).toLocaleString()}</span>
         </div>
+
+        {payments.length > 0 && (
+          <div className="mt-2 flex flex-col gap-0.5">
+            {payments.map((p) => (
+              <div key={p.payment_id} className="flex justify-between text-xs">
+                <span>
+                  {PAYMENT_LABELS[p.method]}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </span>
+                <span>{Number(p.amount).toLocaleString()}</span>
+              </div>
+            ))}
+            {changeDue > 0 && (
+              <div className="flex justify-between text-xs">
+                <span>Change</span>
+                <span>{changeDue.toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        )}
+        {balance > 0 && (
+          <div className="mt-2 rounded-md border border-amber-300 p-2 text-xs">
+            <div className="flex justify-between">
+              <span>Paid</span>
+              <span>RWF {Number(sale.amount_paid ?? 0).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between font-medium">
+              <span>Balance remaining</span>
+              <span>RWF {balance.toLocaleString()}</span>
+            </div>
+            {sale.due_date && (
+              <div className="flex justify-between">
+                <span>Due by</span>
+                <span>{new Date(sale.due_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}</span>
+              </div>
+            )}
+          </div>
+        )}
 
         <hr className="border-divider my-3" />
 

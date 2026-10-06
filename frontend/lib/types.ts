@@ -34,6 +34,8 @@ export interface Product {
   tax_category: "A" | "B";
   is_active: boolean;
   created_at: string;
+  // Price floor at the till (admin/manager only; absent for staff).
+  min_price?: string | null;
 }
 
 export interface ProductPricing {
@@ -144,17 +146,148 @@ export interface SaleItem {
   subtotal: string;
   tax_category: "A" | "B";
   tax_amount: string;
+  product_name?: string;
+  // Weighted average cost at the moment of sale — admin/manager only.
+  cost_at_sale?: string | null;
+  // (list − unit) × qty; negative for a markup.
+  discount_amount?: string;
+  approved_by?: number | null;
+  approved_by_name?: string | null;
+  price_note?: string;
+}
+
+export type SalePaymentStatus = "paid" | "partial" | "credit";
+
+export interface Payment {
+  payment_id: number;
+  direction: "in" | "out";
+  sale: number | null;
+  purchase: number | null;
+  customer: number | null;
+  supplier: number | null;
+  amount: string;
+  method: PaymentMethod;
+  reference: string;
+  paid_at: string;
+  recorded_by: number;
+  recorded_by_name: string;
+  note: string;
+  receipt_group: string | null;
+  reversal_of: number | null;
+  is_reversed: boolean;
+  created_at: string;
 }
 
 export interface Sale {
   sale_id: number;
   customer: number | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
   employee: number;
+  employee_name?: string;
   sale_date: string;
   payment_method: PaymentMethod | null;
   total_amount: string;
+  amount_paid?: string;
+  balance?: string;
+  payment_status?: SalePaymentStatus;
+  due_date?: string | null;
   status: "completed" | "returned" | "cancelled";
   items: SaleItem[];
+  payments?: Payment[];
+  // Only on the POST /sales/ response: cash handed back.
+  change_due?: string;
+}
+
+export type AgingBucket = "not_due" | "1_30" | "31_60" | "61_90" | "90_plus";
+
+export interface CustomerDebtRow {
+  customer_id: number;
+  name: string | null;
+  phone: string | null;
+  credit_limit: string | null;
+  balance: string;
+  open_sales: number;
+  oldest_due_date: string;
+  overdue: boolean;
+  buckets: Record<AgingBucket, string>;
+}
+
+export interface SupplierDebtPurchase {
+  purchase_id: number;
+  invoice_number: string | null;
+  purchase_date: string;
+  due_date: string;
+  total: string;
+  amount_paid: string;
+  balance: string;
+  needs_review: boolean;
+}
+
+export interface SupplierDebtRow {
+  supplier_id: number;
+  name: string;
+  balance: string;
+  open_purchases: SupplierDebtPurchase[];
+  oldest_due_date: string;
+  overdue: boolean;
+  needs_review: boolean;
+  buckets: Record<AgingBucket, string>;
+}
+
+export interface DebtsReport<Row> {
+  as_of: string;
+  totals: Record<AgingBucket, string>;
+  total: string;
+  rows: Row[];
+}
+
+export interface StatementEntry {
+  date: string;
+  kind: "sale" | "payment" | "reversal";
+  reference: string;
+  sale_id: number | null;
+  payment_id?: number;
+  method?: PaymentMethod;
+  debit: string;
+  credit: string;
+  balance: string;
+}
+
+export interface CustomerStatement {
+  customer_id: number;
+  name: string | null;
+  phone: string | null;
+  from: string | null;
+  to: string | null;
+  opening_balance: string;
+  closing_balance: string;
+  current_balance: string;
+  entries: StatementEntry[];
+}
+
+export interface CustomerPaymentResult {
+  receipt_group: string;
+  customer: number;
+  amount: string;
+  balance_after: string;
+  payments: Payment[];
+}
+
+export type PriceRule = "markup" | "at_list" | "discount" | "needs_approval" | "below_floor" | "no_price";
+
+export interface PriceCheckLine {
+  index: number;
+  product: number;
+  rule: PriceRule;
+  discount_pct: string | null;
+  needs_approval: boolean;
+  needs_note: boolean;
+}
+
+export interface PriceCheckResult {
+  max_staff_discount_pct: string;
+  lines: PriceCheckLine[];
 }
 
 export interface PaginatedResponse<T> {
@@ -205,6 +338,10 @@ export interface Customer {
   phone: string | null;
   email: string | null;
   address: string | null;
+  // Null = no limit. Set by admin/manager.
+  credit_limit?: string | null;
+  // Open balance on completed sales.
+  balance?: string;
 }
 
 export interface ShopProfile {
@@ -214,6 +351,7 @@ export interface ShopProfile {
   phone: string | null;
   email: string | null;
   address: string | null;
+  max_staff_discount_pct?: string;
 }
 
 export type EmployeeStatus = "active" | "inactive" | "terminated";
@@ -228,6 +366,7 @@ export interface Employee {
   hire_date: string;
   status: EmployeeStatus;
   created_at: string;
+  has_approval_pin?: boolean;
 }
 
 export type NotificationStatus = "logged" | "sent" | "failed";
@@ -265,6 +404,10 @@ export interface Purchase {
   payment_status: "paid" | "partial" | "unpaid";
   status: "draft" | "received" | "cancelled";
   items: PurchaseItem[];
+  // Money actually paid to the supplier (admin/manager only); derived from payments.
+  amount_paid?: string;
+  due_date?: string | null;
+  payment_needs_review?: boolean;
 }
 
 export interface SalesSummary {

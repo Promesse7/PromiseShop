@@ -85,11 +85,49 @@ describe("Receipt", () => {
     expect(screen.getByText("@ 145,000")).toBeInTheDocument();
   });
 
-  it("shows the catalog price next to a discounted line", () => {
+  it("strikes through the catalog price on a bargained line", () => {
     render(<Receipt sale={discountedSale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
     expect(screen.getByText("JBL Flip 6 × 2")).toBeInTheDocument();
-    expect(screen.getByText("@ 120,000 (list 145,000)")).toBeInTheDocument();
+    expect(screen.getByText("@ 120,000")).toBeInTheDocument();
+    const struck = screen.getByLabelText("Catalog price");
+    expect(struck.tagName).toBe("S");
+    expect(struck).toHaveTextContent("145,000");
     expect(screen.getByText("RWF 240,000")).toBeInTheDocument();
+  });
+
+  it("does not strike through a line sold at the catalog price", () => {
+    render(<Receipt sale={sale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.queryByLabelText("Catalog price")).not.toBeInTheDocument();
+  });
+
+  it("lists each payment with its reference, and the change", () => {
+    const paidSale: Sale = {
+      ...sale,
+      payment_method: null,
+      amount_paid: "530000.00",
+      balance: "0.00",
+      change_due: "20000.00",
+      payments: [
+        { payment_id: 1, direction: "in", sale: 841, purchase: null, customer: null, supplier: null, amount: "300000.00", method: "cash", reference: "", paid_at: "2026-08-23T14:14:00Z", recorded_by: 1, recorded_by_name: "E", note: "", receipt_group: "g", reversal_of: null, is_reversed: false, created_at: "2026-08-23T14:14:00Z" },
+        { payment_id: 2, direction: "in", sale: 841, purchase: null, customer: null, supplier: null, amount: "230000.00", method: "mobile_money", reference: "MP123", paid_at: "2026-08-23T14:14:00Z", recorded_by: 1, recorded_by_name: "E", note: "", receipt_group: "g", reversal_of: null, is_reversed: false, created_at: "2026-08-23T14:14:00Z" },
+      ],
+    };
+    render(<Receipt sale={paidSale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("Mobile Money · MP123")).toBeInTheDocument();
+    expect(screen.getByText("300,000")).toBeInTheDocument();
+    expect(screen.getByText("Change").nextSibling).toHaveTextContent("20,000");
+  });
+
+  it("shows what was paid, the balance and the due date on a credit sale", () => {
+    const creditSale: Sale = {
+      ...sale, customer: 7, customer_name: "Aline Uwase", customer_phone: "0788123456",
+      amount_paid: "130000.00", balance: "400000.00", due_date: "2026-09-22", payment_status: "partial",
+      payments: [],
+    };
+    render(<Receipt sale={creditSale} lines={lines} servedBy="e.mugisha" onPrint={vi.fn()} onNewSale={vi.fn()} />);
+    expect(screen.getByText("Aline Uwase · 0788123456")).toBeInTheDocument();
+    expect(screen.getByText("Balance remaining").nextSibling).toHaveTextContent("RWF 400,000");
+    expect(screen.getByText("Due by").nextSibling).toHaveTextContent("22 Sept 2026");
   });
 
   it("renders the business info from the shop profile", () => {
