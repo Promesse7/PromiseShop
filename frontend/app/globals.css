@@ -89,3 +89,47 @@
     }
   }
 }
+
+/* Route transitions (React <ViewTransition>, see components/shell/RouteTransition.tsx).
+   Only page content moves: the shell is anchored with its own view-transition names and the
+   root crossfade is switched off. Forward = fade + rise 8px; nav-back = fade + drop in. */
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(app-sidebar),
+::view-transition-group(app-topbar),
+::view-transition-group(app-tabbar) {
+  animation: none;
+}
+
+::view-transition-old(.page-forward),
+::view-transition-old(.page-back) {
+  animation: 120ms ease-in both vt-fade-out;
+}
+::view-transition-new(.page-forward) {
+  --vt-offset: 8px;
+  animation: 220ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both vt-rise-in;
+}
+::view-transition-new(.page-back) {
+  --vt-offset: -8px;
+  animation: 220ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both vt-rise-in;
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes vt-rise-in {
+  from {
+    opacity: 0;
+    translate: 0 var(--vt-offset);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
