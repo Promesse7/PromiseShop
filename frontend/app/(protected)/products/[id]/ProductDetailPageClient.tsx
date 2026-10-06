@@ -28,6 +28,7 @@ import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Page, type PageAction } from "@/components/ui/Page";
 import { StatStrip } from "@/components/ui/StatStrip";
 import { Tabs } from "@/components/ui/Tabs";
+import { Reveal } from "@/components/ui/Reveal";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -236,7 +237,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           {(active) => (
             <>
               {active === "overview" && (
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.3fr]">
+                <Reveal className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.3fr]">
                   <CatalogInfoCard
                     productId={product.product_id}
                     category={detail.category}
@@ -256,10 +257,10 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
                     />
                     <SpecificationsCard specifications={product.specifications} />
                   </div>
-                </div>
+                </Reveal>
               )}
               {active === "pricing" && (
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <Reveal className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                   {isAdmin && <PricingCard currentPricing={detail.currentPricing} onSetPrice={() => setPriceOpen(true)} />}
                   {isAdmin && (
                     <CostMarginCard
@@ -269,18 +270,18 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
                       productId={product.product_id}
                     />
                   )}
-                  <div className="lg:col-span-2">
+                  <Reveal className="lg:col-span-2">
                     <PriceHistoryCard
                       history={detail.priceHistory}
                       onSetNewPrice={() => setPriceOpen(true)}
                       showWholesale={isAdmin}
                       canSetPrice={isAdmin}
                     />
-                  </div>
-                </div>
+                  </Reveal>
+                </Reveal>
               )}
               {active === "stock" && (
-                <div className="flex flex-col gap-4">
+                <Reveal className="flex flex-col gap-4">
                   <div className="max-w-xl">
                     <StockCard
                       inventory={detail.inventory}
@@ -288,8 +289,11 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
                       onAdjust={isAdmin && detail.inventory ? () => setAdjustOpen(true) : undefined}
                     />
                   </div>
-                  <ProductMovementsCard productId={productId} showCost={isAdmin} />
-                </div>
+                  {/* The movements list is long; it rises in as you scroll down to it. */}
+                  <Reveal>
+                    <ProductMovementsCard productId={productId} showCost={isAdmin} />
+                  </Reveal>
+                </Reveal>
               )}
               {active === "shop-use" && <ProductShopUse productId={productId} showValue={isAdmin} />}
             </>
