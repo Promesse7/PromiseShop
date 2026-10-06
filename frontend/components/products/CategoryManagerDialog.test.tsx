@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { CategoryManagerDialog } from "./CategoryManagerDialog";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import type { Category } from "@/lib/types";
 
 const categories: Category[] = [
@@ -16,7 +17,9 @@ function renderWithProviders(ui: React.ReactElement) {
   const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
   const utils = render(
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>{ui}</ToastProvider>
+      <ToastProvider>
+        <ConfirmProvider>{ui}</ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
   return { ...utils, invalidateSpy };
@@ -25,15 +28,14 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("CategoryManagerDialog", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("asks for confirmation and does nothing when it is dismissed", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     renderWithProviders(<CategoryManagerDialog open={true} categories={categories} onClose={vi.fn()} />);
     await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
 
-    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("Televisions"));
+    expect(screen.getByRole("heading", { name: 'Delete category "Televisions"?' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
@@ -62,6 +64,7 @@ describe("CategoryManagerDialog", () => {
       <CategoryManagerDialog open={true} categories={categories} onClose={vi.fn()} />
     );
     await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Delete category" }));
 
     expect(await screen.findByText("Category deleted.")).toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith("/api/proxy/categories/10/", expect.objectContaining({ method: "DELETE" }));
@@ -79,6 +82,7 @@ describe("CategoryManagerDialog", () => {
     });
     renderWithProviders(<CategoryManagerDialog open={true} categories={categories} onClose={vi.fn()} />);
     await userEvent.click(screen.getAllByRole("button", { name: "Delete" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Delete category" }));
 
     expect(
       await screen.findByText("This category still has products assigned to it and cannot be deleted.")

@@ -4,6 +4,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ProductsPageClient from "./ProductsPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import * as useCatalogProductsModule from "@/lib/products/useCatalogProducts";
 import type { CatalogProducts } from "@/lib/products/useCatalogProducts";
 import { setMatchMedia } from "@/lib/test/matchMedia";
@@ -22,7 +23,9 @@ function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <ToastProvider>{ui}</ToastProvider>
+      <ToastProvider>
+        <ConfirmProvider>{ui}</ConfirmProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

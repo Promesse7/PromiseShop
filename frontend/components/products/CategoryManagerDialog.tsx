@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/components/layout/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
 import type { Category } from "@/lib/types";
 
@@ -26,9 +27,16 @@ function CategoryManagerList({ categories }: { categories: Category[] }) {
   const { show } = useToast();
   const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const confirm = useConfirm();
 
   async function handleDelete(category: Category) {
-    if (!window.confirm(`Delete category "${category.name}"? This can't be undone.`)) return;
+    const confirmed = await confirm({
+      title: `Delete category "${category.name}"?`,
+      message: "This can't be undone.",
+      confirmLabel: "Delete category",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setDeletingId(category.category_id);
     try {
       await apiFetch(`categories/${category.category_id}/`, { method: "DELETE" });

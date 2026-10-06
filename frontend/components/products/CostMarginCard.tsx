@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Card, CardKicker } from "@/components/ui/Card";
 import type { ProfitabilityRow } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface CostMarginCardProps {
   row: ProfitabilityRow | undefined;
@@ -11,7 +12,7 @@ interface CostMarginCardProps {
 }
 
 function rwf(value: string | number): string {
-  return `RWF ${Number(value).toLocaleString()}`;
+  return formatRwf(value);
 }
 
 function marginLabel(amount: string | null, pct: string | null): string {

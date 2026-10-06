@@ -1,6 +1,7 @@
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import type { ProductPricing } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface PricingCardProps {
   currentPricing: ProductPricing | undefined;
@@ -37,11 +38,11 @@ export function PricingCard({ currentPricing, onSetPrice }: PricingCardProps) {
       <CardKicker>Current pricing · Admin only</CardKicker>
       <div className="flex justify-between text-sm">
         <span>Retail</span>
-        <span>RWF {retail.toLocaleString()}</span>
+        <span>{formatRwf(retail)}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span>Wholesale</span>
-        <span>{wholesale != null ? `RWF ${wholesale.toLocaleString()}` : "—"}</span>
+        <span>{wholesale != null ? formatRwf(wholesale) : "—"}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span>Margin</span>
