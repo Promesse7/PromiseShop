@@ -6,12 +6,16 @@ from rest_framework.exceptions import ValidationError, MethodNotAllowed
 from rest_framework.response import Response
 from rest_framework import status as http_status
 
+from rest_framework.views import APIView
+
 from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
-from purchasing.models import Supplier, Purchase, PurchaseItem
+from purchasing.models import BundleTemplate, Supplier, Purchase, PurchaseItem
 from purchasing.serializers import (
     AddPurchaseItemSerializer,
     BulkPurchaseItemResultSerializer,
     BulkPurchaseItemRowSerializer,
+    BundleSplitPreviewSerializer,
+    BundleTemplateSerializer,
     PurchaseItemSerializer,
     PurchaseSerializer,
     SupplierSerializer,
@@ -19,9 +23,9 @@ from purchasing.serializers import (
 )
 from purchasing.services import (
     BulkRowErrors,
-    add_existing_product_item,
     add_items_bulk,
-    add_new_product_item,
+    add_row,
+    bundle_split_preview,
     cancel_purchase,
     receive_purchase,
     recent_products_for_supplier,
@@ -52,25 +56,29 @@ class SupplierViewSet(viewsets.ModelViewSet):
         supplier = self.get_object()
         include_cost = _can_see_cost(request.user)
         rows = []
-        for line in recent_products_for_supplier(supplier):
+        for entry in recent_products_for_supplier(supplier):
+            product = entry["product"]
             row = {
-                "product_id": line.product_id,
-                "name": line.product.name,
-                "brand": line.product.brand,
-                "model_number": line.product.model_number,
-                "barcode": line.product.barcode,
-                "last_purchase_date": line.purchase.purchase_date.isoformat(),
-                "last_quantity": line.quantity,
+                "product_id": product.pk,
+                "name": product.name,
+                "brand": product.brand,
+                "model_number": product.model_number,
+                "barcode": product.barcode,
+                "last_purchase_date": entry["purchase"].purchase_date.isoformat(),
+                # Single units, whatever the line kind (packs and bundles are broken down).
+                "last_quantity": entry["units"],
             }
             if include_cost:
-                row["last_unit_cost_paid"] = str(line.unit_cost_paid)
-                row["last_unit_cost_invoiced"] = str(line.unit_cost_invoiced)
+                row["last_unit_cost_paid"] = str(entry["unit_cost_paid"])
+                row["last_unit_cost_invoiced"] = str(entry["unit_cost_invoiced"])
             rows.append(row)
         return Response({"results": rows})
 
 
 class PurchaseViewSet(viewsets.ModelViewSet):
-    queryset = Purchase.objects.all().order_by("-purchase_date").prefetch_related("items")
+    queryset = Purchase.objects.all().order_by("-purchase_date").prefetch_related(
+        "items__components__product"
+    )
     serializer_class = PurchaseSerializer
     permission_classes = [IsAuthenticated]
 
@@ -104,25 +112,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         purchase = self.get_object()
         serializer = AddPurchaseItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = dict(serializer.validated_data)
-        is_new_product = data.pop("_is_new_product")
-        if is_new_product:
-            item = add_new_product_item(
-                purchase, category=data["category"], name=data["name"],
-                quantity=data["quantity"], unit_cost_paid=data["unit_cost_paid"],
-                unit_cost_invoiced=data["unit_cost_invoiced"], selling_price=data["selling_price"],
-                brand=data.get("brand", ""), model_number=data.get("model_number", ""),
-                specifications=data.get("specifications", ""),
-                usage_instructions=data.get("usage_instructions", ""),
-                warranty_months=data.get("warranty_months", 0),
-                reorder_level=data.get("reorder_level", 5),
-                price_discrepancy_note=data.get("price_discrepancy_note", ""),
-            )
-        else:
-            item = add_existing_product_item(
-                purchase, data["product"], data["quantity"], data["unit_cost_paid"],
-                data["unit_cost_invoiced"], data.get("price_discrepancy_note", ""),
-            )
+        item = add_row(purchase, serializer.to_row(), user=request.user)
         return Response(
             PurchaseItemSerializer(item, context={"request": request}).data,
             status=http_status.HTTP_201_CREATED,
@@ -146,7 +136,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 row_errors[index] = serializer.errors
         if not row_errors:
             try:
-                items = add_items_bulk(purchase, validated)
+                items = add_items_bulk(purchase, validated, user=request.user)
             except BulkRowErrors as exc:
                 row_errors = exc.row_errors
         if row_errors:
@@ -186,3 +176,39 @@ class PurchaseViewSet(viewsets.ModelViewSet):
         purchase = self.get_object()
         purchase = cancel_purchase(purchase, user=request.user)
         return Response(PurchaseSerializer(purchase, context={"request": request}).data)
+
+
+class BundleSplitPreviewView(APIView):
+    """POST /api/purchasing/bundle-split-preview/ — the default cost split for a
+    bundle being typed in. Any signed-in role: it only splits the prices the user
+    typed, by retail price."""
+
+    def post(self, request):
+        serializer = BundleSplitPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        paid = data["unit_cost_paid"]
+        rows = bundle_split_preview(paid, data.get("unit_cost_invoiced", paid), data["components"])
+        return Response({"components": [
+            {key: (str(value) if value is not None and not isinstance(value, int) else value)
+             for key, value in row.items()}
+            for row in rows
+        ]})
+
+
+class BundleTemplateViewSet(viewsets.ModelViewSet):
+    """Saved bundle recipes: admin/manager write, any role reads and uses them."""
+
+    serializer_class = BundleTemplateSerializer
+    permission_classes = [IsAdminOrManagerOrReadOnly]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        queryset = BundleTemplate.objects.all().prefetch_related("components__product")
+        supplier = self.request.query_params.get("supplier")
+        if supplier:
+            queryset = queryset.filter(supplier_id=supplier)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

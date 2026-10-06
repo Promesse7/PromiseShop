@@ -46,6 +46,41 @@ def _move_purchase_items(keep, duplicate, context):
     return PurchaseItem.objects.filter(product=duplicate).update(product=keep)
 
 
+def _move_bundle_components(keep, duplicate, context):
+    """Module F: bundle components (purchases) and bundle template components.
+
+    A bundle or template can hold each product once, so where it already holds the
+    kept product the duplicate's row is folded into it (quantities and allocated
+    costs added) instead of moved.
+    """
+    from purchasing.models import BundleTemplateComponent, PurchaseItemComponent
+
+    moved = 0
+    for component in PurchaseItemComponent.objects.filter(product=duplicate):
+        twin = PurchaseItemComponent.objects.filter(purchase_item_id=component.purchase_item_id, product=keep).first()
+        if twin is None:
+            component.product = keep
+            component.save(update_fields=["product"])
+        else:
+            twin.qty_per_bundle += component.qty_per_bundle
+            twin.allocated_paid_cost += component.allocated_paid_cost
+            twin.allocated_invoiced_cost += component.allocated_invoiced_cost
+            twin.save(update_fields=["qty_per_bundle", "allocated_paid_cost", "allocated_invoiced_cost"])
+            component.delete()
+        moved += 1
+    for component in BundleTemplateComponent.objects.filter(product=duplicate):
+        twin = BundleTemplateComponent.objects.filter(template_id=component.template_id, product=keep).first()
+        if twin is None:
+            component.product = keep
+            component.save(update_fields=["product"])
+        else:
+            twin.qty_per_bundle += component.qty_per_bundle
+            twin.save(update_fields=["qty_per_bundle"])
+            component.delete()
+        moved += 1
+    return moved
+
+
 def _move_equipment_units(keep, duplicate, context):
     from stock.models import EquipmentUnit
     return EquipmentUnit.objects.filter(product=duplicate).update(product=keep)
@@ -101,6 +136,7 @@ MERGE_STEPS = [
     ("equipment_units", _move_equipment_units),
     ("price_rows", _move_price_history),
     ("barcode_aliases", _move_barcode_aliases),
+    ("bundle_components", _move_bundle_components),  # Module F
     ("stock", _transfer_stock),
 ]
 
@@ -142,6 +178,9 @@ def merge_preview(keep, duplicate):
     counts = {
         "sale_items": duplicate.sale_items.count(),
         "purchase_items": duplicate.purchase_items.count(),
+        "bundle_components": (
+            duplicate.purchase_item_components.count() + duplicate.bundle_template_components.count()
+        ),
         "equipment_units": duplicate.equipment_units.count(),
         "price_rows": duplicate.pricing_history.count(),
         "barcode_aliases": ProductBarcodeAlias.objects.filter(product=duplicate).count() + 1,
