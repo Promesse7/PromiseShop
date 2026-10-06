@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useEmployees } from "@/lib/employees/useEmployees";
 import { EmployeeTable } from "@/components/employees/EmployeeTable";
+import { SetPinDialog } from "@/components/employees/SetPinDialog";
 import { EmployeeFormDialog } from "@/components/employees/EmployeeFormDialog";
 import { AdminOnlyNotice } from "@/components/employees/AdminOnlyNotice";
 import { Button } from "@/components/ui/Button";
@@ -18,6 +19,7 @@ interface EmployeesPageClientProps {
 export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProps) {
   const employees = useEmployees(isAdmin);
   const [dialog, setDialog] = useState<{ mode: "create" | "edit"; employee?: Employee } | null>(null);
+  const [pinFor, setPinFor] = useState<Employee | null>(null);
 
   if (!isAdmin) {
     return <AdminOnlyNotice />;
@@ -41,7 +43,12 @@ export default function EmployeesPageClient({ isAdmin }: EmployeesPageClientProp
           + New employee
         </Button>
       </PageHeader>
-      <EmployeeTable employees={employees.all} onEdit={(employee) => setDialog({ mode: "edit", employee })} />
+      <EmployeeTable
+        employees={employees.all}
+        onEdit={(employee) => setDialog({ mode: "edit", employee })}
+        onSetPin={setPinFor}
+      />
+      <SetPinDialog employee={pinFor} onClose={() => setPinFor(null)} />
       <p className="text-xs text-text/50 mt-3">
         Every purchase, sale and equipment status change is stamped with the employee who did it.
       </p>

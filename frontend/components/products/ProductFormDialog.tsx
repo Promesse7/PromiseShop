@@ -273,6 +273,14 @@ function ProductFormFields({
         </div>
         <Field label="Warranty (months)" name="warranty_months" type="number" value={values.warranty_months} onChange={(v) => setField("warranty_months", v)} />
         <Field label="Reorder level" name="reorder_level" type="number" value={values.reorder_level} onChange={(v) => setField("reorder_level", v)} />
+        <Field
+          label="Minimum price (blank = average cost)"
+          name="min_price"
+          type="number"
+          value={values.min_price}
+          onChange={(v) => setField("min_price", v)}
+          error={errors.min_price}
+        />
         <Field label="Unit" name="unit" value={values.unit} onChange={(v) => setField("unit", v)} />
         <div className="flex flex-col gap-1">
           <label className="block text-xs text-text/70">Tax category</label>

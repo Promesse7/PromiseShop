@@ -190,6 +190,7 @@ describe("ProductFormDialog", () => {
     expect(JSON.parse(options.body as string)).toEqual({
       name: "New Widget", category: 20, brand: null, model_number: null,
       description: null, specifications: null, usage_instructions: null, tax_category: "B",
+      min_price: null,
     });
   });
 
