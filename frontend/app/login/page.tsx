@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -13,7 +12,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [language, setLanguage] = useState("en");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,17 +52,6 @@ export default function LoginPage() {
           <span className="text-xs opacity-50">[Shop Address] · [Phone] · [Email]</span>
         </div>
         <div className="p-8 flex flex-col justify-center gap-4 bg-surface">
-          <div className="flex justify-end">
-            <SegmentedToggle
-              name="lang"
-              options={[
-                { value: "en", label: "EN" },
-                { value: "rw", label: "RW" },
-              ]}
-              value={language}
-              onChange={setLanguage}
-            />
-          </div>
           <h4 className="m-0">Sign in</h4>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <Field label="Username" name="username" value={username} onChange={setUsername} />

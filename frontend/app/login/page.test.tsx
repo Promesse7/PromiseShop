@@ -65,4 +65,10 @@ describe("LoginPage", () => {
     expect(await screen.findByText("Invalid username or password")).toBeInTheDocument();
     expect(pushMock).not.toHaveBeenCalled();
   });
+
+  it("has no language toggle until translations exist", () => {
+    render(<LoginPage />);
+    expect(screen.queryByRole("radio", { name: "RW" })).not.toBeInTheDocument();
+    expect(screen.queryByText("RW")).not.toBeInTheDocument();
+  });
 });
