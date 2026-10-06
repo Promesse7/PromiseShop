@@ -1,13 +1,18 @@
+from decimal import Decimal
+
 from django.db import transaction
-from rest_framework import viewsets
+from django.http import HttpResponse
+from rest_framework import serializers, status as http_status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
+from accounts.permissions import IsAdmin, IsAdminOrManager, IsAdminOrManagerOrReadOnly
 from catalog.models import Category, Product, ProductPricing
 from catalog.serializers import CategorySerializer, ProductSerializer, ProductPricingSerializer
+from catalog.importer import ImportHasErrors, commit_import, dry_run, opening_stock_status, set_opening_stock, template_csv
 from catalog.search import DEFAULT_LIMIT, MAX_LIMIT, TIER_NAMES, search_products
 from catalog.services import generate_barcode
 
@@ -126,6 +131,19 @@ class ProductViewSet(viewsets.ModelViewSet):
         )
         return Response({"results": _search_rows(products, include_cost=_can_see_cost(request.user))})
 
+    @action(detail=True, methods=["get", "post"], url_path="opening-stock", permission_classes=[IsAdmin])
+    def opening_stock(self, request, pk=None):
+        product = self.get_object()
+        if request.method == "GET":
+            return Response(opening_stock_status(product))
+        serializer = OpeningStockSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        movement = set_opening_stock(product, user=request.user, **serializer.validated_data)
+        return Response(
+            {"movement_id": movement.movement_id, "in_stock": movement.balance_after, **opening_stock_status(product)},
+            status=http_status.HTTP_201_CREATED,
+        )
+
     @action(detail=True, methods=["post"], url_path="set-active", permission_classes=[IsAdminOrManager])
     def set_active(self, request, pk=None):
         is_active = request.data.get("is_active")
@@ -201,3 +219,43 @@ class ProductPricingViewSet(viewsets.ModelViewSet):
     def perform_update(self, serializer):
         self._reject_non_admin_wholesale_price()
         serializer.save()
+
+
+class OpeningStockSerializer(serializers.Serializer):
+    quantity = serializers.IntegerField(min_value=1)
+    unit_cost = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0"))
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class ImportProductsView(APIView):
+    """POST {csv: "<text>", commit: bool} — dry run (default) or commit. Admin only."""
+
+    permission_classes = [IsAdmin]
+
+    def post(self, request):
+        text = request.data.get("csv") if hasattr(request.data, "get") else None
+        commit = request.data.get("commit") is True if hasattr(request.data, "get") else False
+        if not commit:
+            return Response(dry_run(text))
+        try:
+            result = commit_import(text, request.user)
+        except ImportHasErrors as exc:
+            return Response(
+                {
+                    "detail": "Some rows have errors; nothing was imported. Fix them and try again.",
+                    "code": "row_errors",
+                    **exc.result,
+                },
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(result, status=http_status.HTTP_201_CREATED)
+
+
+class ImportTemplateView(APIView):
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        response = HttpResponse(template_csv(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="promiseshop-products-template.csv"'
+        return response
+
