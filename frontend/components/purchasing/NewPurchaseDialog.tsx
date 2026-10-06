@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
-import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { useToast } from "@/components/layout/ToastProvider";
 import { useSuppliers } from "@/lib/suppliers/useSuppliers";
 import { useCreatePurchase } from "@/lib/purchasing/useCreatePurchase";
@@ -17,12 +16,6 @@ import {
   type PurchaseFormValues,
   type PurchaseFormErrors,
 } from "@/lib/purchasing/purchaseForm";
-
-const PAYMENT_STATUS_OPTIONS = [
-  { value: "paid", label: "Paid" },
-  { value: "partial", label: "Partial" },
-  { value: "unpaid", label: "Unpaid" },
-];
 
 interface NewPurchaseDialogProps {
   open: boolean;
@@ -114,15 +107,16 @@ function NewPurchaseFields({
         onChange={(v) => setField("purchase_date", v)}
         error={errors.purchase_date}
       />
-      <div className="flex flex-col gap-1">
-        <label className="block text-xs text-text/70">Payment status</label>
-        <SegmentedToggle
-          name="payment_status"
-          options={PAYMENT_STATUS_OPTIONS}
-          value={values.payment_status}
-          onChange={(v) => setField("payment_status", v as PurchaseFormValues["payment_status"])}
-        />
-      </div>
+      <Field
+        label="Payment due (optional)"
+        name="due_date"
+        type="date"
+        value={values.due_date}
+        onChange={(v) => setField("due_date", v)}
+      />
+      <p className="text-xs text-text/50">
+        What has been paid is recorded as supplier payments on the purchase, not chosen here.
+      </p>
       <div className="flex gap-2 justify-end mt-2">
         <Button variant="secondary" onClick={onClose}>
           Cancel
