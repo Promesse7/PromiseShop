@@ -78,6 +78,7 @@ export type StockMovementType =
   | "from_in_use"
   | "internal_consumption"
   | "to_shop_asset"
+  | "from_shop_asset"
   | "opening"
   | "merge_in"
   | "merge_out"
@@ -297,7 +298,7 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
-export type EquipmentUnitStatus = "in_stock" | "in_use" | "damaged" | "under_repair" | "sold";
+export type EquipmentUnitStatus = "in_stock" | "in_use" | "damaged" | "under_repair" | "sold" | "shop_asset";
 
 export interface EquipmentStatusHistoryEntry {
   history_id: number;
@@ -622,4 +623,74 @@ export interface Expense {
   expense_date: string;
   description: string | null;
   recorded_by: number;
+}
+
+// --- Module D: shop use (operations app) ---------------------------------------
+
+export type ConsumptionPurpose = "replacement" | "repair" | "shop_setup" | "other";
+
+export interface InternalConsumption {
+  consumption_id: number;
+  product: number;
+  product_name: string;
+  product_barcode: string;
+  quantity: number;
+  /** Admin/manager only; null when the cost was unknown at the time. */
+  unit_cost?: string | null;
+  total_value?: string | null;
+  purpose: ConsumptionPurpose;
+  reason: string;
+  taken_by: number;
+  taken_by_name: string | null;
+  recorded_by: number;
+  recorded_by_name: string | null;
+  approved_by: number | null;
+  approved_by_name: string | null;
+  shop_asset: number | null;
+  shop_asset_name: string | null;
+  created_at: string;
+}
+
+export type ShopAssetStatus = "in_service" | "damaged" | "under_repair" | "retired" | "returned_to_stock";
+
+export interface ShopAsset {
+  asset_id: number;
+  name: string;
+  product: number | null;
+  product_name: string | null;
+  product_barcode: string | null;
+  equipment_unit: number | null;
+  serial: string | null;
+  status: ShopAssetStatus;
+  status_label: string;
+  location: string;
+  assigned_to: number | null;
+  assigned_to_name: string | null;
+  source: "from_stock" | "pre_owned";
+  acquired_at: string;
+  /** Admin/manager only. */
+  acquisition_value?: string | null;
+  is_spare: boolean;
+  replaces: number | null;
+  replaces_name: string | null;
+  notes: string;
+  created_by: number;
+  created_by_name: string | null;
+  created_at: string;
+}
+
+export interface ShopAssetEvent {
+  event_id: number;
+  asset: number;
+  from_status: ShopAssetStatus | null;
+  to_status: ShopAssetStatus;
+  reason: string;
+  user: number;
+  user_name: string | null;
+  approved_by: number | null;
+  approved_by_name: string | null;
+  replaced_by: number | null;
+  replaced_by_name: string | null;
+  consumption: number | null;
+  created_at: string;
 }

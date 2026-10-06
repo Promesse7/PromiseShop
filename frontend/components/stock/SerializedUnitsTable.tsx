@@ -11,6 +11,7 @@ const STATUS_TAG: Record<EquipmentUnitStatus, { label: string; variant: "accent"
   under_repair: { label: "under repair", variant: "outline" },
   damaged: { label: "damaged", variant: "neutral" },
   sold: { label: "sold", variant: "neutral" },
+  shop_asset: { label: "shop asset", variant: "outline" },
 };
 
 interface SerializedUnitsTableProps {
