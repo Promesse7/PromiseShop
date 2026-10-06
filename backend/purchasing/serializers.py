@@ -35,6 +35,22 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
         return data
 
 
+class BulkPurchaseItemResultSerializer(PurchaseItemSerializer):
+    """A saved bulk row, with what the frontend needs to print its labels."""
+
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    product_barcode = serializers.CharField(source="product.barcode", read_only=True)
+    product_retail_price = serializers.SerializerMethodField()
+
+    class Meta(PurchaseItemSerializer.Meta):
+        fields = PurchaseItemSerializer.Meta.fields + ["product_name", "product_barcode", "product_retail_price"]
+        read_only_fields = fields
+
+    def get_product_retail_price(self, item):
+        price = item.product.pricing_history.filter(is_current=True).values_list("retail_price", flat=True).first()
+        return str(price) if price is not None else None
+
+
 class PurchaseSerializer(serializers.ModelSerializer):
     items = PurchaseItemSerializer(many=True, read_only=True)
 

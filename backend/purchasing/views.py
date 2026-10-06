@@ -10,6 +10,7 @@ from accounts.permissions import IsAdminOrManager, IsAdminOrManagerOrReadOnly
 from purchasing.models import Supplier, Purchase, PurchaseItem
 from purchasing.serializers import (
     AddPurchaseItemSerializer,
+    BulkPurchaseItemResultSerializer,
     BulkPurchaseItemRowSerializer,
     PurchaseItemSerializer,
     PurchaseSerializer,
@@ -158,7 +159,7 @@ class PurchaseViewSet(viewsets.ModelViewSet):
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
         return Response(
-            {"items": PurchaseItemSerializer(items, many=True, context={"request": request}).data},
+            {"items": BulkPurchaseItemResultSerializer(items, many=True, context={"request": request}).data},
             status=http_status.HTTP_201_CREATED,
         )
 

@@ -89,6 +89,10 @@ def test_bulk_saves_existing_and_new_rows_and_recomputes_totals(manager, purchas
     assert purchase.total_paid == Decimal("110.00")
     earbuds = Product.objects.get(name="Earbuds")
     assert earbuds.barcode.startswith("PES-AUD-")
+    saved = response.json()["items"][1]
+    assert saved["product_name"] == "Earbuds"
+    assert saved["product_barcode"] == earbuds.barcode
+    assert saved["product_retail_price"] == "15.00"
     assert ProductPricing.objects.get(product=earbuds, is_current=True).retail_price == Decimal("15.00")
 
 
