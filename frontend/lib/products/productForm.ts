@@ -13,13 +13,15 @@ export interface ProductFormValues {
   unit: string;
   tax_category: "A" | "B";
   storage_location: string;
+  // Price floor at the till; blank = use the average cost. Admin/manager only.
+  min_price: string;
 }
 
 export function emptyProductFormValues(): ProductFormValues {
   return {
     name: "", category: "", brand: "", model_number: "", description: "",
     specifications: "", usage_instructions: "", warranty_months: "", reorder_level: "",
-    unit: "", tax_category: "B", storage_location: "",
+    unit: "", tax_category: "B", storage_location: "", min_price: "",
   };
 }
 
@@ -40,6 +42,7 @@ export function productFormValuesFromProduct(
     unit: product.unit,
     tax_category: product.tax_category,
     storage_location: storageLocation ?? "",
+    min_price: product.min_price ?? "",
   };
 }
 
@@ -55,6 +58,7 @@ export interface ProductPayload {
   reorder_level?: number;
   unit?: string;
   tax_category?: "A" | "B";
+  min_price: string | null;
 }
 
 export function buildProductPayload(
@@ -69,6 +73,7 @@ export function buildProductPayload(
     specifications: values.specifications.trim() || null,
     usage_instructions: values.usage_instructions.trim() || null,
     tax_category: values.tax_category,
+    min_price: values.min_price.trim() === "" ? null : Number(values.min_price).toFixed(2),
   };
   if (mode === "create" && values.category !== "") {
     payload.category = values.category;
@@ -85,7 +90,7 @@ export function buildProductPayload(
   return payload;
 }
 
-export type ProductFormErrors = Partial<Record<"name" | "category", string>>;
+export type ProductFormErrors = Partial<Record<"name" | "category" | "min_price", string>>;
 
 export function validateProductForm(
   values: ProductFormValues,
@@ -97,6 +102,9 @@ export function validateProductForm(
   }
   if (mode === "create" && values.category === "") {
     errors.category = "Category is required.";
+  }
+  if (values.min_price.trim() !== "" && !(Number(values.min_price) > 0)) {
+    errors.min_price = "The minimum price must be above zero.";
   }
   return errors;
 }

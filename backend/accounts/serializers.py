@@ -14,14 +14,19 @@ class EmployeeTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 class EmployeeSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)
+    # Whether an approval PIN is set; the PIN and its hash are never sent.
+    has_approval_pin = serializers.SerializerMethodField()
 
     class Meta:
         model = Employee
         fields = [
             "employee_id", "full_name", "role", "phone", "email",
-            "username", "password", "hire_date", "status", "created_at",
+            "username", "password", "hire_date", "status", "created_at", "has_approval_pin",
         ]
-        read_only_fields = ["employee_id", "created_at"]
+        read_only_fields = ["employee_id", "created_at", "has_approval_pin"]
+
+    def get_has_approval_pin(self, obj):
+        return bool(obj.approval_pin)
 
     def validate_password(self, value):
         validate_password(value)

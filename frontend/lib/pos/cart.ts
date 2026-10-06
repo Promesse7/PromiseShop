@@ -7,6 +7,8 @@ export interface CartLine {
   // retail price and editable at the till — the catalog price on `product` is
   // never changed by a point-of-sale override.
   unitPrice: number;
+  // Why the price is what it is — required when it is below the price floor.
+  priceNote?: string;
 }
 
 export function addItem(lines: CartLine[], product: PosProduct): CartLine[] {
@@ -34,6 +36,33 @@ export function setUnitPrice(lines: CartLine[], productId: number, unitPrice: nu
   return lines.map((line) =>
     line.product.product_id === productId ? { ...line, unitPrice } : line
   );
+}
+
+export function setPriceNote(lines: CartLine[], productId: number, priceNote: string): CartLine[] {
+  return lines.map((line) =>
+    line.product.product_id === productId ? { ...line, priceNote } : line
+  );
+}
+
+export interface SaleItemPayload {
+  product: number;
+  quantity: number;
+  unit_price?: string;
+  price_note?: string;
+}
+
+// unit_price is only sent for lines the cashier changed, so the catalog price
+// stays server-authoritative for everything else.
+export function saleItemsPayload(lines: CartLine[]): SaleItemPayload[] {
+  return lines.map((line) => {
+    const note = (line.priceNote ?? "").trim();
+    return {
+      product: line.product.product_id,
+      quantity: line.quantity,
+      ...(line.unitPrice !== line.product.retail_price ? { unit_price: line.unitPrice.toFixed(2) } : {}),
+      ...(note ? { price_note: note } : {}),
+    };
+  });
 }
 
 export function removeItem(lines: CartLine[], productId: number): CartLine[] {

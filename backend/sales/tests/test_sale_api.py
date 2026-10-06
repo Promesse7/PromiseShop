@@ -86,17 +86,19 @@ def test_client_supplied_price_overrides_catalog_price_and_keeps_list_price(empl
         "/api/sales/",
         {
             "payment_method": "cash",
-            "items": [{"product": product.product_id, "quantity": 2, "unit_price": "80.00"}],
+            # 8% off: within the staff bargaining limit (Module C).
+            "items": [{"product": product.product_id, "quantity": 2, "unit_price": "92.00"}],
         },
         format="json",
     )
     assert response.status_code == 201
     body = response.json()
     item = body["items"][0]
-    assert item["unit_price"] == "80.00"
+    assert item["unit_price"] == "92.00"
     assert item["list_price"] == "100.00"
-    assert item["subtotal"] == "160.00"
-    assert body["total_amount"] == "160.00"
+    assert item["subtotal"] == "184.00"
+    assert item["discount_amount"] == "16.00"
+    assert body["total_amount"] == "184.00"
     # The catalog price itself is untouched by a point-of-sale override.
     assert ProductPricing.objects.get(product=product, is_current=True).retail_price == Decimal("100.00")
 

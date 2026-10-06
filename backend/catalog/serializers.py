@@ -22,9 +22,23 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "product_id", "category", "barcode", "name", "brand", "model_number",
             "description", "specifications", "usage_instructions", "warranty_months",
-            "reorder_level", "unit", "tax_category", "is_active", "created_at",
+            "reorder_level", "unit", "tax_category", "is_active", "created_at", "min_price",
         ]
         read_only_fields = ["product_id", "barcode", "created_at"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        # The minimum price is a cost-side figure: admin and manager only.
+        if not (request and request.user.is_authenticated
+                and request.user.role in (request.user.Role.ADMIN, request.user.Role.MANAGER)):
+            data.pop("min_price", None)
+        return data
+
+    def validate_min_price(self, value):
+        if value is not None and value <= 0:
+            raise serializers.ValidationError("The minimum price must be above zero.")
+        return value
 
     def validate_category(self, value):
         # category is writable on create but immutable afterwards: changing

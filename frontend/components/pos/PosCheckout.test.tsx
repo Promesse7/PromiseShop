@@ -12,6 +12,44 @@ const jbl = {
   model_number: "JBLFLIP6BLK", category_name: "Audio", retail_price: 145000, quantity_in_stock: 2,
 };
 
+// Answers fetches by URL so background requests (price-check) don't eat the sale's mock.
+function routeFetch(handlers: { sale?: () => { ok: boolean; body: unknown }; priceCheck?: unknown }) {
+  const fetchMock = vi.fn((url: string) => {
+    if (url.includes("sales/price-check/")) {
+      return Promise.resolve({ ok: true, json: async () => handlers.priceCheck ?? { max_staff_discount_pct: "10.00", lines: [] } });
+    }
+    if (url.endsWith("/sales/") && handlers.sale) {
+      const { ok, body } = handlers.sale();
+      return Promise.resolve({ ok, status: ok ? 201 : 400, json: async () => body });
+    }
+    return Promise.resolve({ ok: true, json: async () => ({ count: 0, next: null, previous: null, results: [] }) });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+function saleCalls(fetchMock: ReturnType<typeof vi.fn>) {
+  return fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/sales/"));
+}
+
+const saleBody = (overrides: Record<string, unknown> = {}) => ({
+  sale_id: 842, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
+  payment_method: "cash", total_amount: "145000.00", status: "completed",
+  items: [{ sale_item_id: 1, sale: 842, product: 1, quantity: 1, unit_price: "145000.00", list_price: "145000.00", subtotal: "145000.00", tax_category: "B", tax_amount: "22118.64" }],
+  ...overrides,
+});
+
+async function scanJbl() {
+  await userEvent.type(screen.getByLabelText("Scan barcode or search product"), "PES-AUD-00147{Enter}");
+}
+
+async function typePrice(value: string) {
+  const priceInput = screen.getAllByLabelText("Unit price")[0] as HTMLInputElement;
+  priceInput.focus();
+  await userEvent.keyboard("{Control>}a{/Control}");
+  await userEvent.keyboard(value);
+}
+
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const view = render(
@@ -93,24 +131,122 @@ describe("PosCheckout", () => {
     await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
 
     expect(await screen.findByText("#S-841")).toBeInTheDocument();
+    // By default the whole total is one cash payment.
     expect(global.fetch).toHaveBeenCalledWith(
       "/api/proxy/sales/",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ items: [{ product: 1, quantity: 1 }], payment_method: "cash" }),
+        body: JSON.stringify({
+          items: [{ product: 1, quantity: 1 }],
+          payments: [{ method: "cash", amount: "145000.00" }],
+        }),
       })
     );
   });
 
+  it("sends a split payment with its MoMo reference", async () => {
+    const fetchMock = routeFetch({ sale: () => ({ ok: true, body: saleBody() }) });
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    const cashAmount = screen.getByLabelText("Payment 1 amount");
+    await userEvent.clear(cashAmount);
+    await userEvent.type(cashAmount, "100000");
+    await userEvent.click(screen.getByRole("button", { name: "+ Split payment" }));
+    expect(screen.getByRole("button", { name: "Complete sale" })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Payment 2 reference"), "MP555");
+    await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+    expect(await screen.findByText("#S-842")).toBeInTheDocument();
+    const body = JSON.parse(String(saleCalls(fetchMock)[0][1].body));
+    expect(body.payments).toEqual([
+      { method: "cash", amount: "100000.00" },
+      { method: "mobile_money", amount: "45000.00", reference: "MP555" },
+    ]);
+  });
+
+  it("holds an underpaid sale until a customer is chosen", async () => {
+    routeFetch({});
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    const cashAmount = screen.getByLabelText("Payment 1 amount");
+    await userEvent.clear(cashAmount);
+    await userEvent.type(cashAmount, "45000");
+    expect(screen.getByText("Remaining on credit").nextSibling).toHaveTextContent("RWF 100,000");
+    expect(screen.getByText(/Choose a customer/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete sale" })).toBeDisabled();
+  });
+
+  it("asks for a manager PIN when the server says approval is needed, then resends with it", async () => {
+    let attempt = 0;
+    const fetchMock = routeFetch({
+      priceCheck: {
+        max_staff_discount_pct: "10.00",
+        lines: [{ index: 0, product: 1, rule: "needs_approval", discount_pct: "20.00", needs_approval: true, needs_note: false }],
+      },
+      sale: () => {
+        attempt += 1;
+        return attempt === 1
+          ? { ok: false, body: { detail: "Approval refused: wrong approver or PIN.", code: "approval_refused" } }
+          : { ok: true, body: saleBody({ sale_id: 843 }) };
+      },
+    });
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    await typePrice("116000");
+    // Rendered by both the desktop table and the tablet cards.
+    expect((await screen.findAllByText("Needs manager approval")).length).toBeGreaterThan(0);
+
+    await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+    expect(screen.getByRole("heading", { name: "Manager approval" })).toBeInTheDocument();
+    expect(saleCalls(fetchMock)).toHaveLength(0);
+
+    await userEvent.type(screen.getByLabelText("Manager username"), "manager1");
+    await userEvent.type(screen.getByLabelText("PIN"), "0000");
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("Approval refused: wrong approver or PIN.")).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole("button", { name: "Approve" }));
+    expect(await screen.findByText("#S-843")).toBeInTheDocument();
+    const lastBody = JSON.parse(String(saleCalls(fetchMock)[1][1].body));
+    expect(lastBody.approval).toEqual({ approver_username: "manager1", pin: "0000" });
+  });
+
+  it("opens the PIN dialog when the sale comes back approval_required", async () => {
+    routeFetch({
+      sale: () => ({ ok: false, body: { detail: "This sale takes the customer over their credit limit — needs manager approval.", code: "approval_required" } }),
+    });
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+    expect(await screen.findByText(/over their credit limit/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Manager approval" })).toBeInTheDocument();
+  });
+
+  it("requires a note on a below-floor line before completing", async () => {
+    routeFetch({
+      priceCheck: {
+        max_staff_discount_pct: "10.00",
+        lines: [{ index: 0, product: 1, rule: "below_floor", discount_pct: "50.00", needs_approval: false, needs_note: true }],
+      },
+    });
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    await typePrice("72500");
+    expect(await screen.findByText("Add a note for each line below the minimum price.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Complete sale" })).toBeDisabled();
+    await userEvent.type(screen.getAllByLabelText("Price note")[0], "Display unit");
+    expect(screen.getByRole("button", { name: "Complete sale" })).toBeEnabled();
+  });
+
   it("lets the cashier change a line price: totals, discount line, and payload follow", async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        sale_id: 842, customer: null, employee: 1, sale_date: "2026-08-23T14:14:00Z",
-        payment_method: "cash", total_amount: "120000.00", status: "completed",
-        items: [
-          { sale_item_id: 1, sale: 842, product: 1, quantity: 1, unit_price: "120000.00", list_price: "145000.00", subtotal: "120000.00", tax_category: "B", tax_amount: "18305.08" },
-        ],
+    const fetchMock = routeFetch({
+      sale: () => ({
+        ok: true,
+        body: saleBody({
+          total_amount: "120000.00",
+          items: [
+            { sale_item_id: 1, sale: 842, product: 1, quantity: 1, unit_price: "120000.00", list_price: "145000.00", subtotal: "120000.00", tax_category: "B", tax_amount: "18305.08" },
+          ],
+        }),
       }),
     });
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
@@ -127,16 +263,10 @@ describe("PosCheckout", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
     expect(await screen.findByText("#S-842")).toBeInTheDocument();
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/proxy/sales/",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({
-          items: [{ product: 1, quantity: 1, unit_price: "120000.00" }],
-          payment_method: "cash",
-        }),
-      })
-    );
+    expect(JSON.parse(String(saleCalls(fetchMock)[0][1].body))).toEqual({
+      items: [{ product: 1, quantity: 1, unit_price: "120000.00" }],
+      payments: [{ method: "cash", amount: "120000.00" }],
+    });
   });
 
   it("shows a markup line when a price is raised above the catalog price", async () => {

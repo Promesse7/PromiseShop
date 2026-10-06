@@ -19,7 +19,7 @@ describe("emptyProductFormValues", () => {
     expect(emptyProductFormValues()).toEqual({
       name: "", category: "", brand: "", model_number: "", description: "",
       specifications: "", usage_instructions: "", warranty_months: "", reorder_level: "",
-      unit: "", tax_category: "B", storage_location: "",
+      unit: "", tax_category: "B", storage_location: "", min_price: "",
     });
   });
 });
@@ -30,8 +30,12 @@ describe("productFormValuesFromProduct", () => {
       name: "JBL Flip 6", category: 20, brand: "JBL", model_number: "JBLFLIP6BLK",
       description: "", specifications: "30W RMS", usage_instructions: "Hold power 2s.",
       warranty_months: "12", reorder_level: "4", unit: "pcs", tax_category: "B",
-      storage_location: "Shelf B2",
+      storage_location: "Shelf B2", min_price: "",
     });
+  });
+
+  it("carries the minimum price when the product has one", () => {
+    expect(productFormValuesFromProduct({ ...product, min_price: "95000.00" }, null).min_price).toBe("95000.00");
   });
 
   it("uses an empty string for storage_location when none is passed", () => {
@@ -74,6 +78,12 @@ describe("buildProductPayload", () => {
     expect(payload.unit).toBe("box");
   });
 
+  it("sends min_price as a string, or null to clear it", () => {
+    const base = { ...emptyProductFormValues(), name: "New Item", category: 20 as number | "" };
+    expect(buildProductPayload({ ...base, min_price: "95000" }, "create").min_price).toBe("95000.00");
+    expect(buildProductPayload(base, "create").min_price).toBeNull();
+  });
+
   it("always includes tax_category in the payload", () => {
     const values = { ...emptyProductFormValues(), name: "New Item", category: 20 as number | "", tax_category: "A" as const };
     const payload = buildProductPayload(values, "create");
@@ -82,6 +92,11 @@ describe("buildProductPayload", () => {
 });
 
 describe("validateProductForm", () => {
+  it("rejects a minimum price of zero or less", () => {
+    const errors = validateProductForm({ ...emptyProductFormValues(), name: "X", category: 20, min_price: "0" }, "create");
+    expect(errors.min_price).toBe("The minimum price must be above zero.");
+  });
+
   it("requires a name", () => {
     const errors = validateProductForm({ ...emptyProductFormValues(), category: 20 }, "create");
     expect(errors.name).toBeDefined();

@@ -11,6 +11,7 @@ import { AddProductSingleForm } from "@/components/purchasing/AddProductSingleFo
 import { AddProductBulkTable } from "@/components/purchasing/AddProductBulkTable";
 import { PurchaseItemsList } from "@/components/purchasing/PurchaseItemsList";
 import { PurchaseSummaryCard } from "@/components/purchasing/PurchaseSummaryCard";
+import { SupplierPaymentCard } from "@/components/purchasing/SupplierPaymentCard";
 import { PurchaseSteps } from "@/components/purchasing/PurchaseSteps";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
@@ -130,6 +131,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
         </div>
         <div className="flex flex-col gap-3">
           <PurchaseSummaryCard purchase={purchase} />
+          {isAdmin && <SupplierPaymentCard purchase={purchase} />}
           {isDraft && (
             <>
               <Button onClick={handleReceive} disabled={purchase.items.length === 0 || receivePurchase.isPending} block>

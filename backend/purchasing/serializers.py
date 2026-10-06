@@ -59,8 +59,13 @@ class PurchaseSerializer(serializers.ModelSerializer):
         fields = [
             "purchase_id", "supplier", "employee", "invoice_number", "purchase_date",
             "total_paid", "total_invoiced", "payment_status", "status", "items",
+            "amount_paid", "due_date", "payment_needs_review",
         ]
-        read_only_fields = ["purchase_id", "employee", "total_paid", "total_invoiced", "status"]
+        # payment_status and amount_paid are derived from finance.Payment rows.
+        read_only_fields = [
+            "purchase_id", "employee", "total_paid", "total_invoiced", "status",
+            "payment_status", "amount_paid", "payment_needs_review",
+        ]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -74,6 +79,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
         if not is_admin:
             data.pop("total_paid", None)
             data.pop("total_invoiced", None)
+            data.pop("amount_paid", None)
         return data
 
 

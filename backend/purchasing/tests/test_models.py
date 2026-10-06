@@ -32,7 +32,8 @@ def test_create_purchase_with_default_payment_status(employee, supplier):
         supplier=supplier, employee=employee, purchase_date=date(2026, 1, 1),
         total_paid="500000.00", total_invoiced="500000.00",
     )
-    assert purchase.payment_status == Purchase.PaymentStatus.PAID
+    # Nothing is paid until a finance.Payment is recorded against the purchase.
+    assert purchase.payment_status == Purchase.PaymentStatus.UNPAID
 
 
 def test_purchase_item_requires_valid_purchase_and_product(employee, supplier, product):

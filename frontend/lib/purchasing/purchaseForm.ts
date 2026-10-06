@@ -1,8 +1,10 @@
+// Payment status is no longer chosen here: it is derived from the supplier
+// payments recorded against the purchase (Module B). Only the due date is set.
 export interface PurchaseFormValues {
   supplier: number | "";
   invoice_number: string;
   purchase_date: string;
-  payment_status: "paid" | "partial" | "unpaid";
+  due_date: string;
 }
 
 function today(): string {
@@ -10,14 +12,14 @@ function today(): string {
 }
 
 export function emptyPurchaseFormValues(): PurchaseFormValues {
-  return { supplier: "", invoice_number: "", purchase_date: today(), payment_status: "paid" };
+  return { supplier: "", invoice_number: "", purchase_date: today(), due_date: "" };
 }
 
 export interface PurchasePayload {
   supplier: number;
   invoice_number: string | null;
   purchase_date: string;
-  payment_status: "paid" | "partial" | "unpaid";
+  due_date: string | null;
 }
 
 export function buildPurchasePayload(values: PurchaseFormValues): PurchasePayload {
@@ -25,7 +27,7 @@ export function buildPurchasePayload(values: PurchaseFormValues): PurchasePayloa
     supplier: values.supplier === "" ? 0 : values.supplier,
     invoice_number: values.invoice_number.trim() || null,
     purchase_date: values.purchase_date,
-    payment_status: values.payment_status,
+    due_date: values.due_date || null,
   };
 }
 

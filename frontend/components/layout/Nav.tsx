@@ -15,6 +15,8 @@ import {
   UserCog,
   Receipt,
   Bell,
+  HandCoins,
+  Upload,
   Settings,
   LogOut,
   type LucideIcon,
@@ -44,6 +46,7 @@ const ADMIN_LINKS: NavLink[] = [
   { href: "/checkout", label: "Sales", icon: ShoppingCart },
   { href: "/suppliers", label: "Suppliers", icon: Building2 },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/debts", label: "Debts", icon: HandCoins },
 ];
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -62,7 +65,9 @@ export function getNavLinksForRole(role: EmployeeRole): NavLink[] {
     { href: "/employees", label: "Employees", icon: UserCog },
     { href: "/expenses", label: "Expenses", icon: Receipt },
     // Setup (opening-stock import) — admin only, like its backend.
-    { href: "/setup/import", label: "Setup", icon: Settings },
+    { href: "/setup/import", label: "Setup", icon: Upload },
+    // Shop details and the staff bargaining limit; PATCH is admin-only.
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 }
 

@@ -62,9 +62,11 @@ describe("getNavLinksForRole", () => {
       { href: "/checkout", label: "Sales" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
+      { href: "/debts", label: "Debts" },
       { href: "/employees", label: "Employees" },
       { href: "/expenses", label: "Expenses" },
       { href: "/setup/import", label: "Setup" },
+      { href: "/settings", label: "Settings" },
     ]);
   });
 
@@ -78,7 +80,9 @@ describe("getNavLinksForRole", () => {
       { href: "/checkout", label: "Sales" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
+      { href: "/debts", label: "Debts" },
     ]);
+    expect(managerLinks.find((l) => l.href === "/settings")).toBeUndefined();
     expect(managerLinks.find((l) => l.href === "/employees")).toBeUndefined();
     expect(managerLinks.find((l) => l.href === "/expenses")).toBeUndefined();
   });

@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from catalog.models import Product, ProductPricing
 from catalog.search import normalise_text
 from catalog.services import generate_barcode
+from finance.services import refresh_purchase_payments
 from purchasing.models import Purchase, PurchaseItem
 from stock.models import Inventory, StockMovement
 from stock.services import record_movement
@@ -24,6 +25,8 @@ def _recompute_purchase_totals(purchase):
     purchase.total_paid = totals["paid"] or Decimal("0.00")
     purchase.total_invoiced = totals["invoiced"] or Decimal("0.00")
     purchase.save(update_fields=["total_paid", "total_invoiced"])
+    # What is owed changed, so the derived payment status may have too.
+    refresh_purchase_payments(purchase)
 
 
 def add_existing_product_item(purchase, product, quantity, unit_cost_paid, unit_cost_invoiced,

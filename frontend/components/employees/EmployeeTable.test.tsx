@@ -21,6 +21,21 @@ describe("EmployeeTable", () => {
     expect(screen.getByText("inactive")).toBeInTheDocument();
   });
 
+  it("offers Set approval PIN only on admin and manager rows", async () => {
+    const onSetPin = vi.fn();
+    const staff: Employee = { ...employees[0], employee_id: 3, full_name: "Eric", role: "sales_staff", username: "eric" };
+    render(<EmployeeTable employees={[...employees, { ...staff }]} onEdit={vi.fn()} onSetPin={onSetPin} />);
+    const pinButtons = screen.getAllByRole("button", { name: /approval PIN/ });
+    expect(pinButtons).toHaveLength(2);
+    await userEvent.click(pinButtons[1]);
+    expect(onSetPin).toHaveBeenCalledWith(employees[1]);
+  });
+
+  it("labels the button Change approval PIN when one is set", () => {
+    render(<EmployeeTable employees={[{ ...employees[0], has_approval_pin: true }]} onEdit={vi.fn()} onSetPin={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Change approval PIN" })).toBeInTheDocument();
+  });
+
   it("shows an empty state when there are no employees", () => {
     render(<EmployeeTable employees={[]} onEdit={vi.fn()} />);
     expect(screen.getByText("No employees found")).toBeInTheDocument();

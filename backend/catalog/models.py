@@ -30,6 +30,9 @@ class Product(models.Model):
     usage_instructions = models.TextField(blank=True, null=True)
     warranty_months = models.PositiveIntegerField(default=0)
     reorder_level = models.PositiveIntegerField(default=5)
+    # Lowest price the till may sell at without a manager's approval and a note.
+    # Null: the floor is the weighted average cost. Set by admin/manager only.
+    min_price = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     unit = models.CharField(max_length=20, default="pcs")
     tax_category = models.CharField(max_length=1, choices=TaxCategory.choices, default=TaxCategory.STANDARD)
     is_active = models.BooleanField(default=True)

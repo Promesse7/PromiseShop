@@ -28,6 +28,9 @@ class Employee(AbstractBaseUser, PermissionsMixin):
     hire_date = models.DateField()
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Hashed (make_password) 4-6 digit PIN a manager/admin types to approve a
+    # discount, below-floor price or credit above a customer's limit. "" = none.
+    approval_pin = models.CharField(max_length=128, blank=True, default="")
 
     objects = EmployeeManager()
 

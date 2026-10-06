@@ -2,21 +2,25 @@
 
 import { Card } from "@/components/ui/Card";
 import { lineSubtotal, type CartLine } from "@/lib/pos/cart";
+import type { PriceCheckLine } from "@/lib/types";
+import { PriceDifference } from "./PriceDifference";
 
 interface CartCardsProps {
   lines: CartLine[];
   onSetQuantity: (productId: number, quantity: number) => void;
   onSetUnitPrice: (productId: number, unitPrice: number) => void;
+  verdicts?: Map<number, PriceCheckLine>;
+  onSetPriceNote?: (productId: number, note: string) => void;
 }
 
-export function CartCards({ lines, onSetQuantity, onSetUnitPrice }: CartCardsProps) {
+export function CartCards({ lines, onSetQuantity, onSetUnitPrice, verdicts, onSetPriceNote }: CartCardsProps) {
   return (
     <div className="flex lg:hidden flex-col gap-2">
       {lines.length === 0 ? (
         <p className="text-center text-text/50 py-6">No items scanned yet</p>
       ) : (
         lines.map((line) => {
-          const priceChanged = line.unitPrice !== line.product.retail_price;
+          const verdict = verdicts?.get(line.product.product_id);
           return (
             <Card key={line.product.product_id} elevation="sm">
               <div className="flex items-center gap-3">
@@ -38,8 +42,17 @@ export function CartCards({ lines, onSetQuantity, onSetUnitPrice }: CartCardsPro
                       }}
                       className="w-24 text-right min-h-9 py-1.5 px-2 text-sm text-text border border-divider rounded-md bg-surface"
                     />
-                    {priceChanged && <span>list {line.product.retail_price.toLocaleString()}</span>}
                   </div>
+                  <PriceDifference line={line} verdict={verdict} />
+                  {verdict?.needs_note && onSetPriceNote && (
+                    <input
+                      aria-label="Price note"
+                      placeholder="Why this price?"
+                      value={line.priceNote ?? ""}
+                      onChange={(e) => onSetPriceNote(line.product.product_id, e.target.value)}
+                      className="w-full mt-1 min-h-9 py-1 px-2 text-xs border border-red-400 rounded-md bg-surface"
+                    />
+                  )}
                 </div>
                 <div className="flex items-center border border-divider rounded-md overflow-hidden">
                   <button

@@ -27,9 +27,11 @@ function formatHireDate(isoDate: string): string {
 interface EmployeeTableProps {
   employees: Employee[];
   onEdit: (employee: Employee) => void;
+  // Admin and manager accounts can have a PIN to approve discounts at the till.
+  onSetPin?: (employee: Employee) => void;
 }
 
-export function EmployeeTable({ employees, onEdit }: EmployeeTableProps) {
+export function EmployeeTable({ employees, onEdit, onSetPin }: EmployeeTableProps) {
   const columns = [
     { key: "full_name", header: "Name" },
     {
@@ -52,9 +54,16 @@ export function EmployeeTable({ employees, onEdit }: EmployeeTableProps) {
       key: "edit",
       header: "",
       render: (e: Employee) => (
-        <Button variant="ghost" className="text-xs" onClick={() => onEdit(e)}>
-          Edit
-        </Button>
+        <div className="flex gap-1 justify-end">
+          {onSetPin && (e.role === "admin" || e.role === "manager") && (
+            <Button variant="ghost" className="text-xs" onClick={() => onSetPin(e)}>
+              {e.has_approval_pin ? "Change approval PIN" : "Set approval PIN"}
+            </Button>
+          )}
+          <Button variant="ghost" className="text-xs" onClick={() => onEdit(e)}>
+            Edit
+          </Button>
+        </div>
       ),
     },
   ];

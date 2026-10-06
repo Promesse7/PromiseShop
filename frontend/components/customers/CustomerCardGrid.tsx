@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
 import type { Customer } from "@/lib/types";
@@ -20,10 +21,18 @@ export function CustomerCardGrid({ customers, onEdit }: CustomerCardGridProps) {
           <div className="flex flex-col gap-0.5 text-sm text-text/70">
             <span>{c.phone ?? "—"}</span>
             <span>{c.email ?? "—"}</span>
+            {Number(c.balance ?? 0) > 0 && (
+              <span className="text-amber-500">Owes RWF {Number(c.balance).toLocaleString()}</span>
+            )}
           </div>
-          <Button variant="ghost" className="mt-auto self-start text-xs" onClick={() => onEdit(c)}>
-            Edit
-          </Button>
+          <div className="mt-auto flex gap-2">
+            <Link href={`/customers/${c.customer_id}`} className="text-xs text-accent self-center">
+              Open →
+            </Link>
+            <Button variant="ghost" className="text-xs" onClick={() => onEdit(c)}>
+              Edit
+            </Button>
+          </div>
         </Card>
       ))}
     </div>
