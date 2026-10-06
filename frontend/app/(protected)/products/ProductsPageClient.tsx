@@ -7,6 +7,7 @@ import { ProductTable } from "@/components/products/ProductTable";
 import { ProductCardGrid } from "@/components/products/ProductCardGrid";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { CategoryManagerDialog } from "@/components/products/CategoryManagerDialog";
+import { DuplicatesDialog } from "@/components/products/DuplicatesDialog";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -47,6 +48,9 @@ interface ProductsPageClientProps {
 export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const catalog = useCatalogProducts();
   const isAdmin = ADMIN_ROLES.includes(role);
+  // Merging duplicates is admin only (it is irreversible).
+  const isStrictAdmin = role === "admin";
+  const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
@@ -179,6 +183,11 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
         <SegmentedToggle name="view" options={VIEW_OPTIONS} value={view} onChange={(v) => setView(v as "grid" | "table")} />
         {isAdmin && (
           <div className="ml-auto flex gap-2">
+            {isStrictAdmin && (
+              <Button variant="secondary" onClick={() => setDuplicatesOpen(true)}>
+                Find duplicates
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => setCategoriesOpen(true)}>
               Manage categories
             </Button>
@@ -223,6 +232,7 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
         onClose={() => setCreateOpen(false)}
         onSaved={() => setCreateOpen(false)}
       />
+      {isStrictAdmin && <DuplicatesDialog open={duplicatesOpen} onClose={() => setDuplicatesOpen(false)} />}
       <CategoryManagerDialog
         open={categoriesOpen}
         categories={catalog.categories}

@@ -201,4 +201,13 @@ describe("ProductsPageClient", () => {
     );
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
+
+  it("offers Find duplicates to an admin only", () => {
+    const { unmount } = renderWithProviders(<ProductsPageClient role="admin" />);
+    expect(screen.getByRole("button", { name: "Find duplicates" })).toBeInTheDocument();
+    unmount();
+    renderWithProviders(<ProductsPageClient role="manager" />);
+    expect(screen.queryByRole("button", { name: "Find duplicates" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Manage categories" })).toBeInTheDocument();
+  });
 });
