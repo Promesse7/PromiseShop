@@ -1,4 +1,12 @@
 import "@testing-library/jest-dom/vitest";
+import { afterEach } from "vitest";
+import { installMatchMedia, resetMatchMedia } from "./lib/test/matchMedia";
+
+// jsdom has no matchMedia: default to a desktop viewport with reduced motion ON, so motion
+// animations are instant and exits unmount immediately. Tests opt into phone/animation
+// behaviour with setMatchMedia (see lib/test/matchMedia.ts).
+installMatchMedia();
+afterEach(() => resetMatchMedia());
 
 // Polyfill canvas for jsbarcode text measurement in jsdom
 const originalGetContext = HTMLCanvasElement.prototype.getContext;
