@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { fetchAllPages } from "@/lib/api-client";
+import { useShopAssets } from "@/lib/operations/useShopUse";
 import { QuickStatusChangeCard } from "@/components/stock/QuickStatusChangeCard";
 import type { EquipmentUnit } from "@/lib/types";
 
@@ -13,6 +15,15 @@ export default function ScanPageClient() {
     queryKey: ["equipment-units"],
     queryFn: () => fetchAllPages<EquipmentUnit>("equipment-units/"),
   });
+
+  // A serial that belongs to one of the shop's own assets opens that asset (exact match only).
+  const router = useRouter();
+  const serial = search.trim();
+  const shopAsset = useShopAssets({ serial }, serial.length >= 3);
+  const assetId = shopAsset.assets[0]?.asset_id;
+  useEffect(() => {
+    if (assetId) router.push(`/shop-use/assets/${assetId}`);
+  }, [assetId, router]);
 
   const match = useMemo(() => {
     const q = search.trim().toLowerCase();
