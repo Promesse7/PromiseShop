@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { fetchAllPages, ApiError, extractErrorMessage } from "@/lib/api-client";
 import { usePurchaseDetail } from "@/lib/purchasing/usePurchaseDetail";
 import { useAddPurchaseItem } from "@/lib/purchasing/useAddPurchaseItem";
@@ -10,6 +9,9 @@ import { useUpdatePurchaseItem } from "@/lib/purchasing/useUpdatePurchaseItem";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { Page } from "@/components/ui/Page";
+import { formatRwf } from "@/lib/format";
 import { useToast } from "@/components/layout/ToastProvider";
 import { emptyExistingProductItemValues, buildAddItemPayload, validateAddItemForm } from "@/lib/purchasing/purchaseItemForm";
 import type { Product } from "@/lib/types";
@@ -20,7 +22,7 @@ interface ScanPageClientProps {
 
 export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
   const { show } = useToast();
-  const { purchase, isLoading, isError } = usePurchaseDetail(purchaseId);
+  const { purchase, isLoading, isError, refetch } = usePurchaseDetail(purchaseId);
   const productsQuery = useQuery({ queryKey: ["products"], queryFn: () => fetchAllPages<Product>("products/") });
   const addItem = useAddPurchaseItem();
   const updateItem = useUpdatePurchaseItem();
@@ -108,23 +110,49 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
   }
 
   if (isError) {
-    return <ErrorState message="Couldn't load this purchase." />;
+    return <ErrorState message="Couldn't load this purchase." onRetry={refetch} />;
   }
 
   if (isLoading || !purchase) {
-    return <p className="text-sm text-text/50">Loading…</p>;
+    return <LoadingState variant="form" label="Loading purchase…" />;
   }
 
   return (
-    <div>
-      <Link href={`/purchases/${purchaseId}`} className="text-sm">
-        ← Purchase
-      </Link>
-      <h4 className="mt-2 mb-3">Receive stock</h4>
+    <Page
+      title="Receive stock"
+      description={`Scanning items into purchase #P-${purchaseId}`}
+      breadcrumb={[
+        { label: "Buy" },
+        { label: "Purchases", href: "/purchases" },
+        { label: `#P-${purchaseId}`, href: `/purchases/${purchaseId}` },
+        { label: "Scan" },
+      ]}
+      back={`/purchases/${purchaseId}`}
+    >
+      {summary && (
+        <Card elevation="sm" className="mb-4">
+          <div className="flex items-center gap-4">
+            <div
+              role="status"
+              aria-label="Units received so far"
+              className="flex h-16 min-w-16 flex-col items-center justify-center rounded-lg bg-accent/10 px-3 text-accent"
+            >
+              <span className="text-2xl font-semibold tabular-nums leading-none">{summary.unitCount}</span>
+              <span className="text-[10px] uppercase tracking-wide">units</span>
+            </div>
+            <p className="m-0 text-sm text-text/70">
+              Received so far — {summary.productCount} products · {summary.unitCount} units · paid{" "}
+              {purchase.total_paid != null ? formatRwf(purchase.total_paid) : "—"} / invoiced{" "}
+              {purchase.total_invoiced != null ? formatRwf(purchase.total_invoiced) : "—"}
+            </p>
+          </div>
+        </Card>
+      )}
       <div className="flex gap-2 mb-3">
         <input
           aria-label="Scan received item…"
           placeholder="Scan received item…"
+          autoFocus
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onKeyDown={(e) => {
@@ -134,14 +162,14 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
               selectScanned(match);
             }
           }}
-          className="min-h-11 flex-1 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
+          className="min-h-12 flex-1 py-2 px-3 text-base text-text bg-surface border border-divider rounded-md"
         />
       </div>
       {match && !scanned && (
         <button
           type="button"
           onClick={() => selectScanned(match)}
-          className="text-left text-sm mb-3 underline"
+          className="mb-3 flex min-h-11 w-full items-center gap-2 rounded-md border border-divider bg-surface px-3 text-left text-sm hover:bg-accent/[0.04]"
         >
           {match.name} <span className="font-mono text-xs text-text/50">{match.barcode}</span>
         </button>
@@ -172,18 +200,18 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
           <div className="text-[15px]">
             {scanned.name} <span className="font-mono text-text/50 ml-2 text-sm">{scanned.barcode}</span>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="flex flex-col gap-1">
               <label htmlFor="scan-quantity" className="block text-xs text-text/70">Quantity</label>
-              <input id="scan-quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
+              <input id="scan-quantity" inputMode="numeric" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="scan-paid" className="block text-xs text-text/70">Unit cost paid</label>
-              <input id="scan-paid" value={paid} onChange={(e) => setPaid(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
+              <input id="scan-paid" inputMode="decimal" value={paid} onChange={(e) => setPaid(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
             </div>
             <div className="flex flex-col gap-1">
               <label htmlFor="scan-invoiced" className="block text-xs text-text/70">Unit cost invoiced</label>
-              <input id="scan-invoiced" value={invoiced} onChange={(e) => setInvoiced(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
+              <input id="scan-invoiced" inputMode="decimal" value={invoiced} onChange={(e) => setInvoiced(e.target.value)} className="min-h-11 py-1.5 px-2.5 text-sm text-right text-text bg-surface border border-divider rounded-md" />
             </div>
           </div>
           <div className="flex flex-col gap-1">
@@ -196,14 +224,6 @@ export default function ScanPageClient({ purchaseId }: ScanPageClientProps) {
           </Button>
         </Card>
       )}
-
-      {summary && (
-        <p className="text-sm mt-4">
-          Received so far — {summary.productCount} products · {summary.unitCount} units · paid{" "}
-          {purchase.total_paid != null ? `RWF ${Number(purchase.total_paid).toLocaleString()}` : "—"} / invoiced{" "}
-          {purchase.total_invoiced != null ? `RWF ${Number(purchase.total_invoiced).toLocaleString()}` : "—"}
-        </p>
-      )}
-    </div>
+    </Page>
   );
 }
