@@ -13,7 +13,7 @@ import { ReplaceAssetWizard } from "@/components/operations/ReplaceAssetWizard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Page } from "@/components/ui/Page";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Tag } from "@/components/ui/Tag";

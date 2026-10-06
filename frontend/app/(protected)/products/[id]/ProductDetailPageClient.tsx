@@ -26,7 +26,7 @@ import { ConsumptionTable } from "@/components/operations/ConsumptionTable";
 import { useConsumptions } from "@/lib/operations/useShopUse";
 import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Page, type PageAction } from "@/components/ui/Page";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { Tabs } from "@/components/ui/Tabs";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";

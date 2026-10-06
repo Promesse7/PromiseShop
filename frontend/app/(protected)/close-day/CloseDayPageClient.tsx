@@ -6,7 +6,7 @@ import { ApiError, extractErrorMessage, fetchAllPages } from "@/lib/api-client";
 import { useCloseDay, useDailyCloses, useDayPreview } from "@/lib/finance/useDailyClose";
 import { ZReport } from "@/components/finance/ZReport";
 import { useToast } from "@/components/layout/ToastProvider";
-import { StatStrip } from "@/components/finance/StatStrip";
+import { StatStrip } from "@/components/ui/StatStrip";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { DataTable, type DataColumn } from "@/components/ui/DataTable";

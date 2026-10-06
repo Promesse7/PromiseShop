@@ -11,7 +11,7 @@ import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
 import { Receipt } from "@/components/pos/Receipt";
 import { ReturnItemsDialog } from "@/components/sales/ReturnItemsDialog";
 import { SaleStatusTag } from "@/components/sales/SaleStatusTag";
-import { StatStrip, type Stat } from "@/components/finance/StatStrip";
+import { StatStrip, type Stat } from "@/components/ui/StatStrip";
 import { useToast } from "@/components/layout/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
