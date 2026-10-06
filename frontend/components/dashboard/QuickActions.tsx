@@ -10,7 +10,7 @@ interface QuickActionsProps {
 
 export function QuickActions({ role }: QuickActionsProps) {
   return (
-    <div className="flex gap-2 flex-wrap mb-4">
+    <div className="flex flex-wrap gap-2">
       <Button href="/checkout" variant="secondary">
         <ShoppingCart className="w-4 h-4" aria-hidden />
         New Sale

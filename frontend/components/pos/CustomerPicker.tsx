@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, ApiError, extractErrorMessage, fetchAllPages } from "@/lib/api-client";
 import { Button } from "@/components/ui/Button";
 import type { Customer } from "@/lib/types";
+import { formatRwf } from "@/lib/format";
 
 interface CustomerPickerProps {
   value: Customer | null;
@@ -74,7 +75,7 @@ export function CustomerPicker({ value, onChange }: CustomerPickerProps) {
           <div>{value.name ?? "Customer"}</div>
           <div className="text-xs text-text/50">
             {value.phone ?? "no phone"}
-            {value.balance && Number(value.balance) > 0 ? ` · owes RWF ${Number(value.balance).toLocaleString()}` : ""}
+            {value.balance && Number(value.balance) > 0 ? ` · owes ${formatRwf(value.balance)}` : ""}
           </div>
         </div>
         <Button variant="ghost" className="text-xs" onClick={() => onChange(null)}>

@@ -2,6 +2,8 @@
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { AlertsList } from "@/components/dashboard/AlertsList";
 import { LeakageCards } from "@/components/dashboard/LeakageCards";
 import { MoneyWaterfall } from "@/components/dashboard/MoneyWaterfall";
@@ -38,8 +40,9 @@ export function MoneyDashboard({ range, tab }: MoneyDashboardProps) {
   const suffix = `${range.from}_${range.to}`;
 
   if (tab === "people") {
-    if (people.isLoading) return <p className="text-sm text-text/60">Loading people…</p>;
-    if (!people.data?.cashiers) return <p className="text-sm text-text/60">Couldn&apos;t load the people view.</p>;
+    if (people.isLoading) return <LoadingState variant="table" label="Loading people…" />;
+    if (!people.data?.cashiers)
+      return <ErrorState message="Couldn't load the people view." onRetry={() => void people.refetch()} />;
     const data = people.data;
     return (
       <div className="flex flex-col gap-3">
@@ -67,8 +70,9 @@ export function MoneyDashboard({ range, tab }: MoneyDashboardProps) {
     );
   }
 
-  if (chain.isLoading) return <p className="text-sm text-text/60">Loading the money chain…</p>;
-  if (!chain.data?.steps) return <p className="text-sm text-text/60">Couldn&apos;t load the money chain.</p>;
+  if (chain.isLoading) return <LoadingState variant="detail" label="Loading the money chain…" />;
+  if (!chain.data?.steps)
+    return <ErrorState message="Couldn't load the money chain." onRetry={() => void chain.refetch()} />;
   const data = chain.data;
   const estimate = data.cogs_estimate;
   return (

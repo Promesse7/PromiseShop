@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
+import { Page } from "@/components/ui/Page";
+import { Tabs } from "@/components/ui/Tabs";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { Button } from "@/components/ui/Button";
 import { Tag } from "@/components/ui/Tag";
 import { AgingTotals } from "@/components/finance/AgingTotals";
@@ -13,14 +16,23 @@ import { PaymentReceipt } from "@/components/finance/PaymentReceipt";
 import { Dialog } from "@/components/ui/Dialog";
 import { useToast } from "@/components/layout/ToastProvider";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
+import { formatRwf } from "@/lib/format";
 import {
   useConfirmPurchaseReview, useCustomerDebts, useRecordCustomerPayment, useRecordSupplierPayment, useSupplierDebts,
 } from "@/lib/finance/useDebts";
 import type { CustomerDebtRow, CustomerPaymentResult, SupplierDebtPurchase, SupplierDebtRow } from "@/lib/types";
+import { HandCoins } from "lucide-react";
 
 interface DebtsPageClientProps {
   canView: boolean;
 }
+
+type DebtsTab = "customers" | "suppliers";
+
+const TABS = [
+  { id: "customers", label: "Customers owe us" },
+  { id: "suppliers", label: "We owe suppliers" },
+];
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -31,34 +43,24 @@ function messageOf(error: unknown) {
 }
 
 export default function DebtsPageClient({ canView }: DebtsPageClientProps) {
-  const [tab, setTab] = useState<"customers" | "suppliers">("customers");
+  const [tab, setTab] = useState<DebtsTab>("customers");
 
   if (!canView) {
     return (
-      <div className="text-sm text-text/70">
-        <h4 className="m-0 mb-2">Debts</h4>
-        <p>This screen is limited to Admin and Manager accounts. Record a customer&apos;s payment from their customer page.</p>
-      </div>
+      <Page title="Debts">
+        <p className="text-sm text-text/70">
+          This screen is limited to Admin and Manager accounts. Record a customer&apos;s payment from their customer page.
+        </p>
+      </Page>
     );
   }
 
   return (
-    <div>
-      <PageHeader title="Debts">
-        <div className="ml-4">
-          <SegmentedToggle
-            name="debts-tab"
-            options={[
-              { value: "customers", label: "Customers owe us" },
-              { value: "suppliers", label: "We owe suppliers" },
-            ]}
-            value={tab}
-            onChange={(value) => setTab(value as "customers" | "suppliers")}
-          />
-        </div>
-      </PageHeader>
-      {tab === "customers" ? <CustomerDebts /> : <SupplierDebts />}
-    </div>
+    <Page title="Debts" description="Who owes the shop, and who the shop owes — oldest first.">
+      <Tabs tabs={TABS} value={tab} onChange={(id) => setTab(id as DebtsTab)} label="Debts">
+        {(active) => (active === "customers" ? <CustomerDebts /> : <SupplierDebts />)}
+      </Tabs>
+    </Page>
   );
 }
 
@@ -68,48 +70,60 @@ function CustomerDebts() {
   const [paying, setPaying] = useState<CustomerDebtRow | null>(null);
   const [receipt, setReceipt] = useState<{ result: CustomerPaymentResult; name: string } | null>(null);
 
-  if (debts.isError) return <ErrorState message="Couldn't load customer debts." />;
-  if (debts.isLoading || !debts.data) return <p className="text-sm text-text/50">Loading…</p>;
+  if (debts.isError) return <ErrorState message="Couldn't load customer debts." onRetry={() => debts.refetch()} />;
+  if (debts.isLoading || !debts.data) return <LoadingState variant="table" />;
+
+  const columns: DataColumn<CustomerDebtRow>[] = [
+    {
+      key: "name",
+      header: "Customer",
+      primary: true,
+      sortValue: (row) => row.name ?? "",
+      render: (row) => (
+        <Link href={`/customers/${row.customer_id}`} className="font-medium text-text hover:text-accent">
+          {row.name ?? "—"}
+        </Link>
+      ),
+    },
+    { key: "phone", header: "Phone", render: (row) => row.phone ?? "—" },
+    { key: "open_sales", header: "Open sales", align: "right", sortValue: (row) => row.open_sales },
+    { key: "balance", header: "Balance", money: true, mobile: true, sortValue: (row) => Number(row.balance) },
+    {
+      key: "oldest_due_date",
+      header: "Oldest due",
+      mobile: true,
+      sortValue: (row) => row.oldest_due_date,
+      render: (row) => (
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          {formatDate(row.oldest_due_date)}
+          {row.overdue && <Tag variant="danger">Overdue</Tag>}
+        </span>
+      ),
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      mobile: true,
+      render: (row) => (
+        <Button variant="ghost" className="text-xs" onClick={() => setPaying(row)}>
+          Record payment
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <AgingTotals totals={debts.data.totals} total={debts.data.total} />
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-divider text-text/70">
-              <th className="text-left font-medium py-2 px-2">Customer</th>
-              <th className="text-left font-medium py-2 px-2">Phone</th>
-              <th className="text-right font-medium py-2 px-2">Open sales</th>
-              <th className="text-right font-medium py-2 px-2">Balance</th>
-              <th className="text-left font-medium py-2 px-2">Oldest due</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {debts.data.rows.length === 0 ? (
-              <tr><td colSpan={6} className="py-6 text-center text-text/50">No customer owes the shop anything.</td></tr>
-            ) : (
-              debts.data.rows.map((row) => (
-                <tr key={row.customer_id} className={`border-b border-divider ${row.overdue ? "bg-red-500/5" : ""}`}>
-                  <td className="py-2 px-2">
-                    <Link href={`/customers/${row.customer_id}`} className="underline">{row.name ?? "—"}</Link>
-                  </td>
-                  <td className="py-2 px-2">{row.phone ?? "—"}</td>
-                  <td className="py-2 px-2 text-right">{row.open_sales}</td>
-                  <td className="py-2 px-2 text-right">RWF {Number(row.balance).toLocaleString()}</td>
-                  <td className="py-2 px-2">
-                    {formatDate(row.oldest_due_date)} {row.overdue && <Tag variant="danger">Overdue</Tag>}
-                  </td>
-                  <td className="py-2 px-2 text-right">
-                    <Button variant="ghost" className="text-xs" onClick={() => setPaying(row)}>Record payment</Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        label="Customers who owe the shop"
+        columns={columns}
+        rows={debts.data.rows}
+        rowKey={(row) => String(row.customer_id)}
+        defaultSort={{ key: "oldest_due_date", dir: "asc" }}
+        empty={<EmptyState icon={HandCoins} title="No customer owes the shop anything." />}
+      />
       <RecordPaymentDialog
         open={paying !== null}
         title="Record customer payment"
@@ -134,7 +148,7 @@ function CustomerDebts() {
       <Dialog open={receipt !== null} onClose={() => setReceipt(null)} title="Payment recorded">
         {receipt && <PaymentReceipt result={receipt.result} customerName={receipt.name} onClose={() => setReceipt(null)} />}
       </Dialog>
-    </>
+    </div>
   );
 }
 
@@ -145,72 +159,84 @@ function SupplierDebts() {
   const { show } = useToast();
   const [paying, setPaying] = useState<{ supplier: SupplierDebtRow; purchase: SupplierDebtPurchase } | null>(null);
 
-  if (debts.isError) return <ErrorState message="Couldn't load supplier debts." />;
-  if (debts.isLoading || !debts.data) return <p className="text-sm text-text/50">Loading…</p>;
+  if (debts.isError) return <ErrorState message="Couldn't load supplier debts." onRetry={() => debts.refetch()} />;
+  if (debts.isLoading || !debts.data) return <LoadingState variant="table" />;
+
+  function columnsFor(supplier: SupplierDebtRow): DataColumn<SupplierDebtPurchase>[] {
+    return [
+      {
+        key: "purchase",
+        header: "Purchase",
+        primary: true,
+        render: (purchase) => (
+          <span>
+            <Link href={`/purchases/${purchase.purchase_id}`} className="font-medium text-text hover:text-accent">
+              #P-{purchase.purchase_id}
+            </Link>
+            {purchase.invoice_number ? <span className="text-text/60"> · {purchase.invoice_number}</span> : null}
+          </span>
+        ),
+      },
+      { key: "due_date", header: "Due", mobile: true, render: (purchase) => formatDate(purchase.due_date) },
+      { key: "total", header: "Total", money: true },
+      { key: "amount_paid", header: "Paid", money: true },
+      { key: "balance", header: "Balance", money: true, mobile: true },
+      {
+        key: "actions",
+        header: "",
+        align: "right",
+        mobile: true,
+        render: (purchase) => (
+          <span className="inline-flex flex-wrap justify-end gap-1">
+            {Number(purchase.balance) > 0 && (
+              <Button variant="ghost" className="text-xs" onClick={() => setPaying({ supplier, purchase })}>
+                Record payment
+              </Button>
+            )}
+            {purchase.needs_review && (
+              <Button
+                variant="ghost"
+                className="text-xs"
+                onClick={() =>
+                  confirm.mutate(purchase.purchase_id, {
+                    onSuccess: () => show("Marked as checked.", "success"),
+                    onError: (e) => show(messageOf(e), "error"),
+                  })
+                }
+              >
+                Confirm as recorded
+              </Button>
+            )}
+          </span>
+        ),
+      },
+    ];
+  }
 
   return (
-    <>
+    <div className="flex flex-col gap-4">
       <AgingTotals totals={debts.data.totals} total={debts.data.total} />
-      {debts.data.rows.length === 0 && <p className="text-sm text-text/50">The shop owes no supplier anything.</p>}
-      <div className="flex flex-col gap-4">
-        {debts.data.rows.map((supplier) => (
-          <div key={supplier.supplier_id} className={`rounded-md border border-divider p-3 ${supplier.overdue ? "border-red-400" : ""}`}>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-medium">{supplier.name}</span>
-              <span className="text-sm text-text/70">RWF {Number(supplier.balance).toLocaleString()}</span>
-              {supplier.overdue && <Tag variant="danger">Overdue</Tag>}
-              {supplier.needs_review && <Tag variant="warning">Migrated — confirm amount paid</Tag>}
-            </div>
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="text-text/70 border-b border-divider">
-                  <th className="text-left font-medium py-1 px-2">Purchase</th>
-                  <th className="text-left font-medium py-1 px-2">Due</th>
-                  <th className="text-right font-medium py-1 px-2">Total</th>
-                  <th className="text-right font-medium py-1 px-2">Paid</th>
-                  <th className="text-right font-medium py-1 px-2">Balance</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplier.open_purchases.map((purchase) => (
-                  <tr key={purchase.purchase_id} className="border-b border-divider">
-                    <td className="py-1 px-2">
-                      <Link href={`/purchases/${purchase.purchase_id}`} className="underline">#P-{purchase.purchase_id}</Link>
-                      {purchase.invoice_number ? ` · ${purchase.invoice_number}` : ""}
-                    </td>
-                    <td className="py-1 px-2">{formatDate(purchase.due_date)}</td>
-                    <td className="py-1 px-2 text-right">{Number(purchase.total).toLocaleString()}</td>
-                    <td className="py-1 px-2 text-right">{Number(purchase.amount_paid).toLocaleString()}</td>
-                    <td className="py-1 px-2 text-right">{Number(purchase.balance).toLocaleString()}</td>
-                    <td className="py-1 px-2 text-right whitespace-nowrap">
-                      {Number(purchase.balance) > 0 && (
-                        <Button variant="ghost" className="text-xs" onClick={() => setPaying({ supplier, purchase })}>
-                          Record payment
-                        </Button>
-                      )}
-                      {purchase.needs_review && (
-                        <Button
-                          variant="ghost"
-                          className="text-xs"
-                          onClick={() =>
-                            confirm.mutate(purchase.purchase_id, {
-                              onSuccess: () => show("Marked as checked.", "success"),
-                              onError: (e) => show(messageOf(e), "error"),
-                            })
-                          }
-                        >
-                          Confirm as recorded
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {debts.data.rows.length === 0 && <EmptyState icon={HandCoins} title="The shop owes no supplier anything." />}
+      {debts.data.rows.map((supplier) => (
+        <section
+          key={supplier.supplier_id}
+          aria-label={supplier.name}
+          className={`flex flex-col gap-2 rounded-lg border p-3 ${supplier.overdue ? "border-red-400/60" : "border-divider"}`}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{supplier.name}</span>
+            <span className="text-sm tabular-nums text-text/70">{formatRwf(supplier.balance)}</span>
+            {supplier.overdue && <Tag variant="danger">Overdue</Tag>}
+            {supplier.needs_review && <Tag variant="warning">Migrated — confirm amount paid</Tag>}
           </div>
-        ))}
-      </div>
+          <DataTable
+            label={`Open purchases from ${supplier.name}`}
+            columns={columnsFor(supplier)}
+            rows={supplier.open_purchases}
+            rowKey={(purchase) => String(purchase.purchase_id)}
+          />
+        </section>
+      ))}
       <RecordPaymentDialog
         open={paying !== null}
         title="Record supplier payment"
@@ -232,6 +258,6 @@ function SupplierDebts() {
           );
         }}
       />
-    </>
+    </div>
   );
 }

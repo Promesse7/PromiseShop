@@ -1,7 +1,9 @@
 "use client";
 
+import { UserCog } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Table } from "@/components/ui/Table";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import type { Employee, EmployeeStatus } from "@/lib/types";
 
@@ -32,20 +34,28 @@ interface EmployeeTableProps {
 }
 
 export function EmployeeTable({ employees, onEdit, onSetPin }: EmployeeTableProps) {
-  const columns = [
-    { key: "full_name", header: "Name" },
+  const columns: DataColumn<Employee>[] = [
+    { key: "full_name", header: "Name", primary: true, sortValue: (e) => e.full_name },
     {
       key: "role",
       header: "Role",
-      render: (e: Employee) => <Tag variant={e.role === "admin" ? "accent" : "neutral"}>{ROLE_LABEL[e.role]}</Tag>,
+      mobile: true,
+      render: (e) => <Tag variant={e.role === "admin" ? "accent" : "neutral"}>{ROLE_LABEL[e.role]}</Tag>,
+      sortValue: (e) => ROLE_LABEL[e.role],
     },
-    { key: "username", header: "Username", render: (e: Employee) => <span className="font-mono text-xs">{e.username}</span> },
-    { key: "phone", header: "Contact", render: (e: Employee) => e.phone ?? "—" },
-    { key: "hire_date", header: "Hired", render: (e: Employee) => formatHireDate(e.hire_date) },
+    {
+      key: "username",
+      header: "Username",
+      mobile: true,
+      render: (e) => <span className="font-mono text-xs">{e.username}</span>,
+    },
+    { key: "phone", header: "Contact", render: (e) => e.phone ?? "—" },
+    { key: "hire_date", header: "Hired", render: (e) => formatHireDate(e.hire_date), sortValue: (e) => e.hire_date },
     {
       key: "status",
       header: "Status",
-      render: (e: Employee) => {
+      mobile: true,
+      render: (e) => {
         const tag = STATUS_TAG[e.status];
         return <Tag variant={tag.variant}>{tag.label}</Tag>;
       },
@@ -53,8 +63,9 @@ export function EmployeeTable({ employees, onEdit, onSetPin }: EmployeeTableProp
     {
       key: "edit",
       header: "",
-      render: (e: Employee) => (
-        <div className="flex gap-1 justify-end">
+      mobile: true,
+      render: (e) => (
+        <div className="flex flex-wrap justify-end gap-1">
           {onSetPin && (e.role === "admin" || e.role === "manager") && (
             <Button variant="ghost" className="text-xs" onClick={() => onSetPin(e)}>
               {e.has_approval_pin ? "Change approval PIN" : "Set approval PIN"}
@@ -69,6 +80,12 @@ export function EmployeeTable({ employees, onEdit, onSetPin }: EmployeeTableProp
   ];
 
   return (
-    <Table columns={columns} rows={employees} rowKey={(e) => String(e.employee_id)} emptyMessage="No employees found" />
+    <DataTable
+      label="Employees"
+      columns={columns}
+      rows={employees}
+      rowKey={(e) => String(e.employee_id)}
+      empty={<EmptyState icon={UserCog} title="No employees found" message="Add the people who use the shop's tills." />}
+    />
   );
 }

@@ -11,6 +11,7 @@ export interface UseNotificationsResult {
   all: NotificationRow[];
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 function humanize(type: string): string {
@@ -45,5 +46,5 @@ export function useNotifications(): UseNotificationsResult {
     subject: deriveSubject(notification),
   }));
 
-  return { all, isLoading: query.isLoading, isError: query.isError };
+  return { all, isLoading: query.isLoading, isError: query.isError, refetch: () => void query.refetch() };
 }

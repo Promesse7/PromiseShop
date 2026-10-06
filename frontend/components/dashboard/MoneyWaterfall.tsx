@@ -1,4 +1,6 @@
+import { motion } from "motion/react";
 import { Card, CardKicker } from "@/components/ui/Card";
+import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
 import { rwf, type ChainStep } from "@/lib/dashboard/money";
 
 interface MoneyWaterfallProps {
@@ -31,8 +33,13 @@ export function waterfallBars(steps: ChainStep[]): Bar[] {
   });
 }
 
+// The bars grow one after another; the whole sequence stays within DURATION.slow.
+const GROW = DURATION.base;
+
 export function MoneyWaterfall({ steps }: MoneyWaterfallProps) {
+  const reduced = useReducedMotionSafe();
   const bars = waterfallBars(steps);
+  const stagger = bars.length > 1 ? (DURATION.slow - GROW) / (bars.length - 1) : 0;
   const values = bars.flatMap((b) => [b.start, b.end, 0]);
   const max = Math.max(1, ...values);
   const min = Math.min(0, ...values);
@@ -54,9 +61,21 @@ export function MoneyWaterfall({ steps }: MoneyWaterfallProps) {
             bar.step.kind === "total" ? "text-accent" : amount < 0 ? "text-rose-500" : "text-emerald-500";
           return (
             <g key={bar.step.key}>
-              <rect x={x} y={y} width={barWidth} height={h} rx={3} className={`fill-current ${tone}`}>
+              <motion.rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={h}
+                rx={3}
+                className={`fill-current ${tone}`}
+                // A delta that lowers the total grows downward from the previous running total.
+                style={{ transformBox: "fill-box", originY: amount < 0 && bar.step.kind === "delta" ? 0 : 1 }}
+                initial={reduced ? false : { scaleY: 0 }}
+                animate={{ scaleY: 1 }}
+                transition={{ duration: GROW, ease: EASE.out, delay: i * stagger }}
+              >
                 <title>{`${bar.step.label}: ${rwf(bar.step.amount)}`}</title>
-              </rect>
+              </motion.rect>
               <text
                 x={x + barWidth / 2}
                 y={y - 4}

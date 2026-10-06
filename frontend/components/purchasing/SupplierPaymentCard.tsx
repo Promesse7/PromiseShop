@@ -9,6 +9,7 @@ import { useToast } from "@/components/layout/ToastProvider";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
 import { usePayments, useRecordSupplierPayment } from "@/lib/finance/useDebts";
 import { PAYMENT_METHOD_LABELS } from "@/lib/pos/payments";
+import { formatRwf } from "@/lib/format";
 import type { Purchase } from "@/lib/types";
 
 const STATUS_LABEL: Record<Purchase["payment_status"], string> = {
@@ -36,8 +37,8 @@ export function SupplierPaymentCard({ purchase }: { purchase: Purchase }) {
           <Tag variant={purchase.payment_status === "paid" ? "accent" : "warning"}>{STATUS_LABEL[purchase.payment_status]}</Tag>
         </span>
       </div>
-      <div className="flex justify-between text-sm"><span>Paid so far</span><span>RWF {paid.toLocaleString()}</span></div>
-      <div className="flex justify-between text-sm font-medium"><span>Balance</span><span>RWF {balance.toLocaleString()}</span></div>
+      <div className="flex justify-between text-sm"><span>Paid so far</span><span>{formatRwf(paid)}</span></div>
+      <div className="flex justify-between text-sm font-medium"><span>Balance</span><span>{formatRwf(balance)}</span></div>
       {purchase.payment_needs_review && (
         <p className="text-xs text-amber-500">Migrated — confirm amount paid (from the Debts page).</p>
       )}
@@ -47,7 +48,7 @@ export function SupplierPaymentCard({ purchase }: { purchase: Purchase }) {
             {new Date(p.paid_at).toLocaleDateString("en-GB")} · {PAYMENT_METHOD_LABELS[p.method]}
             {p.reference ? ` · ${p.reference}` : ""}
           </span>
-          <span>{Number(p.amount).toLocaleString()}</span>
+          <span>{formatRwf(p.amount)}</span>
         </div>
       ))}
       {purchase.status !== "cancelled" && balance > 0 && (

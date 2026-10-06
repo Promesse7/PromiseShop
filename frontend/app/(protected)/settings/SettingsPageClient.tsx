@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Field } from "@/components/ui/Field";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { Page } from "@/components/ui/Page";
 import type { ShopProfile } from "@/lib/types";
 
 // Dashboard alert thresholds (Module H5): field, label, default (the handoff's values).
@@ -53,15 +54,22 @@ export default function SettingsPageClient({ isAdmin }: { isAdmin: boolean }) {
 
   if (!isAdmin) {
     return (
-      <div className="text-sm text-text/70">
-        <h4 className="m-0 mb-2">Settings</h4>
-        <p>This screen is limited to Admin accounts.</p>
-      </div>
+      <Page title="Settings">
+        <p className="text-sm text-text/70">This screen is limited to Admin accounts.</p>
+      </Page>
     );
   }
-  if (profile.isError) return <ErrorState message="Couldn't load the shop settings." />;
-  if (profile.isLoading || !profile.data) return <p className="text-sm text-text/50">Loading…</p>;
-  return <SettingsForm initial={toForm(profile.data)} />;
+  return (
+    <Page title="Settings" description="Shop details for receipts, the bargaining limit, and dashboard alerts.">
+      {profile.isError ? (
+        <ErrorState message="Couldn't load the shop settings." onRetry={profile.refetch} />
+      ) : profile.isLoading || !profile.data ? (
+        <LoadingState variant="form" label="Loading settings…" />
+      ) : (
+        <SettingsForm initial={toForm(profile.data)} />
+      )}
+    </Page>
+  );
 }
 
 function SettingsForm({ initial }: { initial: ProfileForm }) {
@@ -115,19 +123,28 @@ function SettingsForm({ initial }: { initial: ProfileForm }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-[560px]">
-      <PageHeader title="Settings" />
-      <Card elevation="sm">
-        <CardKicker>Shop details (printed on receipts)</CardKicker>
+    <form
+      noValidate
+      onSubmit={(event) => {
+        event.preventDefault();
+        void handleSave();
+      }}
+      className="flex max-w-[640px] flex-col gap-4"
+    >
+      <Section title="Shop details" hint="Printed on every receipt.">
         <Field label="Business name" name="business_name" value={values.business_name} onChange={set("business_name")} />
-        <Field label="TIN" name="tin" value={values.tin} onChange={set("tin")} />
-        <Field label="P.O. Box" name="po_box" value={values.po_box} onChange={set("po_box")} />
-        <Field label="Phone" name="phone" value={values.phone} onChange={set("phone")} />
-        <Field label="Email" name="email" type="email" value={values.email} onChange={set("email")} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="TIN" name="tin" value={values.tin} onChange={set("tin")} />
+          <Field label="P.O. Box" name="po_box" value={values.po_box} onChange={set("po_box")} />
+          <Field label="Phone" name="phone" value={values.phone} onChange={set("phone")} />
+          <Field label="Email" name="email" type="email" value={values.email} onChange={set("email")} />
+        </div>
         <Field label="Address" name="address" value={values.address} onChange={set("address")} />
-      </Card>
-      <Card elevation="sm">
-        <CardKicker>Bargaining at the till</CardKicker>
+      </Section>
+      <Section
+        title="Bargaining at the till"
+        hint="Beyond this, or below a product's minimum price, a manager or admin must approve with their PIN. Markups have no limit."
+      >
         <Field
           label="Most a cashier may discount alone (%)"
           name="max_staff_discount_pct"
@@ -135,21 +152,39 @@ function SettingsForm({ initial }: { initial: ProfileForm }) {
           value={values.max_staff_discount_pct}
           onChange={set("max_staff_discount_pct")}
         />
-        <p className="text-xs text-text/50">
-          Beyond this, or below a product&apos;s minimum price, a manager or admin must approve with their PIN.
-          Markups have no limit.
-        </p>
-      </Card>
-      <Card elevation="sm">
-        <CardKicker>Dashboard alerts</CardKicker>
+      </Section>
+      <Section title="Dashboard alerts" hint="When these lines are crossed, the dashboard shows an alert.">
         {ALERT_FIELDS.map(([key, label]) => (
           <Field key={key} label={label} name={key} type="number" value={values[key]} onChange={set(key)} />
         ))}
-      </Card>
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <div>
-        <Button onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button>
+      </Section>
+      <div
+        role="region"
+        aria-label="Save changes"
+        className="sticky bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-10 -mx-1 flex items-center gap-3 rounded-lg border border-divider bg-surface/95 px-3 py-2.5 shadow-md backdrop-blur lg:bottom-4"
+      >
+        {error ? <p className="m-0 flex-1 text-xs text-red-500">{error}</p> : <span className="flex-1 text-xs text-text/50">Changes apply as soon as you save.</span>}
+        <Button type="submit" disabled={saving}>
+          {saving ? "Saving…" : "Save settings"}
+        </Button>
       </div>
-    </div>
+    </form>
+  );
+}
+
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  const id = `settings-${title.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+  return (
+    <section aria-labelledby={id}>
+      <Card elevation="sm" className="flex flex-col gap-3">
+        <div>
+          <CardKicker>
+            <span id={id}>{title}</span>
+          </CardKicker>
+          {hint && <p className="m-0 mt-1 text-xs text-text/50">{hint}</p>}
+        </div>
+        {children}
+      </Card>
+    </section>
   );
 }

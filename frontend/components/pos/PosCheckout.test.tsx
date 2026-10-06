@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { PosCheckout } from "./PosCheckout";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import * as usePosCatalogModule from "@/lib/pos/usePosCatalog";
 import type { PosCatalog } from "@/lib/pos/usePosCatalog";
 
@@ -94,7 +95,7 @@ describe("PosCheckout", () => {
       isError: false,
     } as PosCatalog);
     renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
-    expect(screen.getByText("Loading catalog…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading catalog…" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Scan barcode or search product")).not.toBeInTheDocument();
   });
 
@@ -403,5 +404,54 @@ describe("PosCheckout", () => {
 
     expect(screen.getByLabelText("Scan barcode or search product")).toBeInTheDocument();
     expect(screen.queryByText("JBL Flip 6 Speaker")).not.toBeInTheDocument();
+  });
+
+  it("puts the sale under a New sale page heading", () => {
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    expect(screen.getByRole("heading", { name: "New sale" })).toBeInTheDocument();
+  });
+
+  it("celebrates a completed sale with a check mark above the receipt", async () => {
+    routeFetch({ sale: () => ({ ok: true, body: saleBody() }) });
+    renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+    await scanJbl();
+    await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+    expect(await screen.findByRole("img", { name: "Sale completed" })).toBeInTheDocument();
+    expect(screen.getByText("#S-842")).toBeInTheDocument();
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => setMatchMedia({ desktop: false }));
+
+    it("shows the cart as cards with a sticky pay bar, and pays from a sheet", async () => {
+      const fetchMock = routeFetch({ sale: () => ({ ok: true, body: saleBody() }) });
+      renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+      expect(screen.getByRole("button", { name: /Pay/ })).toBeDisabled();
+
+      await scanJbl();
+      expect(screen.queryByRole("table")).not.toBeInTheDocument();
+      expect(screen.getAllByLabelText("Unit price")).toHaveLength(1);
+      const bar = screen.getByRole("region", { name: "Sale total" });
+      expect(bar).toHaveTextContent("1 item");
+      expect(bar).toHaveTextContent("RWF 145,000");
+      // Payment, customer and Complete sale live in the pay sheet, not on the page.
+      expect(screen.queryByRole("button", { name: "Complete sale" })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: /Pay/ }));
+      const sheet = await screen.findByRole("dialog");
+      expect(sheet).toHaveAttribute("data-variant", "sheet");
+      await userEvent.click(screen.getByRole("button", { name: "Complete sale" }));
+
+      expect(await screen.findByText("#S-842")).toBeInTheDocument();
+      expect(saleCalls(fetchMock)).toHaveLength(1);
+    });
+
+    it("counts items in the pay bar", async () => {
+      routeFetch({});
+      renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+      await scanJbl();
+      await scanJbl();
+      expect(screen.getByRole("region", { name: "Sale total" })).toHaveTextContent("2 items");
+    });
   });
 });

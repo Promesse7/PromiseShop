@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import CloseDayPageClient from "./CloseDayPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 const page = <T,>(results: T[]) => ({ count: results.length, next: null, previous: null, results });
 const empty = { in: "0.00", out: "0.00", net: "0.00", references: [] };
@@ -48,7 +49,7 @@ describe("CloseDayPageClient", () => {
     renderPage("sales_staff");
     expect(await screen.findByText("RWF 1,100", { selector: "strong" })).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText("Counted cash (RWF)"), "1080");
-    expect(screen.getByText("Variance: RWF -20")).toBeInTheDocument();
+    expect(screen.getByText("Variance: −RWF 20")).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Close day" }));
     expect(screen.getByText(/must confirm with their username and PIN/)).toBeInTheDocument();
@@ -73,7 +74,25 @@ describe("CloseDayPageClient", () => {
 
   it("lists closed days with their variance for a manager, but not for staff", async () => {
     renderPage("manager");
-    expect(await screen.findByText("Closed days")).toBeInTheDocument();
-    expect(await screen.findByText("RWF -20", { selector: "span" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Closed days" })).toBeInTheDocument();
+    expect(await screen.findByText("−RWF 20", { selector: "span" })).toBeInTheDocument();
+  });
+
+  it("leads with the day's figures as a stat strip", async () => {
+    renderPage("sales_staff");
+    const strip = await screen.findByRole("list", { name: "Day figures" });
+    expect(strip).toHaveTextContent("Expected cash");
+    expect(strip).toHaveTextContent("RWF 1,100");
+    expect(strip).toHaveTextContent("Sales");
+    expect(screen.queryByRole("heading", { name: "Closed days" })).not.toBeInTheDocument();
+  });
+
+  it("shows closed days as cards on a phone", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage("manager");
+    await screen.findByRole("heading", { name: "Closed days" });
+    const list = await screen.findByRole("list", { name: "Closed days" });
+    expect(list).toHaveTextContent("Staff One");
+    expect(list).toHaveTextContent("−RWF 20");
   });
 });

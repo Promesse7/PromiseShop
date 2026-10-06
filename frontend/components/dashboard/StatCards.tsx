@@ -1,14 +1,22 @@
 import { Wallet, ShoppingBag, TrendingUp, TrendingDown, AlertTriangle, type LucideIcon } from "lucide-react";
 import { Card, CardKicker, CardMeta } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
+import { formatRwf } from "@/lib/format";
+import { useCountUp } from "@/lib/motion";
 import type { DashboardData } from "@/lib/dashboard/useDashboardData";
 
 interface StatCardsProps {
   data: DashboardData;
 }
 
-function formatRwf(value: number): string {
-  return `RWF ${Math.round(value).toLocaleString()}`;
+/** A money figure that counts up to its value (instant with reduced motion). */
+function CountUpRwf({ value, className = "" }: { value: number; className?: string }) {
+  const shown = useCountUp(value);
+  return <span className={`font-sans text-xl font-medium tabular-nums sm:text-2xl ${className}`}>{formatRwf(shown)}</span>;
+}
+
+function CountUpNumber({ value }: { value: number }) {
+  return <>{Math.round(useCountUp(value))}</>;
 }
 
 function monthOverMonthDelta(values: number[]): number | null {
@@ -67,54 +75,64 @@ export function StatCards({ data }: StatCardsProps) {
   const profitTrend = data.trend.map((t) => t.revenue - t.purchaseCost);
 
   return (
-    <div className="grid grid-cols-4 gap-4 mb-6">
-      <Card variant="glass">
-        <div className="flex items-start">
-          <CardKicker>Sales revenue</CardKicker>
-          <CardIcon icon={Wallet} />
-        </div>
-        <span className="font-sans font-medium text-2xl">{formatRwf(data.salesRevenue)}</span>
-        <div className="flex items-center gap-2">
-          <Sparkline values={revenueTrend} />
-          <TrendBadge delta={monthOverMonthDelta(revenueTrend)} />
-        </div>
-        <CardMeta>{data.saleCount} sales this month</CardMeta>
-      </Card>
-      <Card variant="glass">
-        <div className="flex items-start">
-          <CardKicker>Purchase cost</CardKicker>
-          <CardIcon icon={ShoppingBag} />
-        </div>
-        <span className="font-sans font-medium text-2xl">{formatRwf(data.purchaseCost)}</span>
-        <div className="flex items-center gap-2">
-          <Sparkline values={costTrend} />
-          <TrendBadge delta={monthOverMonthDelta(costTrend)} />
-        </div>
-        <CardMeta>{data.purchaseOrderCount} purchase orders (paid amounts)</CardMeta>
-      </Card>
-      <Card variant="glass">
-        <div className="flex items-start">
-          <CardKicker>Gross profit</CardKicker>
-          <CardIcon icon={TrendingUp} />
-        </div>
-        <span className="font-sans font-medium text-2xl text-accent">{formatRwf(data.grossProfit)}</span>
-        <div className="flex items-center gap-2">
-          <Sparkline values={profitTrend} />
-          <TrendBadge delta={monthOverMonthDelta(profitTrend)} />
-        </div>
-        <CardMeta>revenue − purchase cost · {(data.grossMarginPct * 100).toFixed(1)}% margin</CardMeta>
-      </Card>
-      <Card variant="glass">
-        <div className="flex items-start">
-          <CardKicker>Needs reorder</CardKicker>
-          <CardIcon icon={AlertTriangle} />
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="font-sans font-medium text-2xl">{data.reorderCount} products</span>
-          {data.reorderCount > 0 && <Tag variant="warning">Reorder</Tag>}
-        </div>
-        <CardMeta>{data.outOfStockCount} out of stock</CardMeta>
-      </Card>
-    </div>
+    <ul aria-label="Key figures" className="m-0 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4 lg:gap-4">
+      <li>
+        <Card variant="glass" className="h-full">
+          <div className="flex items-start">
+            <CardKicker>Sales revenue</CardKicker>
+            <CardIcon icon={Wallet} />
+          </div>
+          <CountUpRwf value={data.salesRevenue} />
+          <div className="flex items-center gap-2">
+            <Sparkline values={revenueTrend} />
+            <TrendBadge delta={monthOverMonthDelta(revenueTrend)} />
+          </div>
+          <CardMeta>{data.saleCount} sales this month</CardMeta>
+        </Card>
+      </li>
+      <li>
+        <Card variant="glass" className="h-full">
+          <div className="flex items-start">
+            <CardKicker>Purchase cost</CardKicker>
+            <CardIcon icon={ShoppingBag} />
+          </div>
+          <CountUpRwf value={data.purchaseCost} />
+          <div className="flex items-center gap-2">
+            <Sparkline values={costTrend} />
+            <TrendBadge delta={monthOverMonthDelta(costTrend)} />
+          </div>
+          <CardMeta>{data.purchaseOrderCount} purchase orders (paid amounts)</CardMeta>
+        </Card>
+      </li>
+      <li>
+        <Card variant="glass" className="h-full">
+          <div className="flex items-start">
+            <CardKicker>Gross profit</CardKicker>
+            <CardIcon icon={TrendingUp} />
+          </div>
+          <CountUpRwf value={data.grossProfit} className="text-accent" />
+          <div className="flex items-center gap-2">
+            <Sparkline values={profitTrend} />
+            <TrendBadge delta={monthOverMonthDelta(profitTrend)} />
+          </div>
+          <CardMeta>revenue − purchase cost · {(data.grossMarginPct * 100).toFixed(1)}% margin</CardMeta>
+        </Card>
+      </li>
+      <li>
+        <Card variant="glass" className="h-full">
+          <div className="flex items-start">
+            <CardKicker>Needs reorder</CardKicker>
+            <CardIcon icon={AlertTriangle} />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-sans text-xl font-medium sm:text-2xl">
+              <CountUpNumber value={data.reorderCount} /> products
+            </span>
+            {data.reorderCount > 0 && <Tag variant="warning">Reorder</Tag>}
+          </div>
+          <CardMeta>{data.outOfStockCount} out of stock</CardMeta>
+        </Card>
+      </li>
+    </ul>
   );
 }

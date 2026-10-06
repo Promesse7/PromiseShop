@@ -88,7 +88,7 @@ function CustomerFormFields({
   }
 
   return (
-    <div className="flex flex-col gap-3 min-w-[360px]">
+    <div className="flex flex-col gap-3 sm:min-w-[360px]">
       <Field label="Name" name="name" value={values.name} onChange={(v) => setField("name", v)} error={errors.name} />
       <Field label="Phone" name="phone" value={values.phone} onChange={(v) => setField("phone", v)} />
       <Field label="Email" name="email" type="email" value={values.email} onChange={(v) => setField("email", v)} />

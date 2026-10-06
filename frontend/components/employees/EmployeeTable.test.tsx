@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { EmployeeTable } from "./EmployeeTable";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import type { Employee } from "@/lib/types";
 
 const employees: Employee[] = [
@@ -44,6 +45,18 @@ describe("EmployeeTable", () => {
   it("calls onEdit with the employee when Edit is clicked", async () => {
     const onEdit = vi.fn();
     render(<EmployeeTable employees={employees} onEdit={onEdit} />);
+    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+    expect(onEdit).toHaveBeenCalledWith(employees[0]);
+  });
+
+  it("is a list of cards titled by name on phone, keeping the PIN and Edit buttons", async () => {
+    setMatchMedia({ desktop: false });
+    const onEdit = vi.fn();
+    render(<EmployeeTable employees={employees} onEdit={onEdit} onSetPin={vi.fn()} />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Employees" }).querySelectorAll(":scope > li")).toHaveLength(2);
+    expect(screen.getByText("Diane Ishimwe")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /approval PIN/ })).toHaveLength(2);
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     expect(onEdit).toHaveBeenCalledWith(employees[0]);
   });

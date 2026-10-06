@@ -70,6 +70,36 @@ describe("ScanPageClient", () => {
     expect(screen.getByText(/2 products · 14 units · paid RWF 3,002,000 \/ invoiced RWF 3,034,000/)).toBeInTheDocument();
   });
 
+  it("is a Receive stock page with a back link to its purchase and a big running unit count", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { level: 1, name: "Receive stock" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/purchases/7");
+    expect(screen.getByRole("status", { name: "Units received so far" })).toHaveTextContent("14");
+  });
+
+  it("focuses the scan box so a scanner can type straight away", () => {
+    renderPage();
+    expect(screen.getByLabelText("Scan received item…")).toHaveFocus();
+  });
+
+  it("shows the loading state", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: undefined, isLoading: true, isError: false,
+    } satisfies PurchaseDetail);
+    renderPage();
+    expect(screen.getByRole("status", { name: "Loading purchase…" })).toBeInTheDocument();
+  });
+
+  it("shows an error state whose Try again re-runs the query", async () => {
+    const refetch = vi.fn();
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: undefined, isLoading: false, isError: true, refetch,
+    } satisfies PurchaseDetail);
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalled();
+  });
+
   it("finds a product by barcode search and shows the just-scanned card", async () => {
     renderPage();
     await userEvent.type(screen.getByLabelText("Scan received item…"), "6925281990001");

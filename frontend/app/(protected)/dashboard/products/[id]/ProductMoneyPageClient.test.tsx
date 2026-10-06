@@ -28,7 +28,7 @@ describe("ProductMoneyPageClient", () => {
 
   it("shows the product's money figures for the period", async () => {
     renderPage();
-    expect(await screen.findByRole("heading", { name: "TV" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 1, name: "TV" })).toBeInTheDocument();
     expect(screen.getByText("Stock value at average cost")).toBeInTheDocument();
     expect(screen.getByText(`RWF ${(240000).toLocaleString()}`)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Export CSV" })).toBeInTheDocument();
@@ -38,5 +38,11 @@ describe("ProductMoneyPageClient", () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: false, status: 403, json: () => Promise.resolve({}) })));
     renderPage();
     expect(await screen.findByText(/limited to Admin and Manager/)).toBeInTheDocument();
+  });
+
+  it("has a back link to the product", async () => {
+    renderPage();
+    await screen.findByRole("heading", { level: 1, name: "TV" });
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/products/7");
   });
 });

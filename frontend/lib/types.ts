@@ -690,6 +690,8 @@ export interface Purchase {
   amount_paid?: string;
   due_date?: string | null;
   payment_needs_review?: boolean;
+  // Whether the supplier gave a VAT invoice (input VAT estimate); defaults to true.
+  has_vat_invoice?: boolean;
 }
 
 export interface SalesSummary {

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import NotificationsPageClient from "./NotificationsPageClient";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 function wrapper({ children }: { children: React.ReactNode }) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -55,6 +56,26 @@ describe("NotificationsPageClient", () => {
     render(<NotificationsPageClient role="admin" />, { wrapper });
     await waitFor(() => expect(screen.getByText("New sale — Sale #S-841")).toBeInTheDocument());
 
+    await user.click(screen.getByRole("radio", { name: "Failed" }));
+
+    expect(screen.queryByText("New sale — Sale #S-841")).not.toBeInTheDocument();
+    expect(screen.getByText("New sale — Sale #S-839")).toBeInTheDocument();
+  });
+
+  it("uses the page template with a heading", async () => {
+    render(<NotificationsPageClient role="admin" />, { wrapper });
+    expect(await screen.findByRole("heading", { level: 1, name: "Notification log" })).toBeInTheDocument();
+  });
+
+  it("on phone, the Failed filter lives in the Filters sheet", async () => {
+    setMatchMedia({ desktop: false });
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    render(<NotificationsPageClient role="admin" />, { wrapper });
+    await waitFor(() => expect(screen.getByText("New sale — Sale #S-841")).toBeInTheDocument());
+    expect(screen.queryByRole("radio", { name: "Failed" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Filters" }));
     await user.click(screen.getByRole("radio", { name: "Failed" }));
 
     expect(screen.queryByText("New sale — Sale #S-841")).not.toBeInTheDocument();

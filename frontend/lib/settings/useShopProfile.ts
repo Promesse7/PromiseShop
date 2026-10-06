@@ -6,6 +6,7 @@ export interface UseShopProfileResult {
   data: ShopProfile | undefined;
   isLoading: boolean;
   isError: boolean;
+  refetch?: () => void;
 }
 
 export function useShopProfile(): UseShopProfileResult {
@@ -14,5 +15,5 @@ export function useShopProfile(): UseShopProfileResult {
     queryFn: () => apiFetch<ShopProfile>("shop-profile/"),
   });
 
-  return { data: query.data, isLoading: query.isLoading, isError: query.isError };
+  return { data: query.data, isLoading: query.isLoading, isError: query.isError, refetch: () => void query.refetch() };
 }

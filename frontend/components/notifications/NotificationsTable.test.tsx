@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import { NotificationsTable } from "./NotificationsTable";
 import type { NotificationRow } from "@/lib/notifications/useNotifications";
 
@@ -44,5 +45,20 @@ describe("NotificationsTable", () => {
   it("shows the empty state when there are no notifications", () => {
     render(<NotificationsTable notifications={[]} />);
     expect(screen.getByText("No notifications yet")).toBeInTheDocument();
+  });
+
+  it("is a table on desktop", () => {
+    render(<NotificationsTable notifications={[delivered, failed]} />);
+    expect(screen.getByRole("table", { name: "Notifications" })).toBeInTheDocument();
+  });
+
+  it("is a list of cards on phone, titled by subject", () => {
+    setMatchMedia({ desktop: false });
+    render(<NotificationsTable notifications={[delivered, failed]} />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    const list = screen.getByRole("list", { name: "Notifications" });
+    expect(list.querySelectorAll("li")).toHaveLength(2);
+    expect(screen.getByText("New sale — Sale #S-841")).toBeInTheDocument();
+    expect(screen.getByText("Failed")).toBeInTheDocument();
   });
 });

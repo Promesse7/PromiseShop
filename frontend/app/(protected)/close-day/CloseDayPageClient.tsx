@@ -6,12 +6,16 @@ import { ApiError, extractErrorMessage, fetchAllPages } from "@/lib/api-client";
 import { useCloseDay, useDailyCloses, useDayPreview } from "@/lib/finance/useDailyClose";
 import { ZReport } from "@/components/finance/ZReport";
 import { useToast } from "@/components/layout/ToastProvider";
+import { StatStrip } from "@/components/finance/StatStrip";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Field } from "@/components/ui/Field";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Table } from "@/components/ui/Table";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { Page } from "@/components/ui/Page";
+import { formatRwf } from "@/lib/format";
 import type { DailyClose, Employee, EmployeeRole } from "@/lib/types";
 
 interface CloseDayPageClientProps {
@@ -25,10 +29,6 @@ function todayInKigali() {
 
 function messageOf(error: unknown) {
   return error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
-}
-
-function money(value: string | number) {
-  return `RWF ${Number(value).toLocaleString()}`;
 }
 
 export default function CloseDayPageClient({ role }: CloseDayPageClientProps) {
@@ -90,9 +90,45 @@ export default function CloseDayPageClient({ role }: CloseDayPageClientProps) {
       ? (history.data?.results ?? []).find((c) => c.business_date === date && c.cashier === figures.cashier) ?? null
       : null);
 
+  const countedValid = counted !== "" && !Number.isNaN(Number(counted));
+  const variance = figures && countedValid ? Number(counted) - Number(figures.expected_cash) : null;
+
+  const historyColumns: DataColumn<DailyClose>[] = [
+    { key: "business_date", header: "Date", primary: true, sortValue: (c) => c.business_date },
+    { key: "cashier_name", header: "Cashier", mobile: true },
+    { key: "expected_cash", header: "Expected", money: true },
+    { key: "counted_cash", header: "Counted", money: true },
+    {
+      key: "variance",
+      header: "Variance",
+      align: "right",
+      mobile: true,
+      sortValue: (c) => Number(c.variance),
+      render: (c) => (
+        <span className={`tabular-nums ${Number(c.variance) === 0 ? "" : "font-medium text-red-600"}`}>{formatRwf(c.variance)}</span>
+      ),
+    },
+    { key: "closed_by_name", header: "Confirmed by" },
+  ];
+
   return (
-    <div className="flex flex-col gap-4">
-      <PageHeader title="Close day" subtitle="Count the drawer and compare it with what the system expects" />
+    <Page title="Close day" description="Count the drawer and compare it with what the system expects">
+      <div className="flex flex-col gap-4">
+      {preview.isLoading && <LoadingState variant="detail" label="Working out the day…" />}
+      {figures && (
+        <StatStrip
+          label="Day figures"
+          stats={[
+            { label: "Expected cash", amount: figures.expected_cash, hint: "Float + cash in − cash out" },
+            { label: "Sales", amount: figures.sales_total, hint: `${figures.sales_count} sale${figures.sales_count === 1 ? "" : "s"}` },
+            { label: "Debt collected", amount: figures.debt_collected },
+            { label: "Refunds paid out", amount: figures.returns_paid_out, tone: Number(figures.returns_paid_out) > 0 ? "muted" : "default" },
+            ...(variance !== null
+              ? [{ label: "Variance", amount: variance, tone: variance === 0 ? ("success" as const) : ("danger" as const) }]
+              : []),
+          ]}
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
         <Card elevation="sm">
@@ -118,20 +154,20 @@ export default function CloseDayPageClient({ role }: CloseDayPageClientProps) {
             <Field label="Opening float (RWF)" name="opening-float" type="number" value={openingFloat} onChange={setOpeningFloat} />
           </div>
 
-          {preview.isError && <ErrorState message={messageOf(preview.error)} />}
+          {preview.isError && <ErrorState message={messageOf(preview.error)} onRetry={() => preview.refetch()} />}
           {figures && !shownClose && (
             <div className="mt-4 flex flex-col gap-3 max-w-[420px]">
               <p className="text-sm">
-                Expected cash in the drawer: <strong>{money(figures.expected_cash)}</strong>
+                Expected cash in the drawer: <strong>{formatRwf(figures.expected_cash)}</strong>
               </p>
               <Field label="Counted cash (RWF)" name="counted-cash" type="number" value={counted} onChange={setCounted} />
-              {counted !== "" && !Number.isNaN(Number(counted)) && (
-                <p className="text-sm text-text/70">
-                  Variance: {money(Number(counted) - Number(figures.expected_cash))}
+              {variance !== null && (
+                <p className={`text-sm ${variance === 0 ? "text-text/70" : "font-medium text-red-600"}`}>
+                  Variance: {formatRwf(variance)}
                 </p>
               )}
               <Field label="Note (optional)" name="close-note" value={note} onChange={setNote} />
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Field label="Manager username" name="approver" value={approver} onChange={setApprover} />
                 <Field label="Manager PIN" name="pin" type="password" value={pin} onChange={setPin} />
               </div>
@@ -159,29 +195,20 @@ export default function CloseDayPageClient({ role }: CloseDayPageClientProps) {
       </div>
 
       {seesHistory && (
-        <Card elevation="sm">
-          <CardKicker>Closed days</CardKicker>
-          <Table
-            columns={[
-              { key: "date", header: "Date", render: (c: DailyClose) => c.business_date },
-              { key: "cashier", header: "Cashier", render: (c: DailyClose) => c.cashier_name },
-              { key: "expected", header: "Expected", render: (c: DailyClose) => money(c.expected_cash) },
-              { key: "counted", header: "Counted", render: (c: DailyClose) => money(c.counted_cash) },
-              {
-                key: "variance",
-                header: "Variance",
-                render: (c: DailyClose) => (
-                  <span className={Number(c.variance) === 0 ? "" : "text-red-600 font-medium"}>{money(c.variance)}</span>
-                ),
-              },
-              { key: "by", header: "Confirmed by", render: (c: DailyClose) => c.closed_by_name },
-            ]}
+        <section className="flex flex-col gap-2">
+          <h2 className="m-0 text-base font-semibold">Closed days</h2>
+          <DataTable
+            label="Closed days"
+            columns={historyColumns}
             rows={history.data?.results ?? []}
             rowKey={(c) => String(c.close_id)}
-            emptyMessage="No closed days yet"
+            loading={history.isLoading}
+            defaultSort={{ key: "business_date", dir: "desc" }}
+            empty={<EmptyState title="No closed days yet" />}
           />
-        </Card>
+        </section>
       )}
-    </div>
+      </div>
+    </Page>
   );
 }

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -51,5 +51,12 @@ describe("SetPinDialog", () => {
       expect.objectContaining({ method: "POST", body: JSON.stringify({ pin: "2468" }) })
     );
     await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+
+  it("keeps Save PIN and Cancel in the dialog footer", () => {
+    renderDialog();
+    const footer = within(screen.getByTestId("dialog-footer"));
+    expect(footer.getByRole("button", { name: "Save PIN" })).toBeInTheDocument();
+    expect(footer.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 });

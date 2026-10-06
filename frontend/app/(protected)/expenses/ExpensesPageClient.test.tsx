@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ExpensesPageClient from "./ExpensesPageClient";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 
 function paginated<T>(results: T[]) {
@@ -77,5 +78,22 @@ describe("ExpensesPageClient", () => {
     await screen.findByText("August rent");
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     await waitFor(() => expect(screen.getByLabelText("Category")).toHaveValue("rent"));
+  });
+
+  it("uses the page template with the New expense primary action", async () => {
+    renderPage(true);
+    expect(await screen.findByRole("heading", { level: 1, name: "Expenses" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New expense" })).toBeInTheDocument();
+  });
+
+  it("on phone, category filters live in the Filters sheet", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage(true);
+    await screen.findByText("August rent");
+    expect(screen.queryByRole("radio", { name: "Rent" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Rent" }));
+    expect(screen.getByRole("list", { name: "Expenses" }).querySelectorAll(":scope > li")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
   });
 });

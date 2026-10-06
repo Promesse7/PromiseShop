@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { act } from "react";
+import { setMatchMedia } from "@/lib/test/matchMedia";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import PurchaseWorkspaceClient from "./PurchaseWorkspaceClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as usePurchaseDetailModule from "@/lib/purchasing/usePurchaseDetail";
@@ -34,7 +37,9 @@ function renderWorkspace(role: EmployeeRole = "admin") {
   return render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <PurchaseWorkspaceClient purchaseId={7} role={role} />
+        <ConfirmProvider>
+          <PurchaseWorkspaceClient purchaseId={7} role={role} />
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -74,9 +79,39 @@ describe("PurchaseWorkspaceClient", () => {
       purchase: draftPurchase(), isLoading: false, isError: false,
     } satisfies PurchaseDetail);
     renderWorkspace();
-    expect(screen.getByText("Kigali Electronics Ltd")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Kigali Electronics Ltd" })).toBeInTheDocument();
     expect(screen.getByText(/KE-8841/)).toBeInTheDocument();
     expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/purchases");
+  });
+
+  it("flags whether the supplier gave a VAT invoice", () => {
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase({ has_vat_invoice: false }), isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace();
+    expect(screen.getByText("No VAT invoice")).toBeInTheDocument();
+  });
+
+  it("on phone puts the totals and Receive in a sticky bar, with the rest in a Details sheet", async () => {
+    act(() => setMatchMedia({ desktop: false }));
+    vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
+      purchase: draftPurchase({
+        total_paid: "45000", total_invoiced: "45000",
+        items: [{ purchase_item_id: 1, purchase: 7, product: 3, quantity: 3, unit_cost_paid: "15000", unit_cost_invoiced: "15000", price_discrepancy_note: "", subtotal_paid: "45000", subtotal_invoiced: "45000" }],
+      }),
+      isLoading: false, isError: false,
+    } satisfies PurchaseDetail);
+    renderWorkspace("admin");
+    const bar = screen.getByRole("region", { name: "Purchase summary" });
+    expect(bar).toHaveTextContent("1 item");
+    expect(bar).toHaveTextContent("RWF 45,000");
+    expect(within(bar).getByRole("button", { name: "Receive →" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Receive purchase → stock increases" })).not.toBeInTheDocument();
+    await userEvent.click(within(bar).getByRole("button", { name: "Details" }));
+    const sheet = screen.getByRole("dialog", { name: "Purchase details" });
+    expect(within(sheet).getByText("Total paid")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Cancel purchase" })).toBeInTheDocument();
   });
 
   it("toggles between Single and Bulk add forms", async () => {
@@ -101,7 +136,6 @@ describe("PurchaseWorkspaceClient", () => {
   });
 
   it("opens the print-labels dialog with the per-unit count after receiving", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
       purchase: draftPurchase({
         items: [{ purchase_item_id: 1, purchase: 7, product: 3, line_kind: "pack", units_per_pack: 12, quantity: 2,
@@ -111,6 +145,7 @@ describe("PurchaseWorkspaceClient", () => {
     } satisfies PurchaseDetail);
     renderWorkspace();
     await userEvent.click(screen.getByRole("button", { name: "Receive purchase → stock increases" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Receive" }));
     expect(await screen.findByRole("button", { name: "Print labels — 24 labels for the units just received" })).toBeInTheDocument();
   });
 
@@ -140,7 +175,6 @@ describe("PurchaseWorkspaceClient", () => {
   });
 
   it("confirms then receives the purchase when there are items", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
       purchase: draftPurchase({
         items: [{ purchase_item_id: 1, purchase: 7, product: 3, quantity: 1, unit_cost_paid: "1", unit_cost_invoiced: "1", price_discrepancy_note: "", subtotal_paid: "1", subtotal_invoiced: "1" }],
@@ -152,6 +186,9 @@ describe("PurchaseWorkspaceClient", () => {
     const receiveButton = screen.getByRole("button", { name: "Receive purchase → stock increases" });
     expect(receiveButton).not.toBeDisabled();
     await userEvent.click(receiveButton);
+    const confirmDialog = screen.getByRole("dialog");
+    expect(confirmDialog).toHaveTextContent("Stock will increase");
+    await userEvent.click(within(confirmDialog).getByRole("button", { name: "Receive" }));
 
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith("/api/proxy/purchases/7/receive/", expect.objectContaining({ method: "POST" }))
@@ -183,15 +220,18 @@ describe("PurchaseWorkspaceClient", () => {
       purchase: undefined, isLoading: true, isError: false,
     } satisfies PurchaseDetail);
     renderWorkspace();
-    expect(screen.getByText("Loading purchase…")).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading purchase…" })).toBeInTheDocument();
   });
 
-  it("shows an error state with a retry option", () => {
+  it("shows an error state whose Try again re-runs the query", async () => {
+    const refetch = vi.fn();
     vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
-      purchase: undefined, isLoading: false, isError: true,
+      purchase: undefined, isLoading: false, isError: true, refetch,
     } satisfies PurchaseDetail);
     renderWorkspace();
     expect(screen.getByText(/Couldn't load this purchase/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+    expect(refetch).toHaveBeenCalled();
   });
 
   it("shows a Cancel purchase button for admin on a draft purchase", () => {
@@ -228,13 +268,13 @@ describe("PurchaseWorkspaceClient", () => {
   });
 
   it("confirms then cancels the purchase when Cancel purchase is clicked", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
       purchase: draftPurchase(), isLoading: false, isError: false,
     } satisfies PurchaseDetail);
     renderWorkspace("admin");
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel purchase" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel purchase" }));
 
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith("/api/proxy/purchases/7/cancel/", expect.objectContaining({ method: "POST" }))
@@ -242,14 +282,15 @@ describe("PurchaseWorkspaceClient", () => {
   });
 
   it("does not cancel when the confirmation is dismissed", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
     vi.spyOn(usePurchaseDetailModule, "usePurchaseDetail").mockReturnValue({
       purchase: draftPurchase(), isLoading: false, isError: false,
     } satisfies PurchaseDetail);
     renderWorkspace("admin");
 
     await userEvent.click(screen.getByRole("button", { name: "Cancel purchase" }));
+    await userEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Cancel" }));
 
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith("/api/proxy/purchases/7/cancel/", expect.anything());
   });
 });

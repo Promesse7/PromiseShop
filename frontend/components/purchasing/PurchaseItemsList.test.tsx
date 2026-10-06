@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { act } from "react";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import { PurchaseItemsList } from "./PurchaseItemsList";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import type { PurchaseItem } from "@/lib/types";
@@ -85,10 +87,10 @@ describe("PurchaseItemsList", () => {
     await screen.findByText("JBL Flip 6 Speaker");
     expect(screen.getByRole("columnheader", { name: "Paid" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Invoiced" })).toBeInTheDocument();
-    expect(screen.getByText("108,000")).toBeInTheDocument();
-    expect(screen.getByText("112,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 108,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 112,000")).toBeInTheDocument();
     // 8 × (112,000 − 108,000): the supplier billed more than was paid.
-    expect(screen.getByText("+32,000")).toBeInTheDocument();
+    expect(screen.getByText("+RWF 32,000")).toBeInTheDocument();
     expect(screen.getByText("bulk discount")).toBeInTheDocument();
   });
 
@@ -96,7 +98,7 @@ describe("PurchaseItemsList", () => {
     renderList(true, false);
     await screen.findByText("JBL Flip 6 Speaker");
     expect(screen.queryByRole("columnheader", { name: "Paid" })).not.toBeInTheDocument();
-    expect(screen.queryByText("108,000")).not.toBeInTheDocument();
+    expect(screen.queryByText("RWF 108,000")).not.toBeInTheDocument();
   });
 
   it("shows dashes when the API omitted the cost fields", async () => {
@@ -113,7 +115,7 @@ describe("PurchaseItemsList", () => {
     }]);
     expect(await screen.findByText("JBL Flip 6 Speaker — 3 × pack of 24 = 72 units")).toBeInTheDocument();
     expect(screen.getByText("72")).toBeInTheDocument();
-    expect(screen.getByText("20,000 / unit")).toBeInTheDocument();
+    expect(screen.getByText("RWF 20,000 / unit")).toBeInTheDocument();
   });
 
   it("shows a bundle with its components and their barcodes, without Edit product", async () => {
@@ -129,5 +131,19 @@ describe("PurchaseItemsList", () => {
     expect(screen.getByText("Canalbox decoder × 20 per bundle = 20")).toBeInTheDocument();
     expect(screen.getByText("PES-TV-00001, PES-TV-00002")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Edit product" })).not.toBeInTheDocument();
+  });
+
+  it("shows an empty state when the purchase has no items", () => {
+    renderList(true, false, []);
+    expect(screen.getByText("No items on this purchase yet")).toBeInTheDocument();
+  });
+
+  it("on phone shows each line as a card with its quantity and Remove", async () => {
+    act(() => setMatchMedia({ desktop: false }));
+    renderList(true, true);
+    expect(await screen.findByText("JBL Flip 6 Speaker")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByText("Qty")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
   });
 });

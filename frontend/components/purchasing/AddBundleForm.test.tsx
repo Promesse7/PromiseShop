@@ -68,7 +68,7 @@ describe("AddBundleForm", () => {
     expect(screen.getByLabelText("Quantity per bundle for component 2")).toHaveValue(20);
 
     await userEvent.type(screen.getByLabelText("Paid / bundle"), "800000");
-    expect(screen.getByText(/Paid: 800,000 left to allocate/)).toBeInTheDocument();
+    expect(screen.getByText(/Paid: RWF 800,000 left to allocate/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Default split" }));
     await waitFor(() => expect(screen.getByLabelText("Paid share for component 1")).toHaveValue(400000));
     expect(screen.getByText(/Paid: fully allocated/)).toBeInTheDocument();
@@ -104,7 +104,7 @@ describe("AddBundleForm", () => {
     await userEvent.type(screen.getByLabelText("Paid share for component 1"), "60");
     await userEvent.type(screen.getByLabelText("Paid share for component 2"), "30");
     await userEvent.click(screen.getByRole("button", { name: "Add bundle line" }));
-    expect(screen.getByRole("alert")).toHaveTextContent("Shares must add up to the bundle price (10 left to allocate).");
+    expect(screen.getByRole("alert")).toHaveTextContent("Shares must add up to the bundle price (RWF 10 left to allocate).");
     expect(posted).toHaveLength(0);
   });
 });
