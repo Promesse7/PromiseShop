@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ShopUsePageClient from "./ShopUsePageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import type { EmployeeRole, InternalConsumption, ShopAsset } from "@/lib/types";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 const asset: ShopAsset = {
   asset_id: 7, name: "Office printer", product: 3, product_name: "Laser Printer", product_barcode: "PES-ACC-00002",
@@ -79,7 +80,7 @@ describe("ShopUsePageClient", () => {
 
   it("shows the consumption log with its value and what it fixed", async () => {
     renderPage("admin");
-    await userEvent.click(screen.getByLabelText("Consumption log"));
+    await userEvent.click(screen.getByRole("tab", { name: "Consumption log" }));
     expect(await screen.findByText("HDMI Cable")).toBeInTheDocument();
     expect(screen.getByText("RWF 4,000")).toBeInTheDocument();
     expect(screen.getByText(/for Office printer/)).toBeInTheDocument();
@@ -88,9 +89,23 @@ describe("ShopUsePageClient", () => {
 
   it("filters the log by purpose", async () => {
     renderPage("admin");
-    await userEvent.click(screen.getByLabelText("Consumption log"));
+    await userEvent.click(screen.getByRole("tab", { name: "Consumption log" }));
     await screen.findByText("HDMI Cable");
     await userEvent.selectOptions(screen.getByLabelText("Purpose"), "shop_setup");
     await waitFor(() => expect(urls.some((u) => u.includes("purpose=shop_setup"))).toBe(true));
+  });
+
+  it("links each asset card's name to its page", async () => {
+    renderPage("manager");
+    expect(await screen.findByRole("link", { name: "Office printer" })).toHaveAttribute("href", expect.stringMatching(/^\/shop-use\/assets\/\d+$/));
+  });
+
+  it("tucks the asset filters into a Filters sheet on phone", async () => {
+    setMatchMedia({ desktop: false });
+    renderPage("manager");
+    await screen.findByText("Office printer");
+    expect(screen.queryByLabelText("Status")).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
   });
 });
