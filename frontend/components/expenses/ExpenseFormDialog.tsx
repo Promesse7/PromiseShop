@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -27,12 +27,29 @@ interface ExpenseFormDialogProps {
 }
 
 export function ExpenseFormDialog({ open, onClose, ...rest }: ExpenseFormDialogProps) {
+  const formId = useId();
+  const [submitting, setSubmitting] = useState(false);
   return (
-    <Dialog open={open} onClose={onClose} title={rest.mode === "create" ? "New expense" : "Edit expense"}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={rest.mode === "create" ? "New expense" : "Edit expense"}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={submitting}>
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        </>
+      }
+    >
       {open && (
         <ExpenseFormFields
           key={`${rest.mode}-${rest.initialExpense?.expense_id ?? "new"}`}
-          onClose={onClose}
+          formId={formId}
+          setSubmitting={setSubmitting}
           {...rest}
         />
       )}
@@ -40,12 +57,12 @@ export function ExpenseFormDialog({ open, onClose, ...rest }: ExpenseFormDialogP
   );
 }
 
-function ExpenseFormFields({
-  mode,
-  initialExpense,
-  onClose,
-  onSaved,
-}: Omit<ExpenseFormDialogProps, "open">) {
+interface ExpenseFormFieldsProps extends Omit<ExpenseFormDialogProps, "open" | "onClose"> {
+  formId: string;
+  setSubmitting: (submitting: boolean) => void;
+}
+
+function ExpenseFormFields({ mode, initialExpense, onSaved, formId, setSubmitting }: ExpenseFormFieldsProps) {
   const categoryId = useId();
   const { show } = useToast();
   const queryClient = useQueryClient();
@@ -53,13 +70,13 @@ function ExpenseFormFields({
     mode === "edit" && initialExpense ? expenseFormValuesFromExpense(initialExpense) : emptyExpenseFormValues()
   );
   const [errors, setErrors] = useState<ExpenseFormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
 
   function setField<K extends keyof ExpenseFormValues>(key: K, value: ExpenseFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
     const validationErrors = validateExpenseForm(values);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -90,7 +107,7 @@ function ExpenseFormFields({
   }
 
   return (
-    <div className="flex flex-col gap-3 min-w-[360px]">
+    <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 sm:min-w-[360px]">
       <div className="flex flex-col gap-1">
         <label htmlFor={categoryId} className="block text-xs text-text/70">
           Category
@@ -120,14 +137,6 @@ function ExpenseFormFields({
           className="w-full min-h-[56px] py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
         />
       </div>
-      <div className="flex gap-2 justify-end mt-2">
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "Saving…" : "Save"}
-        </Button>
-      </div>
-    </div>
+    </form>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 
-import { Table } from "@/components/ui/Table";
+import { Bell } from "lucide-react";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
 import type { NotificationRow } from "@/lib/notifications/useNotifications";
@@ -20,49 +22,52 @@ function formatSentAt(sentAt: string): string {
   });
 }
 
+const COLUMNS: DataColumn<NotificationRow>[] = [
+  { key: "subject", header: "Subject", primary: true, sortValue: (n) => n.subject },
+  {
+    key: "sent_at",
+    header: "Sent",
+    render: (n) => <span className="text-text/60">{formatSentAt(n.sent_at)}</span>,
+    sortValue: (n) => n.sent_at,
+  },
+  {
+    key: "trigger",
+    header: "Trigger",
+    render: (n) => <span className="font-mono text-xs">{n.trigger}</span>,
+  },
+  {
+    key: "status",
+    header: "Status",
+    render: (n) => {
+      const tag = STATUS_TAG[n.status];
+      return <Tag variant={tag.variant}>{tag.label}</Tag>;
+    },
+  },
+  {
+    key: "actions",
+    header: "",
+    mobile: false,
+    render: (n) =>
+      n.status === "failed" ? (
+        <Button variant="ghost" className="text-xs" disabled title="Retry sending is not available yet">
+          Retry
+        </Button>
+      ) : null,
+  },
+];
+
 interface NotificationsTableProps {
   notifications: NotificationRow[];
 }
 
 export function NotificationsTable({ notifications }: NotificationsTableProps) {
-  const columns = [
-    {
-      key: "sent_at",
-      header: "Sent",
-      render: (n: NotificationRow) => <span className="text-text/50">{formatSentAt(n.sent_at)}</span>,
-    },
-    {
-      key: "trigger",
-      header: "Trigger",
-      render: (n: NotificationRow) => <span className="font-mono text-xs">{n.trigger}</span>,
-    },
-    { key: "subject", header: "Subject" },
-    {
-      key: "status",
-      header: "Status",
-      render: (n: NotificationRow) => {
-        const tag = STATUS_TAG[n.status];
-        return <Tag variant={tag.variant}>{tag.label}</Tag>;
-      },
-    },
-    {
-      key: "actions",
-      header: "",
-      render: (n: NotificationRow) =>
-        n.status === "failed" ? (
-          <Button variant="ghost" className="text-xs" disabled title="Retry sending is not available yet">
-            Retry
-          </Button>
-        ) : null,
-    },
-  ];
-
   return (
-    <Table
-      columns={columns}
+    <DataTable
+      label="Notifications"
+      columns={COLUMNS}
       rows={notifications}
       rowKey={(n) => String(n.notification_id)}
-      emptyMessage="No notifications yet"
+      empty={<EmptyState icon={Bell} title="No notifications yet" message="Sales, voids and returns show up here." />}
     />
   );
 }

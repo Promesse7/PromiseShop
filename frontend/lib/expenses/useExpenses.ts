@@ -6,6 +6,7 @@ export interface Expenses {
   all: Expense[];
   isLoading: boolean;
   isError: boolean;
+  refetch: () => void;
 }
 
 export function useExpenses(enabled: boolean): Expenses {
@@ -19,5 +20,6 @@ export function useExpenses(enabled: boolean): Expenses {
     all: query.data ?? [],
     isLoading: enabled && query.isLoading,
     isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }

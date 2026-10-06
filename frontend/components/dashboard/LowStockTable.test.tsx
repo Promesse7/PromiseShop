@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { LowStockTable } from "./LowStockTable";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import type { CatalogProduct } from "@/lib/products/useCatalogProducts";
 
 function makeRow(overrides: Partial<CatalogProduct> = {}): CatalogProduct {
@@ -43,5 +44,19 @@ describe("LowStockTable", () => {
       "href",
       "/purchases?open=new&reorder_product=1&reorder_name=JBL%20Flip%206%20Speaker"
     );
+  });
+
+  it("links the product name to its page", () => {
+    render(<LowStockTable rows={[makeRow()]} />);
+    expect(screen.getByRole("link", { name: "JBL Flip 6 Speaker" })).toHaveAttribute("href", "/products/1");
+  });
+
+  it("is a list of cards on phone, keeping the Reorder link", () => {
+    setMatchMedia({ desktop: false });
+    render(<LowStockTable rows={[makeRow(), makeRow({ product_id: 2, name: "Boya Mic", quantity_in_stock: 0 })]} />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Low stock" }).querySelectorAll(":scope > li")).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Reorder" })).toHaveLength(2);
+    expect(screen.getByText("Out of stock")).toBeInTheDocument();
   });
 });

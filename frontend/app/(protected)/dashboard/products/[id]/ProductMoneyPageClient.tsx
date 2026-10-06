@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ApiError } from "@/lib/api-client";
 import { AdminOnlyNotice } from "@/components/dashboard/AdminOnlyNotice";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import {
   downloadCsv,
   presetRange,
@@ -45,62 +46,69 @@ export default function ProductMoneyPageClient({ productId }: { productId: numbe
   const money = useProductMoney(productId, range);
 
   if (money.error instanceof ApiError && money.error.status === 403) {
-    return <AdminOnlyNotice />;
+    return (
+      <Page title="Product money" back={`/products/${productId}`}>
+        <AdminOnlyNotice />
+      </Page>
+    );
   }
 
   const data = money.data;
   return (
-    <div>
-      <PageHeader title={data?.name ?? "Product"} subtitle="Money drill-down">
-        <Link href={`/products/${productId}`} className="ml-auto text-sm text-accent">
-          ← Product
-        </Link>
-      </PageHeader>
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <PeriodPicker
-          preset={preset}
-          range={range}
-          onChange={(nextPreset, nextRange) => {
-            setPreset(nextPreset);
-            setRange(nextRange);
-          }}
+    <Page
+      title={data?.name ?? "Product"}
+      description="Money drill-down: what this product cost, earned and lost in the period."
+      back={`/products/${productId}`}
+      toolbar={
+        <Toolbar
+          filters={
+            <PeriodPicker
+              preset={preset}
+              range={range}
+              onChange={(nextPreset, nextRange) => {
+                setPreset(nextPreset);
+                setRange(nextRange);
+              }}
+            />
+          }
+          activeFilterCount={preset !== "month" ? 1 : 0}
+          trailing={
+            data ? (
+              <Button
+                variant="secondary"
+                onClick={() =>
+                  downloadCsv(
+                    `product-${productId}-${range.from}_${range.to}.csv`,
+                    toCsv(["Figure", "Value"], ROWS.map((row) => [row.label, row.value(data)]))
+                  )
+                }
+              >
+                Export CSV
+              </Button>
+            ) : undefined
+          }
         />
-        {data && (
-          <Button
-            variant="secondary"
-            className="ml-auto"
-            onClick={() =>
-              downloadCsv(
-                `product-${productId}-${range.from}_${range.to}.csv`,
-                toCsv(["Figure", "Value"], ROWS.map((row) => [row.label, row.value(data)]))
-              )
-            }
-          >
-            Export CSV
-          </Button>
-        )}
-      </div>
-      <Card elevation="sm">
-        <CardKicker>
-          {range.from} → {range.to}
-        </CardKicker>
-        {money.isLoading && <p className="text-sm text-text/60">Loading…</p>}
-        {money.isError && !(money.error instanceof ApiError && money.error.status === 403) && (
-          <p className="text-sm text-red-400">Couldn&apos;t load this product&apos;s figures.</p>
-        )}
-        {data && (
-          <table className="w-full text-sm" aria-label="Product money">
-            <tbody>
-              {ROWS.map((row) => (
-                <tr key={row.label} className="border-b border-divider">
-                  <td className="py-1.5 pr-2">{row.label}</td>
-                  <td className="py-1.5 text-right tabular-nums">{row.value(data)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </Card>
-    </div>
+      }
+    >
+      {money.isLoading ? (
+        <LoadingState variant="detail" label="Loading this product's figures…" />
+      ) : money.isError || !data ? (
+        <ErrorState message="Couldn't load this product's figures." onRetry={() => void money.refetch()} />
+      ) : (
+        <Card elevation="sm" className="flex flex-col gap-2">
+          <CardKicker>
+            {range.from} → {range.to}
+          </CardKicker>
+          <dl aria-label="Product money" className="m-0 divide-y divide-divider text-sm">
+            {ROWS.map((row) => (
+              <div key={row.label} className="flex items-baseline justify-between gap-3 py-1.5">
+                <dt className="text-text/70">{row.label}</dt>
+                <dd className="m-0 text-right tabular-nums">{row.value(data)}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      )}
+    </Page>
   );
 }

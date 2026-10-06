@@ -1,9 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import ImportPageClient from "./ImportPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import type { ImportResult } from "@/lib/types";
 
 const dryRun: ImportResult = {
@@ -30,7 +31,9 @@ function renderPage(isAdmin = true) {
   render(
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
-        <ImportPageClient isAdmin={isAdmin} />
+        <ConfirmProvider>
+          <ImportPageClient isAdmin={isAdmin} />
+        </ConfirmProvider>
       </ToastProvider>
     </QueryClientProvider>
   );
@@ -59,7 +62,6 @@ describe("ImportPageClient", () => {
         throw new Error(`Unexpected URL: ${url}`);
       })
     );
-    vi.spyOn(window, "confirm").mockReturnValue(true);
   });
 
   it("is admin only", () => {
@@ -83,6 +85,10 @@ describe("ImportPageClient", () => {
     await chooseFile();
     await userEvent.click(screen.getByRole("button", { name: "Check file (dry run)" }));
     await userEvent.click(await screen.findByRole("button", { name: "Import 2 products" }));
+    const confirm = await screen.findByRole("dialog", { name: "Import 2 products?" });
+    expect(within(confirm).getByText(/can't be undone/)).toBeInTheDocument();
+    expect(posts.map((p) => p.commit)).toEqual([false]);
+    await userEvent.click(within(confirm).getByRole("button", { name: "Import" }));
 
     await waitFor(() => expect(posts.map((p) => p.commit)).toEqual([false, true]));
     expect(await screen.findByText(/2 imported/)).toBeInTheDocument();
@@ -115,5 +121,30 @@ describe("ImportPageClient", () => {
     await userEvent.click(screen.getByRole("button", { name: "Download CSV template" }));
     await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
     expect(click).toHaveBeenCalled();
+  });
+
+  it("cancelling the confirmation imports nothing", async () => {
+    renderPage();
+    await chooseFile();
+    await userEvent.click(screen.getByRole("button", { name: "Check file (dry run)" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Import 2 products" }));
+    const confirm = await screen.findByRole("dialog", { name: "Import 2 products?" });
+    await userEvent.click(within(confirm).getByRole("button", { name: "Cancel" }));
+    expect(posts.map((p) => p.commit)).toEqual([false]);
+  });
+
+  it("uses the page template and shows the steps, moving the current step along", async () => {
+    renderPage();
+    expect(screen.getByRole("heading", { level: 1, name: "Setup" })).toBeInTheDocument();
+    const steps = screen.getByRole("list", { name: "Import steps" });
+    const current = () => within(steps).getByText((_, el) => el?.getAttribute("aria-current") === "step");
+    expect(current()).toHaveTextContent("Get the template");
+
+    await chooseFile();
+    expect(current()).toHaveTextContent("Check the file");
+
+    await userEvent.click(screen.getByRole("button", { name: "Check file (dry run)" }));
+    await screen.findByText(/3 rows · 2 ready/);
+    expect(current()).toHaveTextContent("Review and import");
   });
 });

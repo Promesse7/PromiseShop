@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ExpenseTable } from "./ExpenseTable";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import type { Expense } from "@/lib/types";
 
 const expenses: Expense[] = [
@@ -29,5 +30,15 @@ describe("ExpenseTable", () => {
     render(<ExpenseTable expenses={expenses} onEdit={onEdit} />);
     await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
     expect(onEdit).toHaveBeenCalledWith(expenses[0]);
+  });
+
+  it("is a list of cards on phone, still with an Edit button per expense", async () => {
+    setMatchMedia({ desktop: false });
+    const onEdit = vi.fn();
+    render(<ExpenseTable expenses={expenses} onEdit={onEdit} />);
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Expenses" }).querySelectorAll(":scope > li")).toHaveLength(2);
+    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[1]);
+    expect(onEdit).toHaveBeenCalledWith(expenses[1]);
   });
 });

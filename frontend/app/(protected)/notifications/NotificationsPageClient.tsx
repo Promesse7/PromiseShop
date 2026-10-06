@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 import { useNotifications } from "@/lib/notifications/useNotifications";
 import { NotificationsTable } from "@/components/notifications/NotificationsTable";
 import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
-import { Tag } from "@/components/ui/Tag";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import type { EmployeeRole } from "@/lib/types";
 
 interface NotificationsPageClientProps {
@@ -31,34 +31,32 @@ export default function NotificationsPageClient({ role }: NotificationsPageClien
 
   if (role !== "admin") {
     return (
-      <div>
-        <h4 className="m-0 mb-2">Notification log</h4>
-        <p className="text-sm text-text/50">
-          The notification log is only available to Admin accounts.
-        </p>
-      </div>
+      <Page title="Notification log">
+        <p className="text-sm text-text/50">The notification log is only available to Admin accounts.</p>
+      </Page>
     );
-  }
-
-  if (notifications.isError) {
-    return (
-      <ErrorState message="Couldn't load notifications." />
-    );
-  }
-
-  if (notifications.isLoading) {
-    return <p className="text-sm text-text/50">Loading notifications…</p>;
   }
 
   return (
-    <div>
-      <PageHeader title="Notification log">
-        <Tag>Admin only</Tag>
-        <div className="ml-auto">
-          <SegmentedToggle name="notification-filter" options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
-        </div>
-      </PageHeader>
-      <NotificationsTable notifications={filtered} />
-    </div>
+    <Page
+      title="Notification log"
+      description="What the app has told admins about: sales, voids and returns."
+      toolbar={
+        <Toolbar
+          activeFilterCount={filter === "all" ? 0 : 1}
+          filters={
+            <SegmentedToggle name="notification-filter" options={FILTER_OPTIONS} value={filter} onChange={setFilter} />
+          }
+        />
+      }
+    >
+      {notifications.isError ? (
+        <ErrorState message="Couldn't load notifications." onRetry={notifications.refetch} />
+      ) : notifications.isLoading ? (
+        <LoadingState variant="table" label="Loading notifications…" />
+      ) : (
+        <NotificationsTable notifications={filtered} />
+      )}
+    </Page>
   );
 }

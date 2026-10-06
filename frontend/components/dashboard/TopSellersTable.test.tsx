@@ -7,12 +7,12 @@ describe("TopSellersTable", () => {
     render(<TopSellersTable rows={[{ product_id: 1, product_name: "Samsung 43\" TV", units: 14, revenue: 5390000, grossMargin: null, marginPct: null }]} />);
     expect(screen.getByText('Samsung 43" TV')).toBeInTheDocument();
     expect(screen.getByText("14")).toBeInTheDocument();
-    expect(screen.getByText("5,390,000")).toBeInTheDocument();
+    expect(screen.getByText("RWF 5,390,000")).toBeInTheDocument();
   });
 
   it("shows the margin beside the units when cost data exists", () => {
     render(<TopSellersTable rows={[{ product_id: 1, product_name: "Samsung 43\" TV", units: 14, revenue: 5390000, grossMargin: 1190000, marginPct: 22.08 }]} />);
-    expect(screen.getByText("margin 1,190,000 · 22.1%")).toBeInTheDocument();
+    expect(screen.getByText("margin RWF 1,190,000 · 22.1%")).toBeInTheDocument();
   });
 
   it("shows 'cost unknown' when the product has no received purchase", () => {

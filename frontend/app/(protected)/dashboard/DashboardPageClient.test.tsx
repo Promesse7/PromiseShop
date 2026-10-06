@@ -1,10 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import DashboardPageClient from "./DashboardPageClient";
 import { useDashboardData, type DashboardData } from "@/lib/dashboard/useDashboardData";
 
 // The setup checklist reads workflow hints through TanStack Query; it has its own tests.
-vi.mock("@/components/shell/SetupChecklist", () => ({ SetupChecklist: () => null }));
+vi.mock("@/components/shell/SetupChecklist", () => ({ SetupChecklist: () => <div>setup checklist</div> }));
 vi.mock("@/lib/dashboard/useDashboardData", () => ({
   useDashboardData: vi.fn(),
 }));
@@ -89,11 +90,29 @@ describe("DashboardPageClient", () => {
     expect(screen.getByText("alerts")).toBeInTheDocument();
     expect(screen.queryByRole("radio", { name: "Last month" })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("radio", { name: "Money chain" }));
+    expect(screen.getByRole("tab", { name: "Overview" })).toHaveAttribute("aria-selected", "true");
+
+    await userEvent.click(screen.getByRole("tab", { name: "Money chain" }));
     expect(screen.getByText("money view: money")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Last month" })).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("radio", { name: "People" }));
+    await userEvent.click(screen.getByRole("tab", { name: "People" }));
     expect(screen.getByText("money view: people")).toBeInTheDocument();
+  });
+
+  it("uses the page template, with the setup checklist at the top above the alerts", () => {
+    mockedUseDashboardData.mockReturnValue(baseData());
+    render(<DashboardPageClient role="admin" />);
+    expect(screen.getByRole("heading", { level: 1, name: "Dashboard" })).toBeInTheDocument();
+    const checklist = screen.getByText("setup checklist");
+    const alerts = screen.getByText("alerts");
+    expect(checklist.compareDocumentPosition(alerts) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("lays the stat cards out two-up on phone", () => {
+    setMatchMedia({ desktop: false });
+    mockedUseDashboardData.mockReturnValue(baseData());
+    render(<DashboardPageClient role="admin" />);
+    expect(screen.getByRole("list", { name: "Key figures" })).toHaveClass("grid-cols-2");
   });
 });

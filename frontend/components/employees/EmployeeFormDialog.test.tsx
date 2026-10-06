@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
@@ -68,5 +68,12 @@ describe("EmployeeFormDialog", () => {
     expect(screen.getByText("Username is required.")).toBeInTheDocument();
     expect(screen.getByText("Password is required.")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps Save and Cancel in the dialog footer", () => {
+    renderWithProviders(<EmployeeFormDialog open mode="create" onClose={vi.fn()} onSaved={vi.fn()} />);
+    const footer = within(screen.getByTestId("dialog-footer"));
+    expect(footer.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(footer.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/Dialog";
 import { Field } from "@/components/ui/Field";
@@ -40,12 +40,29 @@ interface EmployeeFormDialogProps {
 }
 
 export function EmployeeFormDialog({ open, onClose, ...rest }: EmployeeFormDialogProps) {
+  const formId = useId();
+  const [submitting, setSubmitting] = useState(false);
   return (
-    <Dialog open={open} onClose={onClose} title={rest.mode === "create" ? "New employee" : "Edit employee"}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title={rest.mode === "create" ? "New employee" : "Edit employee"}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form={formId} disabled={submitting}>
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        </>
+      }
+    >
       {open && (
         <EmployeeFormFields
           key={`${rest.mode}-${rest.initialEmployee?.employee_id ?? "new"}`}
-          onClose={onClose}
+          formId={formId}
+          setSubmitting={setSubmitting}
           {...rest}
         />
       )}
@@ -53,12 +70,12 @@ export function EmployeeFormDialog({ open, onClose, ...rest }: EmployeeFormDialo
   );
 }
 
-function EmployeeFormFields({
-  mode,
-  initialEmployee,
-  onClose,
-  onSaved,
-}: Omit<EmployeeFormDialogProps, "open">) {
+interface EmployeeFormFieldsProps extends Omit<EmployeeFormDialogProps, "open" | "onClose"> {
+  formId: string;
+  setSubmitting: (submitting: boolean) => void;
+}
+
+function EmployeeFormFields({ mode, initialEmployee, onSaved, formId, setSubmitting }: EmployeeFormFieldsProps) {
   const roleId = useId();
   const statusId = useId();
   const { show } = useToast();
@@ -67,13 +84,13 @@ function EmployeeFormFields({
     mode === "edit" && initialEmployee ? employeeFormValuesFromEmployee(initialEmployee) : emptyEmployeeFormValues()
   );
   const [errors, setErrors] = useState<EmployeeFormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
 
   function setField<K extends keyof EmployeeFormValues>(key: K, value: EmployeeFormValues[K]) {
     setValues((current) => ({ ...current, [key]: value }));
   }
 
-  async function handleSubmit() {
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
     const validationErrors = validateEmployeeForm(values, mode);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
@@ -106,7 +123,7 @@ function EmployeeFormFields({
   }
 
   return (
-    <div className="flex flex-col gap-3 min-w-[360px]">
+    <form id={formId} onSubmit={handleSubmit} noValidate className="flex flex-col gap-3 sm:min-w-[360px]">
       <Field label="Full name" name="full_name" value={values.full_name} onChange={(v) => setField("full_name", v)} error={errors.full_name} />
       <div className="flex flex-col gap-1">
         <label htmlFor={roleId} className="block text-xs text-text/70">
@@ -156,14 +173,6 @@ function EmployeeFormFields({
           ))}
         </select>
       </div>
-      <div className="flex gap-2 justify-end mt-2">
-        <Button variant="secondary" onClick={onClose}>
-          Cancel
-        </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "Saving…" : "Save"}
-        </Button>
-      </div>
-    </div>
+    </form>
   );
 }

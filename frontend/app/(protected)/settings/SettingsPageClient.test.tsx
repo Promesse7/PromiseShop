@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,5 +76,21 @@ describe("SettingsPageClient", () => {
     await userEvent.type(pct, "150");
     await userEvent.click(screen.getByRole("button", { name: "Save settings" }));
     expect(screen.getByText("The staff discount limit must be between 0 and 100%.")).toBeInTheDocument();
+  });
+
+  it("uses the page template with the three settings sections", async () => {
+    renderPage();
+    expect(await screen.findByRole("heading", { level: 1, name: "Settings" })).toBeInTheDocument();
+    await screen.findByRole("region", { name: "Shop details" });
+    for (const name of ["Shop details", "Bargaining at the till", "Dashboard alerts"]) {
+      expect(screen.getByRole("region", { name })).toBeInTheDocument();
+    }
+  });
+
+  it("keeps one Save button in a save bar under the form", async () => {
+    renderPage();
+    const bar = await screen.findByRole("region", { name: "Save changes" });
+    expect(within(bar).getByRole("button", { name: "Save settings" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Save settings" })).toHaveLength(1);
   });
 });
