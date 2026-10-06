@@ -47,6 +47,62 @@
   }
 }
 
+/* Styled scrollbars: thin, rounded, accent-tinted; the thumb stays faint until the area is
+   hovered or focused. Touch devices keep their native overlay scrollbars. */
+@media (pointer: fine) {
+  html,
+  .scroll-styled {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(108, 92, 214, 0.18) transparent;
+  }
+  html:hover,
+  .scroll-styled:hover,
+  .scroll-styled:focus-within {
+    scrollbar-color: rgba(108, 92, 214, 0.45) transparent;
+  }
+  html::-webkit-scrollbar,
+  .scroll-styled::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  html::-webkit-scrollbar-track,
+  .scroll-styled::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  html::-webkit-scrollbar-thumb,
+  .scroll-styled::-webkit-scrollbar-thumb {
+    background-color: rgba(108, 92, 214, 0.18);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 9999px;
+    transition: background-color 150ms ease;
+  }
+  html:hover::-webkit-scrollbar-thumb,
+  .scroll-styled:hover::-webkit-scrollbar-thumb,
+  .scroll-styled:focus-within::-webkit-scrollbar-thumb {
+    background-color: rgba(108, 92, 214, 0.45);
+  }
+  html::-webkit-scrollbar-thumb:hover,
+  .scroll-styled::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(108, 92, 214, 0.7);
+  }
+  html::-webkit-scrollbar-corner,
+  .scroll-styled::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Anchors and scrollIntoView land below the sticky TopBar. */
+html {
+  scroll-padding-top: 56px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 @layer utilities {
   .glass {
     @apply bg-surface/85 backdrop-blur-md border border-divider;
