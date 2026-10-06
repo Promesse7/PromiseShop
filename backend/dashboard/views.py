@@ -321,3 +321,63 @@ class ActivityFeedView(APIView):
 
         items.sort(key=lambda item: item["timestamp"], reverse=True)
         return Response(items[:limit])
+
+
+# --- Module H: money dashboards -------------------------------------------------
+
+from dashboard import money as money_reports  # noqa: E402
+
+
+def _jsonable(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+class _MoneyView(APIView):
+    permission_classes = [IsAdminOrManager]
+
+    def compute(self, start, end, request, **kwargs):  # pragma: no cover - abstract
+        raise NotImplementedError
+
+    def get(self, request, **kwargs):
+        start, end = money_reports.parse_range(request.query_params)
+        return Response(_jsonable(self.compute(start, end, request, **kwargs)))
+
+
+class MoneySummaryView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.summary(start, end)
+
+
+class MoneyChainView(_MoneyView):
+    def compute(self, start, end, request):
+        result = money_reports.chain(start, end)
+        result["vat"] = money_reports.vat_position(start, end, output_vat=result["figures"]["output_vat"])
+        return result
+
+
+class MoneyLeakageView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.leakage(start, end)
+
+
+class MoneyProductView(_MoneyView):
+    def compute(self, start, end, request, product_id=None):
+        return money_reports.product_drilldown(get_object_or_404(Product, pk=product_id), start, end)
+
+
+class MoneyPeopleView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.people(start, end)
+
+
+class MoneyAlertsView(_MoneyView):
+    def compute(self, start, end, request):
+        return money_reports.alerts(as_of=end)
