@@ -31,9 +31,16 @@ class Purchase(models.Model):
     purchase_date = models.DateField()
     total_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_invoiced = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Derived from finance.Payment rows by finance.services; not set by hand.
     payment_status = models.CharField(
-        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PAID
+        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.UNPAID
     )
+    # Cached sum of payments to the supplier for this purchase.
+    amount_paid = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    due_date = models.DateField(null=True, blank=True)
+    # Set by the payments data migration on purchases that were "partial" or
+    # "unpaid" before payments existed: the owner must confirm what was paid.
+    payment_needs_review = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
 
     def __str__(self):

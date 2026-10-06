@@ -1,18 +1,33 @@
+import uuid
 from decimal import Decimal
 from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from accounts.models import Employee
+from accounts.services import can_approve, verify_approval
 from catalog.models import ProductPricing
+from finance.models import Payment
+from finance.services import (
+    customer_balance, default_due_date, refresh_sale_payments, validate_method_and_reference,
+)
 from notifications.models import NotificationLog
-from sales.models import Sale, SaleItem
+from sales.models import Customer, Sale, SaleItem
 from stock.models import Inventory, StockMovement
 from stock.services import record_movement
+
+ZERO = Decimal("0.00")
+CENT = Decimal("0.01")
 
 TAX_RATES = {
     "A": Decimal("0.00"),
     "B": Decimal("0.18"),
 }
+
+
+class ApprovalRequired(ValidationError):
+    """The cart needs a manager/admin approval (PIN) before it can be completed."""
+
+    default_code = "approval_required"
 
 
 def _resolve_retail_price(product):
@@ -34,13 +49,73 @@ def _notify_admins(sale, notification_type="sale_alert"):
     ])
 
 
-def complete_sale(customer, employee, payment_method, items):
-    """items: list of {"product": Product instance, "quantity": int, "unit_price": Decimal | absent}
+def _normalise_payments(payments, payment_method, total):
+    """Validate the payment lines of a sale and return (applied lines, change_due).
 
+    Each line is {"method", "amount", "reference"?, "tendered"?}. Non-cash lines
+    are applied as given and may not add up to more than the total. Cash beyond
+    what is still due is change, not a payment: the cash lines are trimmed to fit
+    and the excess (plus any tendered above the amount) is returned as change.
+    With no `payments` at all (older clients), the sale is paid in full with
+    `payment_method` (cash when blank).
+    """
+    if payments is None:
+        return [{"method": payment_method or Payment.Method.CASH, "amount": total, "reference": ""}], ZERO
+
+    lines = []
+    for raw in payments:
+        method = raw.get("method")
+        amount = Decimal(raw.get("amount") or 0)
+        reference = (raw.get("reference") or "").strip()
+        tendered = raw.get("tendered")
+        validate_method_and_reference(method, reference)
+        if amount <= 0:
+            raise ValidationError({"payments": "Every payment line needs an amount above zero."})
+        if tendered is not None:
+            if method != Payment.Method.CASH:
+                raise ValidationError({"payments": "Only cash payments take an amount tendered."})
+            tendered = Decimal(tendered)
+            if tendered < amount:
+                raise ValidationError({"payments": "Cash tendered is less than the cash amount."})
+        lines.append({"method": method, "amount": amount, "reference": reference, "tendered": tendered})
+
+    non_cash = sum((line["amount"] for line in lines if line["method"] != Payment.Method.CASH), ZERO)
+    if non_cash > total:
+        raise ValidationError({"payments": "Non-cash payments add up to more than the sale total."})
+
+    change = sum(
+        ((line["tendered"] - line["amount"]) for line in lines if line["tendered"] is not None), ZERO
+    )
+    room_for_cash = total - non_cash
+    applied = []
+    for line in lines:
+        if line["method"] == Payment.Method.CASH:
+            portion = min(line["amount"], room_for_cash)
+            change += line["amount"] - portion
+            room_for_cash -= portion
+            if portion > 0:
+                applied.append({**line, "amount": portion})
+        else:
+            applied.append(line)
+    return applied, change
+
+
+def complete_sale(customer, employee, payment_method=None, items=None, *, payments=None,
+                  approval=None, due_date=None):
+    """Sell `items` and take `payments`, in one transaction.
+
+    items: list of {"product": Product, "quantity": int, "unit_price": Decimal | absent}.
     unit_price, when present, is the price agreed at the till (VAT-inclusive, like the
     catalog price) and replaces the catalog retail price for that line only. The catalog
-    price is still resolved and stored as list_price so the discount/markup is auditable,
-    and a product with no current price still fails loudly even when an override is sent.
+    price is still stored as list_price so the discount/markup is auditable.
+
+    payments: list of {"method", "amount", "reference", "tendered"} (see
+    _normalise_payments). A sale not fully paid needs a customer with a phone
+    number and gets a due date (default: 30 days); new credit that takes the
+    customer over their credit_limit needs `approval` ({"approver_username",
+    "pin"}) unless the seller is a manager or admin.
+
+    Returns the Sale with a transient `change_due` attribute.
     """
     if not items:
         raise ValidationError("Cannot complete a sale with no line items.")
@@ -64,24 +139,51 @@ def complete_sale(customer, employee, payment_method, items):
             locked_inventories[product_id] = inventory
 
         resolved_items = []
-        total = Decimal("0.00")
+        total = ZERO
         for entry in items:
             product = entry["product"]
             quantity = entry["quantity"]
             list_price = _resolve_retail_price(product)
             override = entry.get("unit_price")
             unit_price = override if override is not None else list_price
-            subtotal = (unit_price * quantity).quantize(Decimal("0.01"))
+            subtotal = (unit_price * quantity).quantize(CENT)
             # Retail prices are VAT-inclusive, so tax_amount is the portion of subtotal that is
             # tax, not an additional charge on top of it.
             rate = TAX_RATES[product.tax_category]
-            tax_amount = (subtotal - subtotal / (1 + rate)).quantize(Decimal("0.01"))
+            tax_amount = (subtotal - subtotal / (1 + rate)).quantize(CENT)
             resolved_items.append((product, quantity, unit_price, list_price, subtotal, tax_amount))
             total += subtotal
 
+        applied, change_due = _normalise_payments(payments, payment_method, total)
+        paid = sum((line["amount"] for line in applied), ZERO)
+        on_credit = total - paid
+
+        if on_credit > 0:
+            if customer is None:
+                raise ValidationError({
+                    "customer": "A sale that is not fully paid needs a customer "
+                                "(walk-in sales must be paid in full)."
+                })
+            customer = Customer.objects.select_for_update().get(pk=customer.pk)
+            if not (customer.phone or "").strip():
+                raise ValidationError({"customer": "Add the customer's phone number before selling on credit."})
+            over_limit = (
+                customer.credit_limit is not None
+                and customer_balance(customer) + on_credit > customer.credit_limit
+            )
+            if over_limit and not can_approve(employee):
+                if not approval:
+                    raise ApprovalRequired(
+                        "This sale takes the customer over their credit limit — needs manager approval."
+                    )
+                verify_approval(approval.get("approver_username"), approval.get("pin"))
+
+        methods = {line["method"] for line in applied}
         sale = Sale.objects.create(
-            customer=customer, employee=employee, payment_method=payment_method,
+            customer=customer, employee=employee,
+            payment_method=next(iter(methods)) if len(methods) == 1 else None,
             total_amount=total,
+            due_date=(due_date or default_due_date()) if on_credit > 0 else None,
         )
 
         for product, quantity, unit_price, list_price, subtotal, tax_amount in resolved_items:
@@ -96,8 +198,18 @@ def complete_sale(customer, employee, payment_method, items):
                 reason=f"Sale #{sale.pk}",
             )
 
+        group = uuid.uuid4()
+        for line in applied:
+            Payment.objects.create(
+                direction=Payment.Direction.IN, sale=sale, amount=line["amount"],
+                method=line["method"], reference=line["reference"], recorded_by=employee,
+                receipt_group=group,
+            )
+        refresh_sale_payments(sale)
+
         _notify_admins(sale)
 
+    sale.change_due = change_due
     return sale
 
 

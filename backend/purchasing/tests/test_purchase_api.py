@@ -224,11 +224,12 @@ def test_patch_updates_draft_purchase_header(employee, draft_purchase):
     )
     assert response.status_code == 200
     assert response.json()["invoice_number"] == "KE-9999"
-    assert response.json()["payment_status"] == "paid"
+    # payment_status is derived from payments, so the PATCH can't set it.
+    assert response.json()["payment_status"] == "unpaid"
     # Verify persistence by fetching from DB
     refreshed = Purchase.objects.get(pk=draft_purchase.purchase_id)
     assert refreshed.invoice_number == "KE-9999"
-    assert refreshed.payment_status == "paid"
+    assert refreshed.payment_status == "unpaid"
 
 
 def test_patch_received_purchase_returns_400(employee, draft_purchase, product):

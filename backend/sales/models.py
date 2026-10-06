@@ -9,6 +9,8 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(max_length=120, blank=True, null=True)
     address = models.CharField(max_length=255, blank=True, null=True)
+    # Null means no limit. Above it, new credit needs a manager/admin approval.
+    credit_limit = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return self.name or f"Walk-in customer #{self.customer_id}"
@@ -20,6 +22,11 @@ class Sale(models.Model):
         CARD = "card", "Card"
         MOBILE_MONEY = "mobile_money", "Mobile Money"
         BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+
+    class PaymentStatus(models.TextChoices):
+        PAID = "paid", "Paid"
+        PARTIAL = "partial", "Partly paid"
+        CREDIT = "credit", "On credit"
 
     class SaleStatus(models.TextChoices):
         COMPLETED = "completed", "Completed"
@@ -37,6 +44,20 @@ class Sale(models.Model):
     )
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     status = models.CharField(max_length=20, choices=SaleStatus.choices, default=SaleStatus.COMPLETED)
+    # Cached sum of this sale's payments (finance.Payment), refreshed in the same
+    # transaction as every payment; payment_status is derived from it.
+    amount_paid = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    payment_status = models.CharField(
+        max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PAID
+    )
+    due_date = models.DateField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["sale_date"], name="sale_sale_date")]
+
+    @property
+    def balance(self):
+        return self.total_amount - self.amount_paid
 
     def __str__(self):
         return f"Sale #{self.sale_id}"
