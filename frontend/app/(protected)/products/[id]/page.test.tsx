@@ -105,6 +105,14 @@ describe("ProductDetailPageClient", () => {
     expect(screen.queryByRole("button", { name: "Adjust stock" })).not.toBeInTheDocument();
   });
 
+  it("offers Use in shop to every role, opening the consume / shop-asset dialog", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({ ok: true, status: 200, json: async () => ({ count: 0, next: null, previous: null, results: [] }) })));
+    renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
+    await userEvent.click(screen.getByRole("button", { name: "Use in shop" }));
+    expect(screen.getByRole("heading", { name: "Use in shop — JBL Flip 6 Speaker" })).toBeInTheDocument();
+    vi.unstubAllGlobals();
+  });
+
   it("shows the reorder level and links tracked serials to the stock page", () => {
     renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
     expect(screen.getByText("reorder at 4")).toBeInTheDocument();

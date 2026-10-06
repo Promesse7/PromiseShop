@@ -19,6 +19,7 @@ import { SpecificationsCard } from "@/components/products/SpecificationsCard";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { SetPriceDialog } from "@/components/products/SetPriceDialog";
 import { OpeningStockDialog } from "@/components/products/OpeningStockDialog";
+import { UseInShopDialog } from "@/components/operations/UseInShopDialog";
 import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -54,6 +55,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const openingStatus = useOpeningStockStatus(productId, isStrictAdmin);
   const [openingOpen, setOpeningOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [useInShopOpen, setUseInShopOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
@@ -131,6 +133,13 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           <Button variant="secondary" href={buildReorderUrl(detail.product.product_id, detail.product.name)}>
             Reorder
           </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setUseInShopOpen(true)}
+            disabled={(detail.inventory?.quantity_in_stock ?? 0) < 1}
+          >
+            Use in shop
+          </Button>
           {isStrictAdmin && openingStatus.data?.eligible && (
             <Button variant="secondary" onClick={() => setOpeningOpen(true)}>
               Set opening stock
@@ -207,6 +216,14 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         onClose={() => setEditOpen(false)}
         onSaved={() => setEditOpen(false)}
       />
+      {useInShopOpen && (
+        <UseInShopDialog
+          open
+          product={{ product_id: detail.product.product_id, name: detail.product.name }}
+          inStock={detail.inventory?.quantity_in_stock ?? 0}
+          onClose={() => setUseInShopOpen(false)}
+        />
+      )}
       {detail.inventory && (
         <AdjustStockDialog
           open={adjustOpen}
