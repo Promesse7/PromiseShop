@@ -30,8 +30,10 @@ class Sale(models.Model):
 
     class SaleStatus(models.TextChoices):
         COMPLETED = "completed", "Completed"
+        PARTIALLY_RETURNED = "partially_returned", "Partly returned"
         RETURNED = "returned", "Returned"
-        CANCELLED = "cancelled", "Cancelled"
+        # Undone on the day it was made: stock back, every payment reversed.
+        VOIDED = "voided", "Voided"
 
     sale_id = models.AutoField(primary_key=True)
     customer = models.ForeignKey(
@@ -51,13 +53,27 @@ class Sale(models.Model):
         max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PAID
     )
     due_date = models.DateField(null=True, blank=True)
+    # Cached sum of this sale's return items' refund_amount (SaleReturnItem),
+    # refreshed in the same transaction as each return. What the customer owes is
+    # total_amount - returned_amount - amount_paid.
+    returned_amount = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    void_reason = models.TextField(blank=True, default="")
+    voided_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, null=True, blank=True, related_name="voided_sales"
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         indexes = [models.Index(fields=["sale_date"], name="sale_sale_date")]
 
     @property
+    def net_total(self):
+        """The sale's value after returns: what the customer is to pay in the end."""
+        return self.total_amount - self.returned_amount
+
+    @property
     def balance(self):
-        return self.total_amount - self.amount_paid
+        return self.net_total - self.amount_paid
 
     def __str__(self):
         return f"Sale #{self.sale_id}"
@@ -89,3 +105,61 @@ class SaleItem(models.Model):
 
     def __str__(self):
         return f"{self.product} x{self.quantity} (Sale #{self.sale_id})"
+
+
+class SaleReturn(models.Model):
+    """Units of a sale coming back, with the refund they earn.
+
+    The refund first reduces what is still owed on the sale; only the excess is
+    paid out (an "out" finance.Payment on the sale). Admin/manager only.
+    """
+
+    class RefundMethod(models.TextChoices):
+        CASH = "cash", "Cash"
+        MOBILE_MONEY = "mobile_money", "Mobile Money"
+        CARD = "card", "Card"
+        BANK_TRANSFER = "bank_transfer", "Bank Transfer"
+        # Nothing paid out: the refund only reduced the open balance.
+        BALANCE = "balance", "Reduced the balance owed"
+
+    return_id = models.AutoField(primary_key=True)
+    sale = models.ForeignKey(Sale, on_delete=models.PROTECT, related_name="returns")
+    reason = models.TextField()
+    refund_method = models.CharField(max_length=20, choices=RefundMethod.choices)
+    refund_reference = models.CharField(max_length=100, blank=True, default="")
+    refund_total = models.DecimalField(max_digits=14, decimal_places=2)
+    paid_out = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    balance_reduced = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    refund_payment = models.OneToOneField(
+        "finance.Payment", on_delete=models.PROTECT, null=True, blank=True, related_name="sale_return"
+    )
+    created_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, related_name="sale_returns_created"
+    )
+    approved_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="sale_returns_approved",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-return_id"]
+
+    def __str__(self):
+        return f"Return #{self.return_id} of Sale #{self.sale_id}"
+
+
+class SaleReturnItem(models.Model):
+    class Condition(models.TextChoices):
+        RESELLABLE = "resellable", "Resellable"
+        DAMAGED = "damaged", "Damaged"
+
+    return_item_id = models.AutoField(primary_key=True)
+    sale_return = models.ForeignKey(SaleReturn, on_delete=models.CASCADE, related_name="items")
+    sale_item = models.ForeignKey(SaleItem, on_delete=models.PROTECT, related_name="return_items")
+    quantity = models.PositiveIntegerField()
+    refund_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    condition = models.CharField(max_length=20, choices=Condition.choices)
+
+    def __str__(self):
+        return f"{self.sale_item} x{self.quantity} returned ({self.condition})"

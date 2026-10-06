@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
-from finance.models import Expense, Payment, ShopProfile
+from accounts.models import Employee
+from finance.models import DailyClose, Expense, Payment, ShopProfile
 from purchasing.models import Purchase
 from sales.models import Customer
 
@@ -74,3 +75,31 @@ class SupplierPaymentInputSerializer(_PaymentInputBase):
 
 class ReversePaymentInputSerializer(serializers.Serializer):
     reason = serializers.CharField()
+
+
+class DailyCloseSerializer(serializers.ModelSerializer):
+    cashier_name = serializers.CharField(source="cashier.full_name", read_only=True)
+    closed_by_name = serializers.CharField(source="closed_by.full_name", read_only=True)
+
+    class Meta:
+        model = DailyClose
+        fields = [
+            "close_id", "cashier", "cashier_name", "business_date", "opening_float", "expected_cash",
+            "expected_by_method", "summary", "counted_cash", "variance", "note", "closed_by",
+            "closed_by_name", "closed_at",
+        ]
+        read_only_fields = fields
+
+
+class DailyCloseApprovalSerializer(serializers.Serializer):
+    approver_username = serializers.CharField()
+    pin = serializers.CharField()
+
+
+class CreateDailyCloseSerializer(serializers.Serializer):
+    cashier = serializers.PrimaryKeyRelatedField(queryset=Employee.objects.all())
+    business_date = serializers.DateField()
+    opening_float = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0"), default=Decimal("0"))
+    counted_cash = serializers.DecimalField(max_digits=14, decimal_places=2, min_value=Decimal("0"))
+    note = serializers.CharField(required=False, allow_blank=True, default="")
+    approval = DailyCloseApprovalSerializer()

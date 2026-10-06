@@ -3,7 +3,7 @@ from rest_framework import serializers
 from catalog.models import Product
 from finance.models import Payment
 from finance.serializers import PaymentSerializer
-from sales.models import Customer, Sale, SaleItem
+from sales.models import Customer, Sale, SaleItem, SaleReturn, SaleReturnItem
 
 
 def _is_admin_or_manager(context):
@@ -65,22 +65,85 @@ class SaleItemSerializer(serializers.ModelSerializer):
         return data
 
 
+class SaleReturnItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="sale_item.product.name", read_only=True)
+
+    class Meta:
+        model = SaleReturnItem
+        fields = ["return_item_id", "sale_item", "product_name", "quantity", "refund_amount", "condition"]
+        read_only_fields = fields
+
+
+class SaleReturnSerializer(serializers.ModelSerializer):
+    items = SaleReturnItemSerializer(many=True, read_only=True)
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True)
+
+    class Meta:
+        model = SaleReturn
+        fields = [
+            "return_id", "sale", "reason", "refund_method", "refund_reference", "refund_total",
+            "paid_out", "balance_reduced", "refund_payment", "created_by", "created_by_name",
+            "approved_by", "created_at", "items",
+        ]
+        read_only_fields = fields
+
+
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True, read_only=True)
     payments = PaymentSerializer(many=True, read_only=True)
+    returns = SaleReturnSerializer(many=True, read_only=True)
     balance = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     customer_name = serializers.CharField(source="customer.name", read_only=True, default=None)
     customer_phone = serializers.CharField(source="customer.phone", read_only=True, default=None)
     employee_name = serializers.CharField(source="employee.full_name", read_only=True)
+    voided_by_name = serializers.CharField(source="voided_by.full_name", read_only=True, default=None)
+    discount_total = serializers.SerializerMethodField()
+    can_void = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
         fields = [
             "sale_id", "customer", "customer_name", "customer_phone", "employee", "employee_name",
-            "sale_date", "payment_method", "total_amount", "amount_paid", "balance",
-            "payment_status", "due_date", "status", "items", "payments",
+            "sale_date", "payment_method", "total_amount", "returned_amount", "amount_paid", "balance",
+            "payment_status", "due_date", "status", "void_reason", "voided_by", "voided_by_name",
+            "voided_at", "discount_total", "can_void", "items", "payments", "returns",
         ]
         read_only_fields = fields
+
+    def get_discount_total(self, obj):
+        # Discounts only (markups are negative discount_amount and don't count).
+        total = sum((item.discount_amount for item in obj.items.all() if item.discount_amount > 0), Decimal("0"))
+        return str(total.quantize(Decimal("0.01")))
+
+    def get_can_void(self, obj):
+        """Whether the sale can still be voided today (the role check is the caller's)."""
+        from sales.services import is_same_business_day
+
+        return (
+            obj.status == Sale.SaleStatus.COMPLETED
+            and is_same_business_day(obj)
+            and not obj.returns.all()
+        )
+
+
+class ReturnLineInputSerializer(serializers.Serializer):
+    sale_item = serializers.PrimaryKeyRelatedField(queryset=SaleItem.objects.select_related("product"))
+    quantity = serializers.IntegerField(min_value=1)
+    condition = serializers.ChoiceField(choices=SaleReturnItem.Condition.choices)
+    refund_amount = serializers.DecimalField(
+        max_digits=14, decimal_places=2, min_value=Decimal("0"), required=False, allow_null=True
+    )
+
+
+class CreateReturnSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+    refund_method = serializers.ChoiceField(choices=SaleReturn.RefundMethod.choices, required=False, allow_null=True)
+    refund_reference = serializers.CharField(required=False, allow_blank=True, default="", max_length=100)
+    items = ReturnLineInputSerializer(many=True)
+
+
+class VoidSaleSerializer(serializers.Serializer):
+    reason = serializers.CharField()
 
 
 class SaleItemInputSerializer(serializers.Serializer):

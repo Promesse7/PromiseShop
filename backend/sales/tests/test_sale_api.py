@@ -237,13 +237,19 @@ def test_return_via_api_restores_inventory(employee, admin, product):
     sale_id = create_response.json()["sale_id"]
     assert Inventory.objects.get(product=product).quantity_in_stock == 7
 
-    response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
-    assert response.status_code == 200
+    item_id = create_response.json()["items"][0]["sale_item_id"]
+    response = auth_client(admin, "adminpass").post(
+        f"/api/sales/{sale_id}/returns/",
+        {"reason": "Faulty", "refund_method": "cash",
+         "items": [{"sale_item": item_id, "quantity": 3, "condition": "resellable"}]},
+        format="json",
+    )
+    assert response.status_code == 201
     assert response.json()["status"] == "returned"
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 
 
-def test_cancel_via_api_restores_inventory(employee, admin, product):
+def test_void_via_api_restores_inventory(employee, admin, product):
     client = auth_client(employee, "staffpass")
     create_response = client.post(
         "/api/sales/",
@@ -251,9 +257,9 @@ def test_cancel_via_api_restores_inventory(employee, admin, product):
         format="json",
     )
     sale_id = create_response.json()["sale_id"]
-    response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/cancel/")
+    response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/void/", {"reason": "Mistake"}, format="json")
     assert response.status_code == 200
-    assert response.json()["status"] == "cancelled"
+    assert response.json()["status"] == "voided"
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 
 
@@ -265,6 +271,10 @@ def test_return_twice_returns_400(employee, admin, product):
         format="json",
     )
     sale_id = create_response.json()["sale_id"]
-    auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
-    second_response = auth_client(admin, "adminpass").post(f"/api/sales/{sale_id}/return/")
+    item_id = create_response.json()["items"][0]["sale_item_id"]
+    body = {"reason": "Faulty", "refund_method": "cash",
+            "items": [{"sale_item": item_id, "quantity": 1, "condition": "resellable"}]}
+    admin_client = auth_client(admin, "adminpass")
+    assert admin_client.post(f"/api/sales/{sale_id}/returns/", body, format="json").status_code == 201
+    second_response = admin_client.post(f"/api/sales/{sale_id}/returns/", body, format="json")
     assert second_response.status_code == 400

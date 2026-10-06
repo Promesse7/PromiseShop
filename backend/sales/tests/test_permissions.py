@@ -73,27 +73,35 @@ def sell(client, product, quantity=2, customer=None):
 
 # 0.1 — reversing a sale
 
-@pytest.mark.parametrize("action", ["cancel", "return"])
+def reversal_body(action, sale_id):
+    if action == "void":
+        return {"reason": "Mistake"}
+    item = Sale.objects.get(pk=sale_id).items.get()
+    return {"reason": "Faulty", "refund_method": "cash",
+            "items": [{"sale_item": item.pk, "quantity": item.quantity, "condition": "resellable"}]}
+
+
+@pytest.mark.parametrize("action", ["void", "returns"])
 @pytest.mark.parametrize("role_fixture", ["staff", "technician"])
 def test_staff_cannot_reverse_a_sale(request, action, role_fixture, admin, product):
     seller = request.getfixturevalue(role_fixture)
     client = client_for(seller)
     sale_id = sell(client, product)
 
-    response = client.post(f"/api/sales/{sale_id}/{action}/")
+    response = client.post(f"/api/sales/{sale_id}/{action}/", reversal_body(action, sale_id), format="json")
 
     assert response.status_code == 403
     assert Sale.objects.get(pk=sale_id).status == Sale.SaleStatus.COMPLETED
     assert Inventory.objects.get(product=product).quantity_in_stock == 8
 
 
-@pytest.mark.parametrize("action,status", [("cancel", "cancelled"), ("return", "returned")])
-def test_manager_can_reverse_a_sale(action, status, staff, manager, admin, product):
+@pytest.mark.parametrize("action,status,code", [("void", "voided", 200), ("returns", "returned", 201)])
+def test_manager_can_reverse_a_sale(action, status, code, staff, manager, admin, product):
     sale_id = sell(client_for(staff), product)
 
-    response = client_for(manager).post(f"/api/sales/{sale_id}/{action}/")
+    response = client_for(manager).post(f"/api/sales/{sale_id}/{action}/", reversal_body(action, sale_id), format="json")
 
-    assert response.status_code == 200
+    assert response.status_code == code
     assert response.json()["status"] == status
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 

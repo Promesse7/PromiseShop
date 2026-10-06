@@ -6,7 +6,7 @@ from accounts.models import Employee
 from catalog.models import Category, Product, ProductPricing
 from notifications.models import NotificationLog
 from sales.models import Customer, Sale, SaleItem
-from sales.services import complete_sale, reverse_sale
+from sales.services import complete_sale, return_sale_items, void_sale
 from stock.models import Inventory
 
 pytestmark = pytest.mark.django_db
@@ -169,7 +169,15 @@ def test_complete_sale_product_never_stocked_is_insufficient(employee, admin, ca
     assert Inventory.objects.filter(product=product).exists() is False
 
 
-def test_reverse_sale_return_restores_stock_and_sets_status(employee, admin, category):
+def return_everything(sale, user):
+    lines = [
+        {"sale_item": item, "quantity": item.quantity, "condition": "resellable"}
+        for item in sale.items.order_by("pk")
+    ]
+    return return_sale_items(sale, lines, "Customer changed their mind", user, refund_method="cash")
+
+
+def test_returning_every_unit_restores_stock_and_sets_status(employee, admin, category):
     product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
@@ -177,56 +185,45 @@ def test_reverse_sale_return_restores_stock_and_sets_status(employee, admin, cat
     )
     assert Inventory.objects.get(product=product).quantity_in_stock == 7
 
-    updated = reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    return_everything(sale, admin)
 
-    assert updated.status == Sale.SaleStatus.RETURNED
+    sale.refresh_from_db()
+    assert sale.status == Sale.SaleStatus.RETURNED
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 
 
-def test_reverse_sale_cancel_restores_stock_and_sets_status(employee, admin, category):
+def test_void_restores_stock_and_sets_status(employee, admin, category):
     product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
         items=[{"product": product, "quantity": 4}],
     )
-    updated = reverse_sale(sale, Sale.SaleStatus.CANCELLED)
-    assert updated.status == Sale.SaleStatus.CANCELLED
+    updated = void_sale(sale, admin, "Rang up the wrong item")
+    assert updated.status == Sale.SaleStatus.VOIDED
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 
 
-def test_reverse_sale_multiline_restores_each_product(employee, admin, category):
+def test_return_multiline_restores_each_product(employee, admin, category):
     first = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     second = make_product_with_stock(category, "PES-AUD-00002", Decimal("50.00"), stock=5)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
         items=[{"product": first, "quantity": 2}, {"product": second, "quantity": 1}],
     )
-    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    return_everything(sale, admin)
     assert Inventory.objects.get(product=first).quantity_in_stock == 10
     assert Inventory.objects.get(product=second).quantity_in_stock == 5
 
 
-def test_reverse_sale_rejects_non_completed_sale(employee, admin, category):
+def test_a_fully_returned_sale_takes_no_further_return(employee, admin, category):
     product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
         items=[{"product": product, "quantity": 1}],
     )
-    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    return_everything(sale, admin)
     with pytest.raises(ValidationError):
-        reverse_sale(sale, Sale.SaleStatus.RETURNED)
-
-
-def test_reverse_sale_rejects_invalid_new_status(employee, admin, category):
-    product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
-    sale = complete_sale(
-        customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
-        items=[{"product": product, "quantity": 1}],
-    )
-    with pytest.raises(ValidationError):
-        reverse_sale(sale, Sale.SaleStatus.COMPLETED)
-    assert Sale.objects.get(pk=sale.pk).status == Sale.SaleStatus.COMPLETED
-    assert Inventory.objects.get(product=product).quantity_in_stock == 9
+        return_everything(sale, admin)
 
 
 def test_notify_admins_excludes_terminated_and_inactive_admins(employee, admin, category):
@@ -244,14 +241,14 @@ def test_notify_admins_excludes_terminated_and_inactive_admins(employee, admin, 
     assert logs.first().recipient_id == admin.pk
 
 
-def test_reverse_sale_notifies_active_admins_with_sale_reversed_type(employee, admin, category):
+def test_return_notifies_active_admins_with_sale_returned_type(employee, admin, category):
     product = make_product_with_stock(category, "PES-AUD-00001", Decimal("100.00"), stock=10)
     sale = complete_sale(
         customer=None, employee=employee, payment_method=Sale.PaymentMethod.CASH,
         items=[{"product": product, "quantity": 1}],
     )
-    reverse_sale(sale, Sale.SaleStatus.RETURNED)
-    logs = NotificationLog.objects.filter(related_sale=sale, type="sale_reversed")
+    return_everything(sale, admin)
+    logs = NotificationLog.objects.filter(related_sale=sale, type="sale_returned")
     assert logs.count() == 1
     assert logs.first().recipient_id == admin.pk
     assert logs.first().status == NotificationLog.NotificationStatus.LOGGED
@@ -267,7 +264,7 @@ def test_duplicate_product_lines_aggregate_and_round_trip(employee, admin, categ
     assert SaleItem.objects.filter(sale=sale).count() == 2
     assert Inventory.objects.get(product=product).quantity_in_stock == 5
 
-    reverse_sale(sale, Sale.SaleStatus.RETURNED)
+    return_everything(sale, admin)
     assert Inventory.objects.get(product=product).quantity_in_stock == 10
 
 

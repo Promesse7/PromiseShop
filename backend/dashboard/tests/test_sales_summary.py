@@ -83,7 +83,7 @@ def test_sales_summary_excludes_sales_outside_period(admin, product):
 
 def test_sales_summary_excludes_non_completed_sales(admin, product):
     sale = Sale.objects.create(
-        employee=admin, total_amount=Decimal("9000.00"), status=Sale.SaleStatus.CANCELLED,
+        employee=admin, total_amount=Decimal("9000.00"), status=Sale.SaleStatus.VOIDED,
     )
     SaleItem.objects.create(
         sale=sale, product=product, quantity=1, unit_price=Decimal("9000.00"), list_price=Decimal("9000.00"),

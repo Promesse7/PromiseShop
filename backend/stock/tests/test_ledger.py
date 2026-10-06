@@ -17,7 +17,7 @@ from catalog.models import Category, Product, ProductPricing
 from purchasing.models import Purchase, Supplier
 from purchasing.services import add_existing_product_item, cancel_purchase, receive_purchase
 from sales.models import Sale
-from sales.services import complete_sale, reverse_sale
+from sales.services import complete_sale, return_sale_items, void_sale
 from stock.ledger import ledger_mismatches
 from stock.models import Inventory, InventoryAdjustment, StockMovement
 from stock.services import adjust_inventory, record_movement, weighted_average_cost
@@ -189,14 +189,22 @@ def test_a_sale_writes_one_negative_movement_per_line(product, supplier, manager
     assert all(r.unit_cost == Decimal("50.00") for r in rows)
 
 
-@pytest.mark.parametrize("status,movement_type", [
-    (Sale.SaleStatus.RETURNED, M.SALE_RETURN), (Sale.SaleStatus.CANCELLED, M.SALE_VOID),
-])
-def test_reversing_a_sale_puts_stock_back_with_a_movement(status, movement_type, product, supplier, manager, staff):
+def return_all(sale, user):
+    return return_sale_items(
+        sale, [{"sale_item": i, "quantity": i.quantity, "condition": "resellable"} for i in sale.items.order_by("pk")],
+        "Returned", user, refund_method="cash",
+    )
+
+
+@pytest.mark.parametrize("how,movement_type", [("return", M.SALE_RETURN), ("void", M.SALE_VOID)])
+def test_reversing_a_sale_puts_stock_back_with_a_movement(how, movement_type, product, supplier, manager, staff):
     buy(product, supplier, manager, [(10, "50.00")])
     sale = complete_sale(None, staff, "cash", [{"product": product, "quantity": 3}])
 
-    reverse_sale(sale, status, user=manager)
+    if how == "return":
+        return_all(sale, manager)
+    else:
+        void_sale(sale, manager, "Mistake")
 
     row = StockMovement.objects.get(movement_type=movement_type)
     assert (row.quantity_delta, row.balance_after, row.created_by) == (3, 10, manager)
@@ -239,7 +247,7 @@ def test_ledger_matches_inventory_after_a_mixed_day(product, supplier, manager, 
         {"product": product, "quantity": 2}, {"product": other, "quantity": 3},
     ])
     complete_sale(None, staff, "cash", [{"product": product, "quantity": 1}])
-    reverse_sale(sale, Sale.SaleStatus.RETURNED, user=manager)
+    return_all(sale, manager)
     inventory = Inventory.objects.get(product=product)
     adjust_inventory(inventory, "to_damaged", 2, "Dropped", manager)
     adjust_inventory(inventory, "to_in_use", 1, "Demo", manager)
