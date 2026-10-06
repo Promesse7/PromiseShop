@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { act } from "react";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import SuppliersPageClient from "./SuppliersPageClient";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 
@@ -40,10 +42,28 @@ describe("SuppliersPageClient", () => {
     );
   });
 
-  it("renders the fetched suppliers", async () => {
+  it("renders the fetched suppliers under a Suppliers page heading", async () => {
     renderPage();
     expect(await screen.findByText("Kigali Electronics Ltd")).toBeInTheDocument();
     expect(screen.getByText("Dubai Traders FZE")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Suppliers" })).toBeInTheDocument();
+  });
+
+  it("says nothing matches, with a way to clear the search, when the search hides every supplier", async () => {
+    renderPage();
+    await screen.findByText("Kigali Electronics Ltd");
+    await userEvent.type(screen.getByLabelText("Search suppliers"), "zzz");
+    expect(screen.getByText("No suppliers match")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(screen.getByText("Kigali Electronics Ltd")).toBeInTheDocument();
+  });
+
+  it("on phone keeps the search box and the supplier cards", async () => {
+    act(() => setMatchMedia({ desktop: false }));
+    renderPage();
+    expect(await screen.findByText("Kigali Electronics Ltd")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search suppliers")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "+ New supplier" })).toBeInTheDocument();
   });
 
   it("filters by search text across name, contact, phone, and email", async () => {
@@ -64,7 +84,7 @@ describe("SuppliersPageClient", () => {
   it("opens the edit dialog pre-filled when Edit is clicked", async () => {
     renderPage();
     await screen.findByText("Kigali Electronics Ltd");
-    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+    await userEvent.click(screen.getByRole("button", { name: "Edit Kigali Electronics Ltd" }));
     await waitFor(() => expect(screen.getByLabelText("Name")).toHaveValue("Kigali Electronics Ltd"));
   });
 
@@ -72,6 +92,6 @@ describe("SuppliersPageClient", () => {
     renderPage({ canEdit: false });
     await screen.findByText("Kigali Electronics Ltd");
     expect(screen.queryByRole("button", { name: "+ New supplier" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Edit/ })).not.toBeInTheDocument();
   });
 });

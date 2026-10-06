@@ -18,15 +18,26 @@ describe("SupplierCardGrid", () => {
     expect(screen.getAllByText("—").length).toBeGreaterThan(0);
   });
 
-  it("shows an empty state when there are no suppliers", () => {
-    render(<SupplierCardGrid suppliers={[]} onEdit={vi.fn()} />);
-    expect(screen.getByText("No suppliers found")).toBeInTheDocument();
+  it("shows the empty state passed in when there are no suppliers", () => {
+    render(<SupplierCardGrid suppliers={[]} onEdit={vi.fn()} empty={<p>No suppliers yet</p>} />);
+    expect(screen.getByText("No suppliers yet")).toBeInTheDocument();
+  });
+
+  it("makes the phone number and email tappable", () => {
+    render(<SupplierCardGrid suppliers={suppliers} />);
+    expect(screen.getByRole("link", { name: "+250781234567" })).toHaveAttribute("href", "tel:+250781234567");
+    expect(screen.getByRole("link", { name: "sales@kigalielec.rw" })).toHaveAttribute("href", "mailto:sales@kigalielec.rw");
+  });
+
+  it("labels each Edit button with the supplier for screen readers", () => {
+    render(<SupplierCardGrid suppliers={suppliers} onEdit={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Edit Kigali Electronics Ltd" })).toBeInTheDocument();
   });
 
   it("calls onEdit with the supplier when Edit is clicked", async () => {
     const onEdit = vi.fn();
     render(<SupplierCardGrid suppliers={suppliers} onEdit={onEdit} />);
-    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+    await userEvent.click(screen.getAllByRole("button", { name: /^Edit/ })[0]);
     expect(onEdit).toHaveBeenCalledWith(suppliers[0]);
   });
 });
