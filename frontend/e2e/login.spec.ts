@@ -1,22 +1,16 @@
 import { test, expect } from "@playwright/test";
+import { isPhone, login, mainNav, pageTitle } from "./helpers";
 
 test.describe("Login", () => {
-  test("staff login redirects to /checkout", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Username").fill("staff1");
-    await page.getByLabel("Password").fill("staffpass");
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page).toHaveURL("/checkout");
-    await expect(page.getByRole("link", { name: "Checkout" })).toBeVisible();
+  test("staff login redirects to /checkout", async ({ page }, testInfo) => {
+    await login(page, "staff");
+    await expect(pageTitle(page, "New sale")).toBeVisible();
+    await expect(mainNav(page, isPhone(testInfo)).getByRole("link", { name: "Checkout" })).toBeVisible();
   });
 
   test("admin login redirects to /dashboard", async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel("Username").fill("admin1");
-    await page.getByLabel("Password").fill("adminpass");
-    await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page).toHaveURL("/dashboard");
-    await expect(page.getByText("Admin", { exact: true })).toBeVisible();
+    await login(page, "admin");
+    await expect(pageTitle(page, "Dashboard")).toBeVisible();
   });
 
   test("failed login shows an error and does not navigate", async ({ page }) => {
