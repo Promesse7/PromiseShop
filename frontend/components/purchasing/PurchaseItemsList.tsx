@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { PackageOpen } from "lucide-react";
 import { fetchAllPages } from "@/lib/api-client";
-import { Table } from "@/components/ui/Table";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { useRemovePurchaseItem } from "@/lib/purchasing/useRemovePurchaseItem";
 import { describeLine, unitsOf } from "@/lib/purchasing/lineKinds";
+import { formatRwf } from "@/lib/format";
 import type { Category, Product, PurchaseItem } from "@/lib/types";
 
 interface PurchaseItemsListProps {
@@ -17,11 +20,6 @@ interface PurchaseItemsListProps {
   // Cost columns are only meaningful for roles the API sends cost fields to
   // (admin, manager); other roles get the plain product/qty/barcode view.
   showCosts?: boolean;
-}
-
-function formatMoney(value?: string | null): string {
-  if (value == null) return "—";
-  return Number(value).toLocaleString();
 }
 
 // Pack and bundle prices are per pack / per bundle; say so next to the figure.
@@ -37,9 +35,10 @@ function formatDifference(item: PurchaseItem): string {
   if (item.unit_cost_paid == null || item.unit_cost_invoiced == null) return "—";
   const diff = (Number(item.unit_cost_invoiced) - Number(item.unit_cost_paid)) * item.quantity;
   if (diff === 0) return "0";
-  return `${diff > 0 ? "+" : "−"}${Math.abs(diff).toLocaleString()}`;
+  return formatRwf(diff, { sign: true });
 }
 
+/** The lines on a purchase: a table on desktop, one card per line on phone. */
 export function PurchaseItemsList({ purchaseId, items, editable, showCosts = false }: PurchaseItemsListProps) {
   const productsQuery = useQuery({ queryKey: ["products"], queryFn: () => fetchAllPages<Product>("products/") });
   const categoriesQuery = useQuery({ queryKey: ["categories"], queryFn: () => fetchAllPages<Category>("categories/") });
@@ -52,17 +51,18 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
     return map;
   }, [productsQuery.data]);
 
-  const costColumns = showCosts
+  const costColumns: DataColumn<PurchaseItem>[] = showCosts
     ? [
         {
           key: "unit_cost_paid",
           header: "Paid",
-          render: (item: PurchaseItem) => (
+          align: "right",
+          render: (item) => (
             <span className="tabular-nums">
-              {formatMoney(item.unit_cost_paid)}
+              {formatRwf(item.unit_cost_paid)}
               <span className="text-xs text-text/50">{priceSuffix(item)}</span>
               {item.line_kind === "pack" && (
-                <span className="block text-xs text-text/50">{formatMoney(item.unit_cost_paid_per_unit)} / unit</span>
+                <span className="block text-xs text-text/50">{formatRwf(item.unit_cost_paid_per_unit)} / unit</span>
               )}
             </span>
           ),
@@ -70,9 +70,11 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
         {
           key: "unit_cost_invoiced",
           header: "Invoiced",
-          render: (item: PurchaseItem) => (
+          align: "right",
+          mobile: false,
+          render: (item) => (
             <span className="tabular-nums">
-              {formatMoney(item.unit_cost_invoiced)}
+              {formatRwf(item.unit_cost_invoiced)}
               <span className="text-xs text-text/50">{priceSuffix(item)}</span>
             </span>
           ),
@@ -80,32 +82,34 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
         {
           key: "difference",
           header: "Difference",
-          render: (item: PurchaseItem) => <span className="tabular-nums">{formatDifference(item)}</span>,
+          align: "right",
+          mobile: false,
+          render: (item) => <span className="tabular-nums">{formatDifference(item)}</span>,
         },
         {
           key: "price_discrepancy_note",
           header: "Note",
-          render: (item: PurchaseItem) => (
-            <span className="text-xs text-text/70">{item.price_discrepancy_note || "—"}</span>
-          ),
+          mobile: false,
+          render: (item) => <span className="text-xs text-text/70">{item.price_discrepancy_note || "—"}</span>,
         },
       ]
     : [];
 
-  const columns = [
+  const columns: DataColumn<PurchaseItem>[] = [
     {
       key: "product",
       header: "Product",
-      render: (item: PurchaseItem) => (
-        <div>
+      primary: true,
+      render: (item) => (
+        <div className="whitespace-normal">
           <span>{describeLine(item, item.product != null ? productById.get(item.product)?.name ?? null : null)}</span>
           {item.line_kind === "bundle" && (
-            <ul className="text-xs text-text/60 mt-1">
+            <ul className="mt-1 text-xs font-normal text-text/60">
               {(item.components ?? []).map((c) => (
                 <li key={c.component_id}>
                   {c.product_name} × {c.qty_per_bundle} per bundle = {c.units}
                   {showCosts && c.unit_paid_cost != null && (
-                    <span className="tabular-nums"> · {formatMoney(c.unit_paid_cost)} / unit</span>
+                    <span className="tabular-nums"> · {formatRwf(c.unit_paid_cost)} / unit</span>
                   )}
                 </li>
               ))}
@@ -114,17 +118,20 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
         </div>
       ),
     },
-    { key: "quantity", header: "Qty" },
+    { key: "quantity", header: "Qty", align: "right", mobile: true },
     {
       key: "units",
       header: "Units in",
-      render: (item: PurchaseItem) => <span className="tabular-nums">{unitsOf(item)}</span>,
+      align: "right",
+      mobile: true,
+      render: (item) => <span className="tabular-nums">{unitsOf(item)}</span>,
     },
-    ...costColumns,
+    ...costColumns.map((c) => (c.key === "unit_cost_paid" ? { ...c, mobile: true } : c)),
     {
       key: "barcode",
       header: "Shop barcode",
-      render: (item: PurchaseItem) =>
+      mobile: false,
+      render: (item) =>
         item.line_kind === "bundle" ? (
           <span className="font-mono text-xs">{(item.components ?? []).map((c) => c.product_barcode).join(", ") || "—"}</span>
         ) : (
@@ -136,10 +143,11 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
     {
       key: "actions",
       header: "",
-      render: (item: PurchaseItem) => {
+      mobile: true,
+      render: (item) => {
         const product = item.product != null ? productById.get(item.product) : undefined;
         return (
-          <div className="flex gap-2 items-center justify-end">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" disabled title="Not available — barcodes are shop-assigned once, at entry.">
               Regenerate
             </Button>
@@ -164,7 +172,19 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
 
   return (
     <>
-      <Table columns={columns} rows={items} rowKey={(i) => String(i.purchase_item_id)} emptyMessage="No items on this purchase yet" />
+      <DataTable
+        label="Items on this purchase"
+        columns={columns}
+        rows={items}
+        rowKey={(i) => String(i.purchase_item_id)}
+        empty={
+          <EmptyState
+            icon={PackageOpen}
+            title="No items on this purchase yet"
+            message={editable ? "Add products above, or scan them in." : undefined}
+          />
+        }
+      />
       {editingProduct && (
         <ProductFormDialog
           open={!!editingProduct}

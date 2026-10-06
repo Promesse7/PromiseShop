@@ -1,6 +1,7 @@
 "use client";
 
 import { Card, CardKicker } from "@/components/ui/Card";
+import { formatRwf } from "@/lib/format";
 import type { Purchase } from "@/lib/types";
 
 interface PurchaseSummaryCardProps {
@@ -9,7 +10,7 @@ interface PurchaseSummaryCardProps {
 
 function formatMoney(value?: string): string | null {
   if (value == null) return null;
-  return `RWF ${Number(value).toLocaleString()}`;
+  return formatRwf(value);
 }
 
 export function PurchaseSummaryCard({ purchase }: PurchaseSummaryCardProps) {
@@ -36,7 +37,7 @@ export function PurchaseSummaryCard({ purchase }: PurchaseSummaryCardProps) {
       {difference != null && difference !== 0 && (
         <div className="flex justify-between text-sm text-accent-300">
           <span>Difference</span>
-          <span>RWF {Math.abs(difference).toLocaleString()} · profit uses paid</span>
+          <span>{formatRwf(Math.abs(difference))} · profit uses paid</span>
         </div>
       )}
     </Card>
