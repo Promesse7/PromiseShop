@@ -7,6 +7,7 @@ import type { EmployeeRole } from "@/lib/types";
 import { CommandPalette, useCommandPaletteShortcut } from "./CommandPalette";
 import { HelpPanel } from "./HelpPanel";
 import { MoreSheet } from "./MoreSheet";
+import { PageTitleProvider } from "./PageTitleContext";
 import { RouteTransition } from "./RouteTransition";
 import { Sidebar } from "./Sidebar";
 import { TabBar } from "./TabBar";
@@ -38,6 +39,7 @@ export function AppShell({ role, username, children }: AppShellProps) {
   useCommandPaletteShortcut(openSearch);
 
   return (
+    <PageTitleProvider>
     <div className="flex min-h-screen">
       <Sidebar role={role} collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
       <div className="flex-1 min-w-0 flex flex-col">
@@ -66,5 +68,6 @@ export function AppShell({ role, username, children }: AppShellProps) {
       <CommandPalette open={searchOpen} onClose={() => setSearchOpen(false)} role={role} />
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
+    </PageTitleProvider>
   );
 }

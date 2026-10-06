@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from "lucide-react";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
+import { usePageTitleRegistration } from "@/components/shell/PageTitleContext";
 import { Dialog } from "./Dialog";
 import { SharedElement } from "./SharedElement";
 
@@ -54,7 +55,14 @@ export function Page({
   sharedName,
   children,
 }: PageProps) {
-  const heading = <h1 className="m-0 truncate text-xl font-semibold leading-tight">{title}</h1>;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Lets the top bar show this title once the heading scrolls under it.
+  usePageTitleRegistration(title, headingRef);
+  const heading = (
+    <h1 ref={headingRef} className="m-0 truncate text-xl font-semibold leading-tight">
+      {title}
+    </h1>
+  );
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">

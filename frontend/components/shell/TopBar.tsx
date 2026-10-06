@@ -6,7 +6,10 @@ import { ArrowLeft, Bell, ChevronRight, Search } from "lucide-react";
 import { breadcrumbFor, findActiveItem, getNavItemsForRole } from "@/lib/nav/navModel";
 import { useNotifications } from "@/lib/notifications/useNotifications";
 import type { EmployeeRole } from "@/lib/types";
+import { motion } from "motion/react";
+import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
 import { HelpButton } from "./HelpPanel";
+import { usePageTitleState } from "./PageTitleContext";
 import { UserMenu } from "./UserMenu";
 
 interface TopBarProps {
@@ -48,6 +51,13 @@ export function TopBar({ role, username, onOpenSearch, onOpenHelp, onLogout, log
   const active = findActiveItem(pathname, items);
   const crumbs = breadcrumbFor(pathname, items);
   const isDetail = active !== undefined && pathname !== active.href;
+  const reduced = useReducedMotionSafe();
+  const { title: pageTitle, titleVisible } = usePageTitleState();
+  // Once the page's own heading scrolls under the bar, the bar takes over showing it.
+  const tucked = pageTitle !== null && !titleVisible;
+  const tuckIn = reduced
+    ? {}
+    : { initial: { opacity: 0, y: 6 }, animate: { opacity: 1, y: 0 }, transition: { duration: DURATION.fast, ease: EASE.out } };
 
   function goBack() {
     // Deep links have no history to go back to: fall back to the parent list.
@@ -88,7 +98,24 @@ export function TopBar({ role, username, onOpenSearch, onOpenHelp, onLogout, log
             ))}
           </ol>
         </nav>
-        <span className="lg:hidden font-medium text-base truncate">{active?.label ?? "Promise Electronic Shop"}</span>
+        {tucked && (
+          <motion.span
+            key={pageTitle}
+            data-testid="tucked-title"
+            className="hidden lg:block min-w-0 truncate border-l border-divider pl-3 ml-1 text-sm font-semibold"
+            {...tuckIn}
+          >
+            {pageTitle}
+          </motion.span>
+        )}
+        <motion.span
+          key={tucked ? `page:${pageTitle}` : `section:${active?.label ?? ""}`}
+          data-testid="phone-title"
+          className="lg:hidden font-medium text-base truncate"
+          {...tuckIn}
+        >
+          {tucked ? pageTitle : (active?.label ?? "Promise Electronic Shop")}
+        </motion.span>
 
         <div className="ml-auto flex items-center gap-1">
           <button
