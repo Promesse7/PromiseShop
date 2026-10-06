@@ -30,7 +30,7 @@ describe("useCreatePurchase", () => {
     const { result } = renderHook(() => useCreatePurchase(), { wrapper });
 
     result.current.mutate({
-      supplier: 1, invoice_number: "KE-8841", purchase_date: "2026-08-23", due_date: null,
+      supplier: 1, invoice_number: "KE-8841", purchase_date: "2026-08-23", due_date: null, has_vat_invoice: true,
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));

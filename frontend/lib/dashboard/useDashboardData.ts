@@ -162,15 +162,29 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
       .slice(0, TOP_N);
 
     const productById = new Map(catalog.all.map((p) => [p.product_id, p]));
-    const completedSales = sales.data.filter((s) => s.status === "completed");
+    // Same rule as the money chain (Module H): voided sales don't count and returns
+    // come off the sale (and line) they were made on.
+    const completedSales = sales.data.filter((s) => s.status !== "voided");
 
     const topSellerTotals = new Map<number, { units: number; revenue: number }>();
     for (const sale of completedSales) {
       if (monthKey(sale.sale_date) !== currentMonthKey) continue;
+      const returned = new Map<number, { quantity: number; refund: number }>();
+      for (const ret of sale.returns ?? []) {
+        for (const item of ret.items) {
+          const entry = returned.get(item.sale_item) ?? { quantity: 0, refund: 0 };
+          entry.quantity += item.quantity;
+          entry.refund += parseFloat(item.refund_amount);
+          returned.set(item.sale_item, entry);
+        }
+      }
       for (const item of sale.items) {
+        const back = returned.get(item.sale_item_id) ?? { quantity: 0, refund: 0 };
+        const units = item.quantity - back.quantity;
+        if (units <= 0) continue;
         const entry = topSellerTotals.get(item.product) ?? { units: 0, revenue: 0 };
-        entry.units += item.quantity;
-        entry.revenue += parseFloat(item.subtotal);
+        entry.units += units;
+        entry.revenue += parseFloat(item.subtotal) - back.refund;
         topSellerTotals.set(item.product, entry);
       }
     }
@@ -223,7 +237,7 @@ export function useDashboardData(now: Date = new Date()): DashboardData {
       label,
       revenue: completedSales
         .filter((s) => monthKey(s.sale_date) === key)
-        .reduce((sum, s) => sum + parseFloat(s.total_amount), 0),
+        .reduce((sum, s) => sum + parseFloat(s.total_amount) - parseFloat(s.returned_amount ?? "0"), 0),
       purchaseCost: receivedPurchases
         .filter((p) => monthKey(p.purchase_date) === key)
         .reduce((sum, p) => sum + parseFloat(p.total_paid ?? "0"), 0),

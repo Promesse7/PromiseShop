@@ -5,6 +5,8 @@ export interface PurchaseFormValues {
   invoice_number: string;
   purchase_date: string;
   due_date: string;
+  // Module H4: only a proper VAT invoice gives input VAT back.
+  has_vat_invoice: boolean;
 }
 
 function today(): string {
@@ -12,7 +14,7 @@ function today(): string {
 }
 
 export function emptyPurchaseFormValues(): PurchaseFormValues {
-  return { supplier: "", invoice_number: "", purchase_date: today(), due_date: "" };
+  return { supplier: "", invoice_number: "", purchase_date: today(), due_date: "", has_vat_invoice: true };
 }
 
 export interface PurchasePayload {
@@ -20,6 +22,7 @@ export interface PurchasePayload {
   invoice_number: string | null;
   purchase_date: string;
   due_date: string | null;
+  has_vat_invoice: boolean;
 }
 
 export function buildPurchasePayload(values: PurchaseFormValues): PurchasePayload {
@@ -28,6 +31,7 @@ export function buildPurchasePayload(values: PurchaseFormValues): PurchasePayloa
     invoice_number: values.invoice_number.trim() || null,
     purchase_date: values.purchase_date,
     due_date: values.due_date || null,
+    has_vat_invoice: values.has_vat_invoice,
   };
 }
 

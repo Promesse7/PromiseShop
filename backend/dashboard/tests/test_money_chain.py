@@ -199,6 +199,23 @@ def test_staff_cannot_open_money_dashboards(role, url):
     assert client.get(f"/api/dashboard/{url}/").status_code == 403
 
 
+def test_older_dashboard_endpoints_agree_with_the_chain(shop, manager):
+    """sales-summary, financial-snapshot and profitability count partly returned sales,
+    net off returns and leave voided sales out, like the chain."""
+    client = APIClient()
+    token = client.post("/api/auth/login/", {"username": "manager1", "password": "pass12345"}, format="json").json()["access"]
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+    summary = client.get("/api/dashboard/sales-summary/?period=today").json()
+    assert summary["total_revenue"] == "240000.00"     # = kept sales in the chain
+    assert summary["sale_count"] == 3
+    snapshot = client.get("/api/dashboard/financial-snapshot/?period=today").json()
+    assert snapshot["total_revenue"] == "240000.00"
+    profit = client.get(f"/api/dashboard/profitability/?period=today&product={shop['tv'].pk}").json()
+    row = profit["products"][0]
+    assert row["units_sold"] == 2
+    assert row["revenue"] == "228000.00"
+
+
 def test_bad_dates_are_refused(manager):
     with pytest.raises(Exception):
         money.parse_range({"from": "yesterday"})

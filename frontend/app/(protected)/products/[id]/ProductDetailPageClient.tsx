@@ -170,6 +170,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
             row={profitability.row}
             isLoading={profitability.isLoading}
             isError={profitability.isError}
+            productId={detail.product.product_id}
           />
         )}
         <CatalogInfoCard
