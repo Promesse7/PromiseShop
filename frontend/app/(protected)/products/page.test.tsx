@@ -228,4 +228,14 @@ describe("ProductsPageClient", () => {
     expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
     expect(screen.queryByText("JBL Flip 6")).not.toBeInTheDocument();
   });
+
+  it("opens the New product dialog straight away when arriving from jump search (?new=1)", () => {
+    renderWithProviders(<ProductsPageClient role="manager" openNew />);
+    expect(screen.getByRole("heading", { name: "New product" })).toBeInTheDocument();
+  });
+
+  it("ignores ?new=1 for staff, who can't create products", () => {
+    renderWithProviders(<ProductsPageClient role="sales_staff" openNew />);
+    expect(screen.queryByRole("heading", { name: "New product" })).not.toBeInTheDocument();
+  });
 });

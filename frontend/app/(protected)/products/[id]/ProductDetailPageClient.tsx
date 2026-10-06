@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
+import { Printer } from "lucide-react";
 import { useProductDetail } from "@/lib/products/useProductDetail";
 import { useProductProfitability } from "@/lib/products/useProductProfitability";
 import { buildReorderUrl } from "@/lib/purchasing/reorderUrl";
@@ -19,13 +19,22 @@ import { SpecificationsCard } from "@/components/products/SpecificationsCard";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { SetPriceDialog } from "@/components/products/SetPriceDialog";
 import { OpeningStockDialog } from "@/components/products/OpeningStockDialog";
+import { ProductLabel } from "@/components/products/ProductLabel";
 import { UseInShopDialog } from "@/components/operations/UseInShopDialog";
+import { ConsumptionTable } from "@/components/operations/ConsumptionTable";
+import { useConsumptions } from "@/lib/operations/useShopUse";
 import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
+import { Page, type PageAction } from "@/components/ui/Page";
+import { Tabs } from "@/components/ui/Tabs";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
+import { LabelSheet } from "@/components/ui/LabelSheet";
 import { Button } from "@/components/ui/Button";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/layout/ToastProvider";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
+import { formatRwf } from "@/lib/format";
 import type { EmployeeRole, Product } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -42,6 +51,37 @@ function deriveStatus(quantityInStock: number, reorderLevel: number): keyof type
   return "ok";
 }
 
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "pricing", label: "Pricing" },
+  { id: "stock", label: "Stock & movements" },
+  { id: "shop-use", label: "Shop use" },
+];
+
+function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
+  return (
+    <div className="rounded-lg border border-divider bg-surface px-3.5 py-2.5">
+      <div className="text-xs text-text/50">{label}</div>
+      <div className="text-lg font-medium tabular-nums">{value}</div>
+      {hint && <div className="text-xs text-text/50">{hint}</div>}
+    </div>
+  );
+}
+
+function ProductShopUse({ productId, showValue }: { productId: number; showValue: boolean }) {
+  const consumptions = useConsumptions({ product: productId });
+  if (consumptions.isError) return <ErrorState message="Couldn't load what the shop used." />;
+  if (consumptions.isLoading) return <LoadingState variant="table" rows={3} label="Loading shop use…" />;
+  return (
+    <ConsumptionTable
+      rows={consumptions.consumptions}
+      showValue={showValue}
+      hideProduct
+      emptyMessage="Nothing used in the shop yet"
+    />
+  );
+}
+
 interface ProductDetailPageClientProps {
   productId: number;
   role: EmployeeRole;
@@ -53,24 +93,37 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const profitability = useProductProfitability(productId, isAdmin);
   const isStrictAdmin = role === "admin";
   const openingStatus = useOpeningStockStatus(productId, isStrictAdmin);
+  const [tab, setTab] = useState("overview");
   const [openingOpen, setOpeningOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [useInShopOpen, setUseInShopOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
-  const [togglingActive, setTogglingActive] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
+  const confirm = useConfirm();
   const { show } = useToast();
+
+  useEffect(() => {
+    if (!printing) return;
+    // Register before print(): print() blocks and fires "afterprint" before returning.
+    const done = () => setPrinting(false);
+    window.addEventListener("afterprint", done);
+    window.print();
+    return () => window.removeEventListener("afterprint", done);
+  }, [printing]);
 
   async function handleDelete() {
     if (!detail.product) return;
-    const confirmed = window.confirm(
-      `Delete "${detail.product.name}"? This also removes its stock record, pricing history and any tracked equipment units. This can't be undone.`
-    );
+    const confirmed = await confirm({
+      title: `Delete "${detail.product.name}"?`,
+      message:
+        "This also removes its stock record, pricing history and any tracked equipment units. This can't be undone.",
+      confirmLabel: "Delete product",
+      tone: "danger",
+    });
     if (!confirmed) return;
-    setDeleting(true);
     try {
       await apiFetch(`products/${productId}/`, { method: "DELETE" });
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -81,14 +134,12 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
       const message =
         error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
       show(message, "error");
-      setDeleting(false);
     }
   }
 
   async function handleToggleActive() {
     if (!detail.product) return;
     const nextActive = !detail.product.is_active;
-    setTogglingActive(true);
     try {
       await apiFetch<Product>(`products/${productId}/set-active/`, {
         method: "POST",
@@ -101,108 +152,151 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
       const message =
         error instanceof ApiError ? extractErrorMessage(error.body) : "Something went wrong — try again.";
       show(message, "error");
-    } finally {
-      setTogglingActive(false);
     }
   }
 
   if (detail.isError) {
     return (
-      <ErrorState message="Couldn't load this product." />
+      <Page title="Product" back="/products">
+        <ErrorState message="Couldn't load this product." />
+      </Page>
     );
   }
 
   if (detail.isLoading || !detail.product) {
-    return <p className="text-sm text-text/50">Loading product…</p>;
+    return <LoadingState variant="detail" label="Loading product…" />;
   }
 
-  const status = deriveStatus(detail.inventory?.quantity_in_stock ?? 0, detail.product.reorder_level);
+  const product = detail.product;
+  const inStock = detail.inventory?.quantity_in_stock ?? 0;
+  const status = deriveStatus(inStock, product.reorder_level);
   const statusTag = STATUS_TAG[status];
+  const retail = detail.currentPricing ? Number(detail.currentPricing.retail_price) : null;
+  const row = profitability.row;
+
+  const secondaryActions: PageAction[] = isAdmin
+    ? [
+        ...(detail.inventory ? [{ label: "Adjust stock", onSelect: () => setAdjustOpen(true) }] : []),
+        { label: "Set new price", onSelect: () => setPriceOpen(true) },
+        ...(isStrictAdmin && openingStatus.data?.eligible
+          ? [{ label: "Set opening stock", onSelect: () => setOpeningOpen(true) }]
+          : []),
+        { label: product.is_active === false ? "Reactivate" : "Deactivate", onSelect: handleToggleActive },
+        { label: "Delete", onSelect: handleDelete },
+      ]
+    : [];
 
   return (
-    <div>
-      <Link href="/products" className="text-sm">
-        ← Products
-      </Link>
-      <div className="flex items-center gap-3 my-4">
-        <h3 className="m-0">{detail.product.name}</h3>
-        <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
-        {detail.product.is_active === false && <Tag variant="neutral">Inactive</Tag>}
-        <span className="font-mono text-xs text-text/50">{detail.product.barcode}</span>
-        <div className="ml-auto flex gap-2">
-          <Button variant="secondary" href={buildReorderUrl(detail.product.product_id, detail.product.name)}>
+    <Page
+      title={product.name}
+      breadcrumb={[{ label: "Stock" }, { label: "Products", href: "/products" }, { label: product.name }]}
+      back="/products"
+      primaryAction={
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" href={buildReorderUrl(product.product_id, product.name)}>
             Reorder
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => setUseInShopOpen(true)}
-            disabled={(detail.inventory?.quantity_in_stock ?? 0) < 1}
-          >
+          <Button variant="secondary" onClick={() => setUseInShopOpen(true)} disabled={inStock < 1}>
             Use in shop
           </Button>
-          {isStrictAdmin && openingStatus.data?.eligible && (
-            <Button variant="secondary" onClick={() => setOpeningOpen(true)}>
-              Set opening stock
-            </Button>
-          )}
           {isAdmin && <Button onClick={() => setEditOpen(true)}>Edit</Button>}
-          {isAdmin && (
-            <Button variant="secondary" onClick={handleToggleActive} disabled={togglingActive}>
-              {togglingActive ? "Saving…" : detail.product.is_active === false ? "Reactivate" : "Deactivate"}
-            </Button>
-          )}
-          {isAdmin && (
-            <Button variant="secondary" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting…" : "Delete"}
-            </Button>
-          )}
         </div>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-4">
-        <StockCard
-          inventory={detail.inventory}
-          reorderLevel={detail.product.reorder_level}
-          onAdjust={isAdmin && detail.inventory ? () => setAdjustOpen(true) : undefined}
-        />
-        {isAdmin && <PricingCard currentPricing={detail.currentPricing} onSetPrice={() => setPriceOpen(true)} />}
-        {isAdmin && (
-          <CostMarginCard
-            row={profitability.row}
-            isLoading={profitability.isLoading}
-            isError={profitability.isError}
-            productId={detail.product.product_id}
-          />
-        )}
-        <CatalogInfoCard
-          productId={detail.product.product_id}
-          category={detail.category}
-          brand={detail.product.brand}
-          modelNumber={detail.product.model_number}
-          warrantyMonths={detail.product.warranty_months ?? 0}
-          unitCount={detail.trackedSerialCount}
-          description={detail.product.description}
-          unit={detail.product.unit}
-          taxCategory={detail.product.tax_category}
-          createdAt={detail.product.created_at}
-        />
-      </div>
-      <ProductMovementsCard productId={productId} showCost={isAdmin} />
-      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr] gap-4">
-        <div className="flex flex-col gap-4">
-          <InfoSheetCard
-            usageInstructions={detail.product.usage_instructions}
-            onEdit={isAdmin ? () => setEditOpen(true) : undefined}
-          />
-          <SpecificationsCard specifications={detail.product.specifications} />
+      }
+      secondaryActions={secondaryActions}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <Tag variant={statusTag.variant}>{statusTag.label}</Tag>
+          {product.is_active === false && <Tag variant="neutral">Inactive</Tag>}
+          <span className="font-mono text-xs text-text/50">{product.barcode}</span>
+          <button
+            type="button"
+            onClick={() => setPrinting(true)}
+            className="inline-flex items-center gap-1 text-xs text-accent underline"
+          >
+            <Printer className="h-3.5 w-3.5" aria-hidden />
+            Print label
+          </button>
         </div>
-        <PriceHistoryCard history={detail.priceHistory} onSetNewPrice={() => setPriceOpen(true)} showWholesale={isAdmin} canSetPrice={isAdmin} />
+
+        <section aria-label="Key figures" className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Stat label="In stock" value={inStock} hint={`reorder at ${product.reorder_level}`} />
+          <Stat label="Retail price" value={retail !== null ? formatRwf(retail) : "Not priced"} />
+          {isAdmin && <Stat label="Avg cost" value={row?.avg_cost_paid ? formatRwf(row.avg_cost_paid) : "—"} />}
+          {isAdmin && <Stat label="Margin" value={row?.margin_pct ? `${row.margin_pct}%` : "—"} hint="all time" />}
+        </section>
+
+        <Tabs tabs={TABS} value={tab} onChange={setTab} label="Product sections">
+          {(active) => (
+            <>
+              {active === "overview" && (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.3fr]">
+                  <CatalogInfoCard
+                    productId={product.product_id}
+                    category={detail.category}
+                    brand={product.brand}
+                    modelNumber={product.model_number}
+                    warrantyMonths={product.warranty_months ?? 0}
+                    unitCount={detail.trackedSerialCount}
+                    description={product.description}
+                    unit={product.unit}
+                    taxCategory={product.tax_category}
+                    createdAt={product.created_at}
+                  />
+                  <div className="flex flex-col gap-4">
+                    <InfoSheetCard
+                      usageInstructions={product.usage_instructions}
+                      onEdit={isAdmin ? () => setEditOpen(true) : undefined}
+                    />
+                    <SpecificationsCard specifications={product.specifications} />
+                  </div>
+                </div>
+              )}
+              {active === "pricing" && (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {isAdmin && <PricingCard currentPricing={detail.currentPricing} onSetPrice={() => setPriceOpen(true)} />}
+                  {isAdmin && (
+                    <CostMarginCard
+                      row={profitability.row}
+                      isLoading={profitability.isLoading}
+                      isError={profitability.isError}
+                      productId={product.product_id}
+                    />
+                  )}
+                  <div className="lg:col-span-2">
+                    <PriceHistoryCard
+                      history={detail.priceHistory}
+                      onSetNewPrice={() => setPriceOpen(true)}
+                      showWholesale={isAdmin}
+                      canSetPrice={isAdmin}
+                    />
+                  </div>
+                </div>
+              )}
+              {active === "stock" && (
+                <div className="flex flex-col gap-4">
+                  <div className="max-w-xl">
+                    <StockCard
+                      inventory={detail.inventory}
+                      reorderLevel={product.reorder_level}
+                      onAdjust={isAdmin && detail.inventory ? () => setAdjustOpen(true) : undefined}
+                    />
+                  </div>
+                  <ProductMovementsCard productId={productId} showCost={isAdmin} />
+                </div>
+              )}
+              {active === "shop-use" && <ProductShopUse productId={productId} showValue={isAdmin} />}
+            </>
+          )}
+        </Tabs>
       </div>
+
       {isStrictAdmin && (
         <OpeningStockDialog
           open={openingOpen}
           productId={productId}
-          productName={detail.product.name}
-          currentInStock={openingStatus.data?.in_stock ?? detail.inventory?.quantity_in_stock ?? 0}
+          productName={product.name}
+          currentInStock={openingStatus.data?.in_stock ?? inStock}
           onClose={() => setOpeningOpen(false)}
           onSaved={() => setOpeningOpen(false)}
         />
@@ -211,7 +305,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         open={editOpen}
         mode="edit"
         categories={detail.category ? [detail.category] : []}
-        initialProduct={detail.product}
+        initialProduct={product}
         initialStorageLocation={detail.inventory?.storage_location ?? null}
         inventoryId={detail.inventory?.inventory_id}
         onClose={() => setEditOpen(false)}
@@ -220,8 +314,8 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
       {useInShopOpen && (
         <UseInShopDialog
           open
-          product={{ product_id: detail.product.product_id, name: detail.product.name }}
-          inStock={detail.inventory?.quantity_in_stock ?? 0}
+          product={{ product_id: product.product_id, name: product.name }}
+          inStock={inStock}
           onClose={() => setUseInShopOpen(false)}
         />
       )}
@@ -229,7 +323,7 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         <AdjustStockDialog
           open={adjustOpen}
           inventoryId={detail.inventory.inventory_id}
-          productName={detail.product.name}
+          productName={product.name}
           quantities={{
             in_stock: detail.inventory.quantity_in_stock,
             in_use: detail.inventory.quantity_in_use,
@@ -246,6 +340,11 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         onClose={() => setPriceOpen(false)}
         onSaved={() => setPriceOpen(false)}
       />
-    </div>
+      {printing && (
+        <LabelSheet>
+          <ProductLabel product={{ name: product.name, barcode: product.barcode, retail_price: retail ?? 0 }} />
+        </LabelSheet>
+      )}
+    </Page>
   );
 }

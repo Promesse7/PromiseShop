@@ -47,9 +47,11 @@ const INPUT_CLASS = "min-h-9 w-full rounded-md border border-divider bg-surface 
 
 interface ProductsPageClientProps {
   role: EmployeeRole;
+  /** `?new=1` from the jump search's "Add product": open the New product dialog on arrival. */
+  openNew?: boolean;
 }
 
-export default function ProductsPageClient({ role }: ProductsPageClientProps) {
+export default function ProductsPageClient({ role, openNew = false }: ProductsPageClientProps) {
   const catalog = useCatalogProducts();
   const isAdmin = ADMIN_ROLES.includes(role);
   // Merging duplicates is admin only (it is irreversible).
@@ -62,13 +64,31 @@ export default function ProductsPageClient({ role }: ProductsPageClientProps) {
   const [showInactive, setShowInactive] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>("none");
   const [view, setView] = useState<"grid" | "table">("grid");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(openNew && ADMIN_ROLES.includes(role));
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [printQueue, setPrintQueue] = useState<CatalogProduct[] | null>(null);
   const [deactivating, setDeactivating] = useState(false);
   const queryClient = useQueryClient();
   const { show } = useToast();
+
+  // Arriving again with ?new=1 while already on the page (the search param changes, the page
+  // doesn't remount) reopens the dialog: adjust state during render rather than in an effect.
+  const [lastOpenNew, setLastOpenNew] = useState(openNew);
+  if (openNew !== lastOpenNew) {
+    setLastOpenNew(openNew);
+    if (openNew && isAdmin) setCreateOpen(true);
+  }
+
+  useEffect(() => {
+    if (!openNew) return;
+    // Drop ?new=1 so a refresh or Back doesn't reopen the dialog.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("new")) {
+      url.searchParams.delete("new");
+      window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    }
+  }, [openNew, role]);
 
   useEffect(() => {
     if (!printQueue) return;
