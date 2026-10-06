@@ -18,6 +18,8 @@ import { InfoSheetCard } from "@/components/products/InfoSheetCard";
 import { SpecificationsCard } from "@/components/products/SpecificationsCard";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { SetPriceDialog } from "@/components/products/SetPriceDialog";
+import { OpeningStockDialog } from "@/components/products/OpeningStockDialog";
+import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +50,9 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
   const detail = useProductDetail(productId);
   const isAdmin = ADMIN_ROLES.includes(role);
   const profitability = useProductProfitability(productId, isAdmin);
+  const isStrictAdmin = role === "admin";
+  const openingStatus = useOpeningStockStatus(productId, isStrictAdmin);
+  const [openingOpen, setOpeningOpen] = useState(false);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [priceOpen, setPriceOpen] = useState(false);
@@ -126,6 +131,11 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           <Button variant="secondary" href={buildReorderUrl(detail.product.product_id, detail.product.name)}>
             Reorder
           </Button>
+          {isStrictAdmin && openingStatus.data?.eligible && (
+            <Button variant="secondary" onClick={() => setOpeningOpen(true)}>
+              Set opening stock
+            </Button>
+          )}
           {isAdmin && <Button onClick={() => setEditOpen(true)}>Edit</Button>}
           {isAdmin && (
             <Button variant="secondary" onClick={handleToggleActive} disabled={togglingActive}>
@@ -177,6 +187,16 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
         </div>
         <PriceHistoryCard history={detail.priceHistory} onSetNewPrice={() => setPriceOpen(true)} showWholesale={isAdmin} canSetPrice={isAdmin} />
       </div>
+      {isStrictAdmin && (
+        <OpeningStockDialog
+          open={openingOpen}
+          productId={productId}
+          productName={detail.product.name}
+          currentInStock={openingStatus.data?.in_stock ?? detail.inventory?.quantity_in_stock ?? 0}
+          onClose={() => setOpeningOpen(false)}
+          onSaved={() => setOpeningOpen(false)}
+        />
+      )}
       <ProductFormDialog
         open={editOpen}
         mode="edit"

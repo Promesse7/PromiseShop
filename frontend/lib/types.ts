@@ -274,6 +274,73 @@ export interface ProductSearchResult {
   last_paid_cost?: string | null;
 }
 
+// GET /product-barcode-aliases/ (Module E4)
+export interface ProductBarcodeAlias {
+  alias_id: number;
+  barcode: string;
+  product: number;
+  created_at: string;
+}
+
+// GET /products/duplicates/, GET /products/<keep>/merge/
+export interface MergeProductSummary {
+  product_id: number;
+  name: string;
+  barcode: string;
+  category_name: string;
+  is_active: boolean;
+  in_stock: number | null;
+}
+
+export interface DuplicatePair {
+  a: MergeProductSummary;
+  b: MergeProductSummary;
+  score: number;
+}
+
+export interface MergeCounts {
+  sale_items: number;
+  purchase_items: number;
+  equipment_units: number;
+  price_rows: number;
+  barcode_aliases: number;
+  in_stock: number;
+  in_use: number;
+  damaged: number;
+}
+
+export interface MergePreview {
+  keep: MergeProductSummary;
+  duplicate: MergeProductSummary;
+  counts: MergeCounts;
+}
+
+// GET/POST /products/<id>/opening-stock/ (Module E3)
+export interface OpeningStockStatus {
+  eligible: boolean;
+  reason: string | null;
+  in_stock: number;
+}
+
+// POST /setup/import-products/
+export interface ImportRowResult {
+  line: number;
+  status: "valid" | "error" | "skip";
+  name: string;
+  category_code: string;
+  barcode: string | null;
+  opening_qty: number | null;
+  errors: Record<string, string>;
+  match: { product_id: number; name: string } | null;
+  product_id?: number;
+}
+
+export interface ImportResult {
+  dry_run: boolean;
+  summary: { rows: number; valid: number; errors: number; skipped: number; new_categories: string[]; created?: number };
+  rows: ImportRowResult[];
+}
+
 // GET /suppliers/<id>/recent-products/
 export interface SupplierRecentProduct {
   product_id: number;

@@ -64,6 +64,7 @@ describe("getNavLinksForRole", () => {
       { href: "/customers", label: "Customers" },
       { href: "/employees", label: "Employees" },
       { href: "/expenses", label: "Expenses" },
+      { href: "/setup/import", label: "Setup" },
     ]);
   });
 

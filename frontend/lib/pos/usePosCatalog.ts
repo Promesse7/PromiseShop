@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPages } from "@/lib/api-client";
-import type { Product, Category, ProductPricing, Inventory, PosProduct } from "@/lib/types";
+import type { Product, Category, ProductPricing, Inventory, PosProduct, ProductBarcodeAlias } from "@/lib/types";
 
 export interface PosCatalog {
   all: PosProduct[];
@@ -28,6 +28,12 @@ export function usePosCatalog(): PosCatalog {
     queryFn: () => fetchAllPages<Inventory>("inventory/"),
   });
 
+  // Extra barcodes (a merged duplicate's old label) — optional: the till works without them.
+  const aliases = useQuery({
+    queryKey: ["product-barcode-aliases"],
+    queryFn: () => fetchAllPages<ProductBarcodeAlias>("product-barcode-aliases/"),
+  });
+
   const isLoading = products.isLoading || categories.isLoading || pricing.isLoading || inventory.isLoading;
   const isError = products.isError || categories.isError || pricing.isError || inventory.isError;
 
@@ -52,7 +58,16 @@ export function usePosCatalog(): PosCatalog {
       }));
   }, [products.data, categories.data, pricing.data, inventory.data]);
 
-  const byBarcode = useMemo(() => new Map(all.map((p) => [p.barcode, p])), [all]);
+  const byBarcode = useMemo(() => {
+    const map = new Map(all.map((p) => [p.barcode, p]));
+    const byId = new Map(all.map((p) => [p.product_id, p]));
+    for (const alias of aliases.data ?? []) {
+      const product = byId.get(alias.product);
+      // A product's own barcode always wins over an alias of the same text.
+      if (product && !map.has(alias.barcode)) map.set(alias.barcode, product);
+    }
+    return map;
+  }, [all, aliases.data]);
 
   return { all, byBarcode, isLoading, isError };
 }

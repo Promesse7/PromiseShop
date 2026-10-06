@@ -89,3 +89,28 @@ class ProductPricing(models.Model):
 
     def __str__(self):
         return f"{self.product} @ {self.effective_date}"
+
+
+class ProductMerge(models.Model):
+    """Log of a duplicate product folded into the one kept (Module E4). Irreversible.
+
+    The duplicate keeps its own ledger rows and adjustments as history; its sales,
+    purchases, units, prices and stock now belong to ``keep``. Code that reports
+    on ``keep`` follows these rows (catalog.merge.merged_product_ids).
+    """
+
+    merge_id = models.AutoField(primary_key=True)
+    keep = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="merges_received")
+    duplicate = models.OneToOneField(Product, on_delete=models.PROTECT, related_name="merged_into")
+    merged_by = models.ForeignKey("accounts.Employee", on_delete=models.PROTECT, related_name="product_merges")
+    reason = models.TextField()
+    # What moved, e.g. {"sale_items": 3, "purchase_items": 1, "in_stock": 4, ...}
+    counts = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-merge_id"]
+
+    def __str__(self):
+        return f"{self.duplicate_id} merged into {self.keep_id}"
+

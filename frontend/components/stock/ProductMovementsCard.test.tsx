@@ -50,4 +50,24 @@ describe("ProductMovementsCard", () => {
     await screen.findByText("Dropped");
     expect(screen.queryByText("Unit cost")).not.toBeInTheDocument();
   });
+
+  it("names the product on rows that came from a product merged into this one", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({
+          ok: true,
+          json: async () => ({
+            count: 1, next: null, previous: null,
+            results: [
+              { movement_id: 5, product: 4, product_name: "[merged into Speaker]", movement_type: "merge_out", bucket: "in_stock", quantity_delta: -2, balance_after: 0, unit_cost: null, source_type: "product_merge", source_id: 1, reason: "Merged", created_by: 1, created_by_name: "Admin", created_at: "2026-10-06T10:00:00Z" },
+            ],
+          }),
+        })
+      )
+    );
+    renderCard();
+    expect(await screen.findByRole("link", { name: "[merged into Speaker]" })).toHaveAttribute("href", "/products/4");
+  });
 });
+

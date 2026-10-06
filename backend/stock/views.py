@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.permissions import IsAdminOrManager
+from catalog.merge import merged_product_ids
 from stock.models import Inventory, EquipmentUnit, StockMovement
 from stock.serializers import (
     InventorySerializer, InventoryAdjustmentSerializer, AdjustInventorySerializer,
@@ -114,7 +115,12 @@ class StockMovementViewSet(viewsets.ReadOnlyModelViewSet):
             "-created_at", "-movement_id"
         )
         if params.get("product"):
-            queryset = queryset.filter(product_id=params["product"])
+            # A product's ledger includes the products merged into it (Module E4).
+            try:
+                product_id = int(params["product"])
+            except ValueError:
+                raise ValidationError({"product": "Must be a product id."})
+            queryset = queryset.filter(product_id__in=merged_product_ids(product_id))
         if params.get("type"):
             queryset = queryset.filter(movement_type=params["type"])
         if params.get("bucket"):

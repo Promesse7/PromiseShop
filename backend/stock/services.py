@@ -1,7 +1,7 @@
 from decimal import ROUND_HALF_UP, Decimal
 
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import DecimalField, F, Sum
 from rest_framework.exceptions import ValidationError
 
 from stock.models import EquipmentUnit, EquipmentStatusHistory, Inventory, InventoryAdjustment, StockMovement
@@ -31,19 +31,36 @@ CENT = Decimal("0.01")
 
 
 def weighted_average_cost(product):
-    """Weighted average *paid* unit cost over the product's received purchase lines.
+    """Weighted average *paid* unit cost per unit, over what the shop really paid for:
 
-    None when nothing has been received yet. Used for ledger unit costs, the
-    cost floor at the till and the value of stock used internally.
+    - received purchase lines (quantity x paid cost), and
+    - opening stock entered by a person (Module E3: import or "Set opening stock"),
+      at the cost given then.
+
+    The ledger-start rows the Module A backfill wrote (created_by null) are left
+    out: they carry either no cost or a cost copied from the purchases already
+    counted. Products merged into this one (Module E4) count as the same product.
+    None when there is nothing to average. ``product`` may be a Product or its id.
     """
+    from catalog.merge import merged_product_ids
     from purchasing.models import Purchase, PurchaseItem
 
-    totals = PurchaseItem.objects.filter(
-        product=product, purchase__status=Purchase.Status.RECEIVED
+    product_ids = merged_product_ids(getattr(product, "pk", product))
+    purchases = PurchaseItem.objects.filter(
+        product_id__in=product_ids, purchase__status=Purchase.Status.RECEIVED
     ).aggregate(units=Sum("quantity"), paid=Sum("subtotal_paid"))
-    if not totals["units"]:
+    openings = StockMovement.objects.filter(
+        product_id__in=product_ids, movement_type=StockMovement.MovementType.OPENING,
+        created_by__isnull=False, unit_cost__isnull=False, quantity_delta__gt=0,
+    ).aggregate(
+        units=Sum("quantity_delta"),
+        paid=Sum(F("quantity_delta") * F("unit_cost"), output_field=DecimalField(max_digits=18, decimal_places=2)),
+    )
+    units = (purchases["units"] or 0) + (openings["units"] or 0)
+    if not units:
         return None
-    return (totals["paid"] / totals["units"]).quantize(CENT, rounding=ROUND_HALF_UP)
+    paid = (purchases["paid"] or Decimal("0")) + (openings["paid"] or Decimal("0"))
+    return (paid / units).quantize(CENT, rounding=ROUND_HALF_UP)
 
 
 def record_movement(inventory, bucket, delta, movement_type, source, user, reason="", unit_cost=None):

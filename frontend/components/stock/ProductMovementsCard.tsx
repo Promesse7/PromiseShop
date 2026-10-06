@@ -15,6 +15,8 @@ interface ProductMovementsCardProps {
 // Latest ledger rows for one product, with a link to the full filterable list.
 export function ProductMovementsCard({ productId, showCost }: ProductMovementsCardProps) {
   const { movements, count, isLoading, isError } = useStockMovements({ product: productId }, RECENT);
+  // The ledger for a product includes products merged into it (Module E4): name them when present.
+  const includesMerged = movements.some((m) => m.product !== productId);
 
   return (
     <Card elevation="sm" className="mb-4">
@@ -29,7 +31,7 @@ export function ProductMovementsCard({ productId, showCost }: ProductMovementsCa
       ) : isError ? (
         <p className="text-sm text-text/50">Couldn&apos;t load stock movements.</p>
       ) : (
-        <MovementsTable movements={movements} showCost={showCost} showProduct={false} emptyMessage="No stock movements yet" />
+        <MovementsTable movements={movements} showCost={showCost} showProduct={includesMerged} emptyMessage="No stock movements yet" />
       )}
     </Card>
   );
