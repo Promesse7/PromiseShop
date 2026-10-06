@@ -6,6 +6,7 @@ import { PosCheckout } from "./PosCheckout";
 import { ToastProvider } from "@/components/layout/ToastProvider";
 import { setMatchMedia } from "@/lib/test/matchMedia";
 import * as usePosCatalogModule from "@/lib/pos/usePosCatalog";
+import * as chromeModule from "@/lib/scroll/chrome";
 import type { PosCatalog } from "@/lib/pos/usePosCatalog";
 
 const jbl = {
@@ -444,6 +445,22 @@ describe("PosCheckout", () => {
 
       expect(await screen.findByText("#S-842")).toBeInTheDocument();
       expect(saleCalls(fetchMock)).toHaveLength(1);
+    });
+
+    it("sits on the tab bar, and drops to the edge when the tab bar slides away", async () => {
+      routeFetch({});
+      const offset = vi.spyOn(chromeModule, "useStickyBottomOffset").mockReturnValue(64);
+      renderWithProviders(<PosCheckout servedBy="e.mugisha" />);
+      await scanJbl();
+      expect(screen.getByRole("region", { name: "Sale total" }).style.bottom).toBe(
+        "calc(64px + env(safe-area-inset-bottom))"
+      );
+      offset.mockReturnValue(0);
+      await scanJbl(); // any re-render picks up the new offset
+      expect(screen.getByRole("region", { name: "Sale total" }).style.bottom).toBe(
+        "calc(0px + env(safe-area-inset-bottom))"
+      );
+      offset.mockRestore();
     });
 
     it("counts items in the pay bar", async () => {
