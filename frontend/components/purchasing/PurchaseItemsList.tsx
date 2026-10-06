@@ -7,6 +7,7 @@ import { Table } from "@/components/ui/Table";
 import { Button } from "@/components/ui/Button";
 import { ProductFormDialog } from "@/components/products/ProductFormDialog";
 import { useRemovePurchaseItem } from "@/lib/purchasing/useRemovePurchaseItem";
+import { describeLine, unitsOf } from "@/lib/purchasing/lineKinds";
 import type { Category, Product, PurchaseItem } from "@/lib/types";
 
 interface PurchaseItemsListProps {
@@ -18,9 +19,16 @@ interface PurchaseItemsListProps {
   showCosts?: boolean;
 }
 
-function formatMoney(value?: string): string {
+function formatMoney(value?: string | null): string {
   if (value == null) return "—";
   return Number(value).toLocaleString();
+}
+
+// Pack and bundle prices are per pack / per bundle; say so next to the figure.
+function priceSuffix(item: PurchaseItem): string {
+  if (item.line_kind === "pack") return " / pack";
+  if (item.line_kind === "bundle") return " / bundle";
+  return "";
 }
 
 // Signed difference between what the supplier invoiced and what was paid, for the
@@ -48,13 +56,26 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
     ? [
         {
           key: "unit_cost_paid",
-          header: "Paid / unit",
-          render: (item: PurchaseItem) => <span className="tabular-nums">{formatMoney(item.unit_cost_paid)}</span>,
+          header: "Paid",
+          render: (item: PurchaseItem) => (
+            <span className="tabular-nums">
+              {formatMoney(item.unit_cost_paid)}
+              <span className="text-xs text-text/50">{priceSuffix(item)}</span>
+              {item.line_kind === "pack" && (
+                <span className="block text-xs text-text/50">{formatMoney(item.unit_cost_paid_per_unit)} / unit</span>
+              )}
+            </span>
+          ),
         },
         {
           key: "unit_cost_invoiced",
-          header: "Invoiced / unit",
-          render: (item: PurchaseItem) => <span className="tabular-nums">{formatMoney(item.unit_cost_invoiced)}</span>,
+          header: "Invoiced",
+          render: (item: PurchaseItem) => (
+            <span className="tabular-nums">
+              {formatMoney(item.unit_cost_invoiced)}
+              <span className="text-xs text-text/50">{priceSuffix(item)}</span>
+            </span>
+          ),
         },
         {
           key: "difference",
@@ -75,22 +96,48 @@ export function PurchaseItemsList({ purchaseId, items, editable, showCosts = fal
     {
       key: "product",
       header: "Product",
-      render: (item: PurchaseItem) => productById.get(item.product)?.name ?? `Product #${item.product}`,
+      render: (item: PurchaseItem) => (
+        <div>
+          <span>{describeLine(item, item.product != null ? productById.get(item.product)?.name ?? null : null)}</span>
+          {item.line_kind === "bundle" && (
+            <ul className="text-xs text-text/60 mt-1">
+              {(item.components ?? []).map((c) => (
+                <li key={c.component_id}>
+                  {c.product_name} × {c.qty_per_bundle} per bundle = {c.units}
+                  {showCosts && c.unit_paid_cost != null && (
+                    <span className="tabular-nums"> · {formatMoney(c.unit_paid_cost)} / unit</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ),
     },
     { key: "quantity", header: "Qty" },
+    {
+      key: "units",
+      header: "Units in",
+      render: (item: PurchaseItem) => <span className="tabular-nums">{unitsOf(item)}</span>,
+    },
     ...costColumns,
     {
       key: "barcode",
       header: "Shop barcode",
-      render: (item: PurchaseItem) => (
-        <span className="font-mono text-xs">{productById.get(item.product)?.barcode ?? "—"}</span>
-      ),
+      render: (item: PurchaseItem) =>
+        item.line_kind === "bundle" ? (
+          <span className="font-mono text-xs">{(item.components ?? []).map((c) => c.product_barcode).join(", ") || "—"}</span>
+        ) : (
+          <span className="font-mono text-xs">
+            {(item.product != null ? productById.get(item.product)?.barcode : undefined) ?? "—"}
+          </span>
+        ),
     },
     {
       key: "actions",
       header: "",
       render: (item: PurchaseItem) => {
-        const product = productById.get(item.product);
+        const product = item.product != null ? productById.get(item.product) : undefined;
         return (
           <div className="flex gap-2 items-center justify-end">
             <Button variant="ghost" disabled title="Not available — barcodes are shop-assigned once, at entry.">

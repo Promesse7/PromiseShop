@@ -13,7 +13,8 @@ from catalog.models import Product
 from dashboard.services import resolve_period_range
 from finance.models import Expense
 from notifications.models import NotificationLog
-from purchasing.models import Purchase, PurchaseItem
+from purchasing.costing import received_cost_totals
+from purchasing.models import Purchase
 from sales.models import Sale, SaleItem
 from stock.models import EquipmentUnit, Inventory
 
@@ -216,20 +217,14 @@ class ProfitabilityView(APIView):
             except ValueError:
                 raise ValidationError({"product": f"Invalid product id: {product_id_param!r}."})
 
-        cost_qs = PurchaseItem.objects.filter(purchase__status=Purchase.Status.RECEIVED)
         sale_qs = SaleItem.objects.filter(sale__status=Sale.SaleStatus.COMPLETED)
         if date_range is not None:
             sale_qs = sale_qs.filter(sale__sale_date__date__range=date_range)
         if only_product is not None:
-            cost_qs = cost_qs.filter(product=only_product)
             sale_qs = sale_qs.filter(product=only_product)
 
-        costs = {
-            row["product_id"]: row
-            for row in cost_qs.values("product_id").annotate(
-                units=Sum("quantity"), paid=Sum("subtotal_paid"), invoiced=Sum("subtotal_invoiced")
-            )
-        }
+        # Per single unit, whatever the line kind (Module F: packs and bundle components).
+        costs = received_cost_totals([only_product.pk] if only_product is not None else None)
         sales = {
             row["product_id"]: row
             for row in sale_qs.values("product_id").annotate(

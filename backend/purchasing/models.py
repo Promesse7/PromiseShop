@@ -48,9 +48,27 @@ class Purchase(models.Model):
 
 
 class PurchaseItem(models.Model):
+    """One line of a purchase: a single product, a pack of one product, or a bundle.
+
+    `quantity` counts what the supplier sold (units, packs or bundles) and the unit
+    costs are per one of those, so subtotals and purchase totals work the same for
+    every kind. Stock is always counted in single units (see `units_received`).
+    """
+
+    class LineKind(models.TextChoices):
+        SINGLE = "single", "Single"
+        PACK = "pack", "Pack"
+        BUNDLE = "bundle", "Bundle"
+
     purchase_item_id = models.AutoField(primary_key=True)
     purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey("catalog.Product", on_delete=models.PROTECT, related_name="purchase_items")
+    # Null only on a bundle line: its products are the components.
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.PROTECT, related_name="purchase_items", null=True, blank=True
+    )
+    line_kind = models.CharField(max_length=10, choices=LineKind.choices, default=LineKind.SINGLE)
+    units_per_pack = models.PositiveIntegerField(default=1)
+    bundle_name = models.CharField(max_length=150, blank=True, default="")
     quantity = models.PositiveIntegerField()
     unit_cost_paid = models.DecimalField(max_digits=12, decimal_places=2)
     unit_cost_invoiced = models.DecimalField(max_digits=12, decimal_places=2)
@@ -58,5 +76,100 @@ class PurchaseItem(models.Model):
     subtotal_paid = models.DecimalField(max_digits=12, decimal_places=2)
     subtotal_invoiced = models.DecimalField(max_digits=12, decimal_places=2)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(product__isnull=False) | models.Q(line_kind="bundle"),
+                name="purchase_item_product_required_unless_bundle",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(line_kind="bundle") | models.Q(product__isnull=True),
+                name="purchase_item_bundle_has_no_product",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(units_per_pack__gte=1),
+                name="purchase_item_units_per_pack_positive",
+            ),
+        ]
+
+    @property
+    def units_received(self):
+        """Single units this line brings into stock (all components for a bundle)."""
+        if self.line_kind == self.LineKind.BUNDLE:
+            return sum(self.quantity * c.qty_per_bundle for c in self.components.all())
+        return self.quantity * self.units_per_pack
+
     def __str__(self):
-        return f"{self.product} x{self.quantity} (Purchase #{self.purchase_id})"
+        label = self.bundle_name if self.line_kind == self.LineKind.BUNDLE else self.product
+        return f"{label} x{self.quantity} (Purchase #{self.purchase_id})"
+
+
+class PurchaseItemComponent(models.Model):
+    """One product inside a bundle line, with its share of the bundle's price."""
+
+    component_id = models.AutoField(primary_key=True)
+    purchase_item = models.ForeignKey(PurchaseItem, on_delete=models.CASCADE, related_name="components")
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.PROTECT, related_name="purchase_item_components"
+    )
+    qty_per_bundle = models.PositiveIntegerField()
+    # Per ONE bundle; summed over the components they equal the line's unit costs exactly.
+    allocated_paid_cost = models.DecimalField(max_digits=14, decimal_places=2)
+    allocated_invoiced_cost = models.DecimalField(max_digits=14, decimal_places=2)
+
+    class Meta:
+        ordering = ["component_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(qty_per_bundle__gte=1), name="purchase_component_qty_positive"
+            ),
+            models.UniqueConstraint(
+                fields=["purchase_item", "product"], name="purchase_component_product_once_per_bundle"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product} x{self.qty_per_bundle} in {self.purchase_item}"
+
+
+class BundleTemplate(models.Model):
+    """A saved bundle recipe (e.g. "Canalbox TV kit" = 1 TV + 20 decoders)."""
+
+    template_id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=150)
+    supplier = models.ForeignKey(
+        Supplier, on_delete=models.SET_NULL, null=True, blank=True, related_name="bundle_templates"
+    )
+    created_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.SET_NULL, null=True, blank=True, related_name="bundle_templates"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "template_id"]
+
+    def __str__(self):
+        return self.name
+
+
+class BundleTemplateComponent(models.Model):
+    template_component_id = models.AutoField(primary_key=True)
+    template = models.ForeignKey(BundleTemplate, on_delete=models.CASCADE, related_name="components")
+    product = models.ForeignKey(
+        "catalog.Product", on_delete=models.PROTECT, related_name="bundle_template_components"
+    )
+    qty_per_bundle = models.PositiveIntegerField()
+
+    class Meta:
+        ordering = ["template_component_id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(qty_per_bundle__gte=1), name="bundle_template_component_qty_positive"
+            ),
+            models.UniqueConstraint(
+                fields=["template", "product"], name="bundle_template_product_once"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.product} x{self.qty_per_bundle} in {self.template}"

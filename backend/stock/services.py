@@ -43,12 +43,15 @@ def weighted_average_cost(product):
     None when there is nothing to average. ``product`` may be a Product or its id.
     """
     from catalog.merge import merged_product_ids
-    from purchasing.models import Purchase, PurchaseItem
+    from purchasing.costing import received_cost_totals
 
     product_ids = merged_product_ids(getattr(product, "pk", product))
-    purchases = PurchaseItem.objects.filter(
-        product_id__in=product_ids, purchase__status=Purchase.Status.RECEIVED
-    ).aggregate(units=Sum("quantity"), paid=Sum("subtotal_paid"))
+    # Per single unit, whatever the line kind (Module F: packs and bundle components).
+    received = received_cost_totals(product_ids).values()
+    purchases = {
+        "units": sum(row["units"] for row in received),
+        "paid": sum((row["paid"] for row in received), Decimal("0")),
+    }
     openings = StockMovement.objects.filter(
         product_id__in=product_ids, movement_type=StockMovement.MovementType.OPENING,
         created_by__isnull=False, unit_cost__isnull=False, quantity_delta__gt=0,

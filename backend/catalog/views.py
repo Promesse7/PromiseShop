@@ -24,7 +24,7 @@ def _can_see_cost(user):
 
 def _search_rows(products, include_cost):
     """Shape search hits, fetching stock, price and last paid cost in bulk."""
-    from purchasing.models import Purchase, PurchaseItem
+    from purchasing.costing import last_paid_unit_costs
     from stock.models import Inventory
 
     ids = [p.product_id for p in products]
@@ -32,15 +32,8 @@ def _search_rows(products, include_cost):
     prices = dict(
         ProductPricing.objects.filter(product_id__in=ids, is_current=True).values_list("product_id", "retail_price")
     )
-    last_cost = {}
-    if include_cost:
-        received = (
-            PurchaseItem.objects.filter(product_id__in=ids, purchase__status=Purchase.Status.RECEIVED)
-            .order_by("product_id", "-purchase__purchase_date", "-purchase_item_id")
-            .distinct("product_id")
-            .values_list("product_id", "unit_cost_paid")
-        )
-        last_cost = dict(received)
+    # Per single unit: a pack's price divided out, a bundle component's share.
+    last_cost = last_paid_unit_costs(ids) if include_cost else {}
 
     rows = []
     for p in products:
@@ -101,10 +94,17 @@ class ProductViewSet(viewsets.ModelViewSet):
         # hangs off a product (pricing history, inventory, equipment units) is CASCADE
         # and is meant to go with it — a product with no trade history is an entry
         # mistake, not a record worth keeping.
-        if instance.purchase_items.exists() or instance.sale_items.exists():
+        if (
+            instance.purchase_items.exists() or instance.sale_items.exists()
+            or instance.purchase_item_components.exists()
+        ):
             raise ValidationError(
                 "This product has purchase or sale history and cannot be deleted. "
                 "Deactivate it instead so past records stay intact."
+            )
+        if instance.bundle_template_components.exists():
+            raise ValidationError(
+                "This product is part of a saved bundle template. Remove it from the template first."
             )
         instance.delete()
 

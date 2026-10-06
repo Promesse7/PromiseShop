@@ -90,6 +90,7 @@ def test_multiple_status_changes_build_a_chain(unit, employee):
         unit, new_status=EquipmentUnit.UnitStatus.IN_STOCK, reason="Fixed", changed_by=employee,
     )
     assert EquipmentStatusHistory.objects.filter(unit=unit).count() == 2
-    latest = EquipmentStatusHistory.objects.filter(unit=unit).order_by("-change_date").first()
+    # Both rows can share change_date (one transaction's now()); the id breaks the tie.
+    latest = EquipmentStatusHistory.objects.filter(unit=unit).order_by("-change_date", "-history_id").first()
     assert latest.previous_status == EquipmentUnit.UnitStatus.UNDER_REPAIR
     assert latest.new_status == EquipmentUnit.UnitStatus.IN_STOCK

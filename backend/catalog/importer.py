@@ -284,7 +284,14 @@ def opening_stock_status(product):
     from stock.models import Inventory, StockMovement
 
     in_stock = Inventory.objects.filter(product=product).values_list("quantity_in_stock", flat=True).first() or 0
-    if PurchaseItem.objects.filter(product=product, purchase__status=Purchase.Status.RECEIVED).exists():
+    from purchasing.models import PurchaseItemComponent
+
+    received_in_bundle = PurchaseItemComponent.objects.filter(
+        product=product, purchase_item__purchase__status=Purchase.Status.RECEIVED
+    ).exists()
+    if received_in_bundle or PurchaseItem.objects.filter(
+        product=product, purchase__status=Purchase.Status.RECEIVED
+    ).exists():
         return {"eligible": False, "reason": "This product has already been received on a purchase.", "in_stock": in_stock}
     real_movements = StockMovement.objects.filter(product=product).exclude(
         movement_type=StockMovement.MovementType.OPENING, created_by__isnull=True

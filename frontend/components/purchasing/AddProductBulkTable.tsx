@@ -181,8 +181,8 @@ export function AddProductBulkTable({ purchaseId, supplierId, onAdded }: AddProd
         if (candidates[index]?.choice?.kind !== "new") return;
         fresh.push({
           key: `${item.purchase_item_id}`,
-          name: item.product_name,
-          barcode: item.product_barcode,
+          name: item.product_name ?? "",
+          barcode: item.product_barcode ?? "",
           retail_price: Number(item.product_retail_price ?? candidates[index].selling_price ?? 0),
           copies: item.quantity,
         });
