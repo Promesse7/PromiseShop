@@ -40,17 +40,19 @@ export interface ConsumptionFilters {
   product?: number | null;
   purpose?: ConsumptionPurpose | "";
   taken_by?: number | null;
+  shop_asset?: number | null;
 }
 
 export function consumptionsQuery(filters: ConsumptionFilters): string {
   return toQuery({ ...filters });
 }
 
-export function useConsumptions(filters: ConsumptionFilters) {
+export function useConsumptions(filters: ConsumptionFilters, enabled = true) {
   const query = useQuery({
     queryKey: ["consumptions", filters],
     queryFn: () =>
       apiFetch<PaginatedResponse<InternalConsumption>>(`operations/consumptions/?${consumptionsQuery(filters)}`),
+    enabled,
   });
   return {
     consumptions: query.data?.results ?? [],

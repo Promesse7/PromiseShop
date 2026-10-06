@@ -51,7 +51,7 @@ export default function ShopUsePageClient({ role }: ShopUsePageClientProps) {
   const assigneeId = useId();
 
   const assets = useShopAssets({ status, location: location.trim() }, tab === "assets");
-  const consumptions = useConsumptions(filters);
+  const consumptions = useConsumptions(filters, tab === "consumption");
   const products = useQuery({
     queryKey: ["products"],
     queryFn: () => fetchAllPages<Product>("products/"),
