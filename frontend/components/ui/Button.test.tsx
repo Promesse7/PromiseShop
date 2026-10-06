@@ -34,6 +34,14 @@ describe("Button", () => {
     expect(handleClick).toHaveBeenCalledOnce();
   });
 
+  it("presses in slightly when tapped, but not when disabled or with reduced motion", () => {
+    render(<Button>Save</Button>);
+    const classes = screen.getByRole("button", { name: "Save" }).className;
+    expect(classes).toContain("active:scale-[0.97]");
+    expect(classes).toContain("disabled:active:scale-100");
+    expect(classes).toContain("motion-reduce:active:scale-100");
+  });
+
   it("is disabled when the disabled prop is set", () => {
     render(<Button disabled>Save</Button>);
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
