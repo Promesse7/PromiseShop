@@ -13,6 +13,7 @@ export const MOVEMENT_TYPE_LABELS: Record<StockMovementType, string> = {
   from_in_use: "From in use",
   internal_consumption: "Used internally",
   to_shop_asset: "Made shop asset",
+  from_shop_asset: "Returned from shop asset",
   opening: "Opening stock",
   merge_in: "Merged in",
   merge_out: "Merged out",

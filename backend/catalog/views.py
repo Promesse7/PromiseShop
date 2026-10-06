@@ -102,6 +102,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                 "This product has purchase or sale history and cannot be deleted. "
                 "Deactivate it instead so past records stay intact."
             )
+        if instance.consumptions.exists() or instance.shop_assets.exists():
+            raise ValidationError(
+                "This product has shop-use records (internal use or shop assets) and cannot be deleted. "
+                "Deactivate it instead."
+            )
         if instance.bundle_template_components.exists():
             raise ValidationError(
                 "This product is part of a saved bundle template. Remove it from the template first."

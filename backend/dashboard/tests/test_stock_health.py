@@ -68,7 +68,8 @@ def test_equipment_status_counts_include_zero_statuses(admin, category):
     assert counts["damaged"] == 0
     assert counts["under_repair"] == 0
     assert counts["in_use"] == 0
-    assert set(counts.keys()) == {"in_stock", "in_use", "damaged", "under_repair", "sold"}
+    assert counts["shop_asset"] == 0
+    assert set(counts.keys()) == {"in_stock", "in_use", "damaged", "under_repair", "sold", "shop_asset"}
 
 
 def test_stock_health_empty_state(admin):

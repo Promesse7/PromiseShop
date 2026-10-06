@@ -89,6 +89,7 @@ class StockMovement(models.Model):
         FROM_IN_USE = "from_in_use", "Returned from in use"
         INTERNAL_CONSUMPTION = "internal_consumption", "Used internally"
         TO_SHOP_ASSET = "to_shop_asset", "Made shop asset"
+        FROM_SHOP_ASSET = "from_shop_asset", "Returned from shop asset"
         OPENING = "opening", "Opening stock"
         MERGE_IN = "merge_in", "Merged in"
         MERGE_OUT = "merge_out", "Merged out"
@@ -147,6 +148,8 @@ class EquipmentUnit(models.Model):
         DAMAGED = "damaged", "Damaged"
         UNDER_REPAIR = "under_repair", "Under repair"
         SOLD = "sold", "Sold"
+        # Kept by the shop for its own use (Module D, operations.ShopAsset).
+        SHOP_ASSET = "shop_asset", "Shop asset"
 
     unit_id = models.AutoField(primary_key=True)
     product = models.ForeignKey(

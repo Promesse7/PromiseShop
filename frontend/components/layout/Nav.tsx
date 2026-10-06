@@ -16,6 +16,7 @@ import {
   Receipt,
   Bell,
   HandCoins,
+  Wrench,
   Upload,
   Settings,
   LogOut,
@@ -36,6 +37,7 @@ const STAFF_LINKS: NavLink[] = [
   { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/stock", label: "Stock", icon: Boxes },
   { href: "/customers", label: "Customers", icon: Users },
+  { href: "/shop-use", label: "Shop use", icon: Wrench },
 ];
 
 const ADMIN_LINKS: NavLink[] = [
@@ -47,6 +49,7 @@ const ADMIN_LINKS: NavLink[] = [
   { href: "/suppliers", label: "Suppliers", icon: Building2 },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/debts", label: "Debts", icon: HandCoins },
+  { href: "/shop-use", label: "Shop use", icon: Wrench },
 ];
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];

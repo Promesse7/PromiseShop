@@ -126,6 +126,7 @@ def test_merge_moves_history_and_stock_and_keeps_the_ledger_consistent(pair, adm
     assert merge.reason == "Typed twice"
     assert merge.counts == {
         "sale_items": 1, "purchase_items": 1, "equipment_units": 1, "price_rows": 1, "barcode_aliases": 2, "bundle_components": 0,
+        "shop_use": 0,  # Module D step
         "in_stock": 3, "in_use": 0, "damaged": 2,
     }
     # costs: purchases of both now average together
