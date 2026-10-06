@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ScanLine } from "lucide-react";
 import { fetchAllPages } from "@/lib/api-client";
 import { useShopAssets } from "@/lib/operations/useShopUse";
 import { QuickStatusChangeCard } from "@/components/stock/QuickStatusChangeCard";
+import { Page } from "@/components/ui/Page";
+import { EmptyState } from "@/components/ui/EmptyState";
 import type { EquipmentUnit } from "@/lib/types";
 
 export default function ScanPageClient() {
@@ -32,27 +34,32 @@ export default function ScanPageClient() {
   }, [unitsQuery.data, search]);
 
   return (
-    <div>
-      <Link href="/stock" className="text-sm">
-        ← Stock
-      </Link>
-      <h4 className="mt-2 mb-3">Quick status change</h4>
-      <div className="flex gap-2 mb-3">
+    <Page
+      title="Quick status change"
+      description="Scan or type a serial number, then move the unit in one tap"
+      breadcrumb={[{ label: "Stock" }, { label: "Stock", href: "/stock" }, { label: "Quick status change" }]}
+      back="/stock"
+    >
+      <div className="flex max-w-2xl flex-col gap-3">
         <input
           aria-label="Scan serial or search unit…"
           placeholder="Scan serial or search unit…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="min-h-11 flex-1 py-1.5 px-2.5 text-sm text-text bg-surface border border-divider rounded-md"
+          // A scanner types into whatever has focus, so the box is ready on arrival.
+          autoFocus
+          className="min-h-11 w-full rounded-md border border-divider bg-surface px-3 py-1.5 text-base text-text"
         />
+        {match ? (
+          <QuickStatusChangeCard key={match.unit_id} unit={match} onSaved={() => setSearch("")} />
+        ) : (
+          <EmptyState
+            icon={ScanLine}
+            title={search.trim() ? "No unit matches that serial" : "Ready to scan"}
+            message={search.trim() ? "Check the serial, or register the unit from Stock." : "Point the scanner at a unit's label."}
+          />
+        )}
       </div>
-      {match && (
-        <QuickStatusChangeCard
-          key={match.unit_id}
-          unit={match}
-          onSaved={() => setSearch("")}
-        />
-      )}
-    </div>
+    </Page>
   );
 }
