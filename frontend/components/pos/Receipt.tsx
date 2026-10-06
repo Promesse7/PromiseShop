@@ -24,7 +24,10 @@ interface ReceiptProps {
   lines: CartLine[];
   servedBy: string;
   onPrint: () => void;
-  onNewSale: () => void;
+  // Omitted when reprinting from sales history: there is no "next sale" there.
+  onNewSale?: () => void;
+  // A copy printed later: no "completed" banner, marked REPRINT.
+  reprint?: boolean;
 }
 
 interface TaxGroupTotal {
@@ -44,7 +47,7 @@ function taxGroupTotals(sale: Sale): TaxGroupTotal[] {
   return Array.from(totals.values()).sort((a, b) => a.category.localeCompare(b.category));
 }
 
-export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptProps) {
+export function Receipt({ sale, lines, servedBy, onPrint, onNewSale, reprint = false }: ReceiptProps) {
   const shopProfile = useShopProfile();
   const saleDate = new Date(sale.sale_date).toLocaleString("en-GB", {
     day: "2-digit",
@@ -62,11 +65,16 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2.5 p-3 rounded-md bg-accent-900 text-accent-100 text-sm shadow-sm">
-        <span className="w-2 h-2 rounded-full bg-accent" />
-        Sale #S-{sale.sale_id} completed — stock updated, admin notified in the app.
-      </div>
+      {!reprint && (
+        <div className="flex items-center gap-2.5 p-3 rounded-md bg-accent-900 text-accent-100 text-sm shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-accent" />
+          Sale #S-{sale.sale_id} completed — stock updated, admin notified in the app.
+        </div>
+      )}
       <div className="print-target bg-surface rounded-md p-6 shadow-sm text-sm max-w-[420px] mx-auto w-full">
+        {reprint && (
+          <div className="text-center text-[11px] font-medium tracking-widest text-text/60 mb-2">REPRINT</div>
+        )}
         <div className="text-center mb-4">
           <div className="font-sans font-medium text-xl">
             {shopProfile.data?.business_name ?? "Promise Electronic Shop"}
@@ -169,6 +177,12 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
             )}
           </div>
         )}
+        {Number(sale.returned_amount ?? 0) > 0 && (
+          <div className="flex justify-between text-xs mt-1">
+            <span>Returned</span>
+            <span>− {Number(sale.returned_amount).toLocaleString()}</span>
+          </div>
+        )}
         {balance > 0 && (
           <div className="mt-2 rounded-md border border-amber-300 p-2 text-xs">
             <div className="flex justify-between">
@@ -218,7 +232,7 @@ export function Receipt({ sale, lines, servedBy, onPrint, onNewSale }: ReceiptPr
         <Button variant="secondary" onClick={onPrint}>
           Print receipt
         </Button>
-        <Button onClick={onNewSale}>New sale</Button>
+        {onNewSale && <Button onClick={onNewSale}>New sale</Button>}
       </div>
     </div>
   );

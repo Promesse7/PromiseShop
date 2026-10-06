@@ -36,6 +36,8 @@ describe("getNavLinksForRole", () => {
   it("returns the staff link set for sales_staff", () => {
     expect(withoutIcons(getNavLinksForRole("sales_staff"))).toEqual([
       { href: "/checkout", label: "Checkout" },
+      { href: "/sales", label: "My sales" },
+      { href: "/close-day", label: "Close day" },
       { href: "/products", label: "Products" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
@@ -60,7 +62,9 @@ describe("getNavLinksForRole", () => {
       { href: "/products", label: "Products" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
-      { href: "/checkout", label: "Sales" },
+      { href: "/checkout", label: "Checkout" },
+      { href: "/sales", label: "Sales" },
+      { href: "/close-day", label: "Close day" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
       { href: "/debts", label: "Debts" },
@@ -79,7 +83,9 @@ describe("getNavLinksForRole", () => {
       { href: "/products", label: "Products" },
       { href: "/purchases", label: "Purchases" },
       { href: "/stock", label: "Stock" },
-      { href: "/checkout", label: "Sales" },
+      { href: "/checkout", label: "Checkout" },
+      { href: "/sales", label: "Sales" },
+      { href: "/close-day", label: "Close day" },
       { href: "/suppliers", label: "Suppliers" },
       { href: "/customers", label: "Customers" },
       { href: "/debts", label: "Debts" },
@@ -103,7 +109,8 @@ describe("Nav", () => {
   it("renders the admin link set, username, and an Admin role tag, for admin", () => {
     render(<Nav role="admin" username="a.uwase" />);
     expect(screen.getByRole("link", { name: "Employees" })).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Checkout" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Checkout" })).toHaveAttribute("href", "/checkout");
+    expect(screen.getByRole("link", { name: "Sales" })).toHaveAttribute("href", "/sales");
     expect(screen.getByText("Admin")).toBeInTheDocument();
     expect(screen.getByText(/a\.uwase/)).toBeInTheDocument();
   });

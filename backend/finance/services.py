@@ -19,9 +19,15 @@ from sales.models import Customer, Sale
 
 ZERO = Decimal("0.00")
 CREDIT_DAYS = 30
-# Sales whose balance counts as money owed to the shop. Module G adds
-# "partially_returned" here.
-OPEN_SALE_STATUSES = (Sale.SaleStatus.COMPLETED,)
+# Sales whose balance (total - returned - paid) counts as money owed to the shop.
+# A fully returned sale stays in: if its refund was lowered, part of it is still
+# owed; when it is settled its balance is 0 and the open filters skip it. Voided
+# sales never count.
+OPEN_SALE_STATUSES = (
+    Sale.SaleStatus.COMPLETED, Sale.SaleStatus.PARTIALLY_RETURNED, Sale.SaleStatus.RETURNED,
+)
+# Open filter: still something owed after returns and payments.
+SALE_UNPAID = Q(amount_paid__lt=F("total_amount") - F("returned_amount"))
 AGING_BUCKETS = ("not_due", "1_30", "31_60", "61_90", "90_plus")
 
 
@@ -58,7 +64,7 @@ def purchase_payment_status(total, amount_paid):
 def refresh_sale_payments(sale):
     """Recompute the cached amount_paid / payment_status from the sale's payments."""
     sale.amount_paid = _signed_sum(Payment.objects.filter(sale=sale), Payment.Direction.IN)
-    sale.payment_status = sale_payment_status(sale.total_amount, sale.amount_paid)
+    sale.payment_status = sale_payment_status(sale.net_total, sale.amount_paid)
     sale.save(update_fields=["amount_paid", "payment_status"])
     return sale
 
@@ -88,16 +94,14 @@ def default_due_date(on_date=None):
 
 
 def open_sales_for(customer):
-    return Sale.objects.filter(
-        customer=customer, status__in=OPEN_SALE_STATUSES, amount_paid__lt=F("total_amount")
-    )
+    return Sale.objects.filter(SALE_UNPAID, customer=customer, status__in=OPEN_SALE_STATUSES)
 
 
 def customer_balance(customer):
     totals = Sale.objects.filter(customer=customer, status__in=OPEN_SALE_STATUSES).aggregate(
-        total=Sum("total_amount"), paid=Sum("amount_paid")
+        total=Sum("total_amount"), returned=Sum("returned_amount"), paid=Sum("amount_paid")
     )
-    return (totals["total"] or ZERO) - (totals["paid"] or ZERO)
+    return (totals["total"] or ZERO) - (totals["returned"] or ZERO) - (totals["paid"] or ZERO)
 
 
 def record_customer_payment(customer, amount, method, reference, user, sale_ids=None, note="", paid_at=None):
@@ -119,7 +123,7 @@ def record_customer_payment(customer, amount, method, reference, user, sale_ids=
                 raise ValidationError({"sale_ids": "Every chosen sale must be an open sale of this customer."})
         locked = list(candidates.select_for_update().order_by("pk"))
         locked.sort(key=lambda s: (s.due_date or s.sale_date.date(), s.sale_date, s.pk))
-        owed = sum((s.total_amount - s.amount_paid for s in locked), ZERO)
+        owed = sum((s.balance for s in locked), ZERO)
         if owed <= 0:
             raise ValidationError("This customer has nothing to pay.")
         if amount > owed:
@@ -131,7 +135,7 @@ def record_customer_payment(customer, amount, method, reference, user, sale_ids=
         for sale in locked:
             if remaining <= 0:
                 break
-            portion = min(remaining, sale.total_amount - sale.amount_paid)
+            portion = min(remaining, sale.balance)
             payments.append(Payment.objects.create(
                 direction=Payment.Direction.IN, sale=sale, amount=portion, method=method,
                 reference=(reference or "").strip(), recorded_by=user, note=note or "",
@@ -224,12 +228,12 @@ def customer_aging(as_of=None):
     totals = _empty_buckets()
     rows = {}
     sales = (
-        Sale.objects.filter(status__in=OPEN_SALE_STATUSES, amount_paid__lt=F("total_amount"))
+        Sale.objects.filter(SALE_UNPAID, status__in=OPEN_SALE_STATUSES)
         .select_related("customer")
         .order_by("pk")
     )
     for sale in sales:
-        balance = sale.total_amount - sale.amount_paid
+        balance = sale.balance
         due = sale.due_date or timezone.localdate(sale.sale_date)
         bucket = _bucket_for(due, as_of)
         totals[bucket] += balance
@@ -292,13 +296,28 @@ def supplier_aging(as_of=None):
 
 
 def customer_statement(customer, date_from=None, date_to=None):
-    """Sales (debits) and payments (credits) in a period, with a running balance.
+    """Sales (debits), returns and payments (credits) in a period, with a running balance.
 
-    Only sales that still count as owed (completed) and their payments appear;
-    cancelled and returned sales drop out of the account entirely.
+    Sales that count toward the account (OPEN_SALE_STATUSES) appear with their
+    returns, payments and refunds paid out; voided sales drop out entirely. A
+    refund paid out shows as a negative credit, so a return that was paid back
+    in cash nets to zero on the account.
     """
-    sales = Sale.objects.filter(customer=customer, status__in=OPEN_SALE_STATUSES)
+    from sales.models import SaleReturn
+
+    sales = list(Sale.objects.filter(customer=customer, status__in=OPEN_SALE_STATUSES))
     payments = Payment.objects.filter(sale__in=sales)
+    returns = SaleReturn.objects.filter(sale__in=sales)
+    return_entries = []
+    recorded_returns = {}
+    for r in returns:
+        recorded_returns[r.sale_id] = recorded_returns.get(r.sale_id, ZERO) + r.refund_total
+        return_entries.append((r.created_at, r.refund_total, f"Return #{r.pk}", r.sale_id, r.pk))
+    for s in sales:
+        # Whole-sale returns from before Module G have no SaleReturn rows.
+        legacy = s.returned_amount - recorded_returns.get(s.pk, ZERO)
+        if legacy > 0:
+            return_entries.append((s.sale_date, legacy, f"Return of Sale #{s.pk}", s.pk, None))
 
     def sale_date(s):
         return timezone.localdate(s.sale_date)
@@ -329,7 +348,17 @@ def customer_statement(customer, date_from=None, date_to=None):
                 "date": d, "kind": "reversal" if p.reversal_of_id else "payment",
                 "reference": f"Payment #{p.pk}" + (f" ({p.reference})" if p.reference else ""),
                 "sale_id": p.sale_id, "payment_id": p.pk, "method": p.method,
-                "debit": ZERO, "credit": credit_of(p), "sort": (p.paid_at, 1, p.pk),
+                "debit": ZERO, "credit": credit_of(p), "sort": (p.paid_at, 2, p.pk),
+            })
+    for when, amount, reference, sale_id, return_id in return_entries:
+        d = timezone.localdate(when)
+        if date_from and d < date_from:
+            opening -= amount
+        elif not date_to or d <= date_to:
+            entries.append({
+                "date": d, "kind": "return", "reference": reference, "sale_id": sale_id,
+                "return_id": return_id, "debit": ZERO, "credit": amount,
+                "sort": (when, 1, return_id or 0),
             })
     entries.sort(key=lambda e: e.pop("sort"))
     running = opening

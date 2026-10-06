@@ -1,21 +1,25 @@
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status as http_status
 from rest_framework import viewsets
 from rest_framework.decorators import action
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from accounts.models import Employee
 from accounts.permissions import IsAdmin, IsAdminOrManager
-from finance.models import Expense, Payment, ShopProfile
+from finance.day_close import close_day, day_figures
+from finance.models import DailyClose, Expense, Payment, ShopProfile
 from finance.serializers import (
-    CustomerPaymentInputSerializer, ExpenseSerializer, PaymentSerializer,
-    ReversePaymentInputSerializer, ShopProfileSerializer, SupplierPaymentInputSerializer,
+    CreateDailyCloseSerializer, CustomerPaymentInputSerializer, DailyCloseSerializer,
+    ExpenseSerializer, PaymentSerializer, ReversePaymentInputSerializer, ShopProfileSerializer,
+    SupplierPaymentInputSerializer,
 )
 from finance.services import (
     confirm_purchase_payment_review, customer_aging, customer_balance, record_customer_payment,
@@ -167,3 +171,61 @@ class ConfirmPurchasePaymentReviewView(APIView):
         purchase = get_object_or_404(Purchase, pk=purchase_id)
         confirm_purchase_payment_review(purchase)
         return Response({"purchase_id": purchase.pk, "payment_needs_review": False})
+
+
+class DailyCloseViewSet(viewsets.GenericViewSet):
+    """End-of-day closes. Staff see and close only their own day; admin/manager see all."""
+
+    serializer_class = DailyCloseSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = DailyClose.objects.select_related("cashier", "closed_by").order_by("-business_date", "-close_id")
+        if not is_admin_or_manager(self.request.user):
+            queryset = queryset.filter(cashier=self.request.user)
+        cashier = self.request.query_params.get("cashier")
+        if cashier:
+            queryset = queryset.filter(cashier_id=cashier)
+        date_from = parse_date_param(self.request, "from")
+        date_to = parse_date_param(self.request, "to")
+        if date_from:
+            queryset = queryset.filter(business_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(business_date__lte=date_to)
+        return queryset
+
+    def _cashier_for(self, raw):
+        user = self.request.user
+        if raw in (None, ""):
+            return user
+        cashier = get_object_or_404(Employee, pk=raw)
+        if cashier.pk != user.pk and not is_admin_or_manager(user):
+            raise PermissionDenied("You can only see your own day.")
+        return cashier
+
+    def list(self, request):
+        page = self.paginate_queryset(self.get_queryset())
+        return self.get_paginated_response(DailyCloseSerializer(page, many=True).data)
+
+    def retrieve(self, request, pk=None):
+        return Response(DailyCloseSerializer(get_object_or_404(self.get_queryset(), pk=pk)).data)
+
+    @action(detail=False, methods=["get"], url_path="preview")
+    def preview(self, request):
+        cashier = self._cashier_for(request.query_params.get("cashier"))
+        business_date = parse_date_param(request, "date") or timezone.localdate()
+        try:
+            opening_float = Decimal(request.query_params.get("opening_float") or "0")
+        except InvalidOperation:
+            raise ValidationError({"opening_float": "Must be a number."})
+        return Response(jsonable(day_figures(cashier, business_date, opening_float)))
+
+    def create(self, request):
+        serializer = CreateDailyCloseSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        close = close_day(
+            data.get("cashier") or request.user, data["business_date"], data["opening_float"], data["counted_cash"],
+            request.user, dict(data["approval"]), note=data.get("note", ""),
+        )
+        return Response(DailyCloseSerializer(close).data, status=http_status.HTTP_201_CREATED)

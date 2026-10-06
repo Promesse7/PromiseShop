@@ -1,6 +1,8 @@
 import uuid
 from decimal import Decimal
 from django.db import transaction
+from django.db.models import Sum
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from accounts.models import Employee
@@ -9,10 +11,11 @@ from catalog.models import ProductPricing
 from sales.pricing import evaluate_line, max_staff_discount_pct, price_floor
 from finance.models import Payment
 from finance.services import (
-    customer_balance, default_due_date, refresh_sale_payments, validate_method_and_reference,
+    customer_balance, default_due_date, refresh_sale_payments, reverse_payment,
+    validate_method_and_reference,
 )
 from notifications.models import NotificationLog
-from sales.models import Customer, Sale, SaleItem
+from sales.models import Customer, Sale, SaleItem, SaleReturn, SaleReturnItem
 from stock.models import Inventory, StockMovement
 from stock.services import record_movement, weighted_average_cost
 
@@ -250,35 +253,192 @@ def complete_sale(customer, employee, payment_method=None, items=None, *, paymen
     return sale
 
 
-def reverse_sale(sale, new_status, *, user=None):
-    if new_status not in (Sale.SaleStatus.RETURNED, Sale.SaleStatus.CANCELLED):
-        raise ValidationError(f"Invalid reversal status: {new_status}")
+def _lock_inventories(product_ids):
+    inventories = {}
+    for product_id in sorted(set(product_ids)):
+        inventories[product_id], _ = Inventory.objects.select_for_update().get_or_create(
+            product_id=product_id, defaults={"quantity_in_stock": 0}
+        )
+    return inventories
+
+
+def is_same_business_day(sale, today=None):
+    """Whether the sale was made on today's Africa/Kigali calendar day."""
+    return timezone.localdate(sale.sale_date) == (today or timezone.localdate())
+
+
+def can_void(sale, today=None):
+    return (
+        sale.status == Sale.SaleStatus.COMPLETED
+        and is_same_business_day(sale, today)
+        and not sale.returns.exists()
+    )
+
+
+def void_sale(sale, user, reason):
+    """Undo a sale on the day it was made: every unit back on the shelf, every payment reversed.
+
+    Admin/manager only (enforced by the view). After the day it was made, a sale
+    can only be returned (return_sale_items).
+    """
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "A reason is required to void a sale."})
 
     with transaction.atomic():
-        locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
-        if locked_sale.status != Sale.SaleStatus.COMPLETED:
-            raise ValidationError("Only a completed sale can be returned or cancelled.")
-
-        items = list(locked_sale.items.select_related("product").order_by("pk"))
-        inventories = {}
-        for product_id in sorted({item.product_id for item in items}):
-            inventories[product_id], _ = Inventory.objects.select_for_update().get_or_create(
-                product_id=product_id, defaults={"quantity_in_stock": 0}
+        locked = Sale.objects.select_for_update().get(pk=sale.pk)
+        if locked.status == Sale.SaleStatus.VOIDED:
+            raise ValidationError("This sale is already voided.")
+        if locked.status != Sale.SaleStatus.COMPLETED or locked.returns.exists():
+            raise ValidationError("A sale with returns can't be voided; return the remaining items instead.")
+        if not is_same_business_day(locked):
+            raise ValidationError(
+                "Only a sale from today can be voided. Use a return for an older sale."
             )
 
-        movement_type = (
-            StockMovement.MovementType.SALE_RETURN if new_status == Sale.SaleStatus.RETURNED
-            else StockMovement.MovementType.SALE_VOID
-        )
+        items = list(locked.items.order_by("pk"))
+        inventories = _lock_inventories(item.product_id for item in items)
         for item in items:
             record_movement(
                 inventories[item.product_id], StockMovement.Bucket.IN_STOCK, item.quantity,
-                movement_type, ("sale_item", item.pk), user,
-                reason=f"Sale #{locked_sale.pk} {new_status}",
+                StockMovement.MovementType.SALE_VOID, ("sale_item", item.pk), user,
+                reason=f"Sale #{locked.pk} voided: {reason}",
             )
 
-        locked_sale.status = new_status
-        locked_sale.save(update_fields=["status"])
+        open_payments = (
+            Payment.objects.filter(sale=locked, reversal_of__isnull=True, reversal__isnull=True)
+            .order_by("pk")
+        )
+        for payment in open_payments:
+            reverse_payment(payment, user, f"Void of Sale #{locked.pk}: {reason}")
 
-        _notify_admins(locked_sale, notification_type="sale_reversed")
-    return locked_sale
+        locked.refresh_from_db(fields=["amount_paid", "payment_status"])
+        locked.status = Sale.SaleStatus.VOIDED
+        locked.void_reason = reason
+        locked.voided_by = user
+        locked.voided_at = timezone.now()
+        locked.save(update_fields=["status", "void_reason", "voided_by", "voided_at"])
+
+        _notify_admins(locked, notification_type="sale_voided")
+    return locked
+
+
+def returned_quantities(sale):
+    """{sale_item_id: units already returned} across every earlier return of the sale."""
+    rows = (
+        SaleReturnItem.objects.filter(sale_return__sale=sale)
+        .values("sale_item_id").annotate(units=Sum("quantity"))
+    )
+    return {row["sale_item_id"]: row["units"] for row in rows}
+
+
+def return_sale_items(sale, items, reason, user, refund_method=None, refund_reference="", approved_by=None):
+    """Take back some or all units of a sale and refund them.
+
+    items: [{"sale_item": SaleItem, "quantity": int, "condition": "resellable" | "damaged",
+             "refund_amount": Decimal | absent}].
+
+    Each line can't return more than was sold minus what earlier returns took
+    back. refund_amount defaults to the price actually paid (unit_price x qty)
+    and may be lowered, never raised. Resellable units go back in stock, damaged
+    ones into the damaged bucket. The refund first reduces what the customer
+    still owes on the sale; only the excess is paid out, as an "out" payment in
+    `refund_method` (a reference is required for non-cash).
+    """
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValidationError({"reason": "A reason is required for a return."})
+    if not items:
+        raise ValidationError({"items": "Choose at least one item to return."})
+
+    with transaction.atomic():
+        locked = Sale.objects.select_for_update().get(pk=sale.pk)
+        if locked.status not in (Sale.SaleStatus.COMPLETED, Sale.SaleStatus.PARTIALLY_RETURNED):
+            raise ValidationError("Only a completed or partly returned sale can take a return.")
+
+        sale_items = {item.pk: item for item in locked.items.order_by("pk")}
+        already = returned_quantities(locked)
+        requested = {}
+        lines = []
+        for index, entry in enumerate(items, start=1):
+            sale_item = entry["sale_item"]
+            if sale_item.pk not in sale_items:
+                raise ValidationError({"items": f"Line {index}: that item is not part of this sale."})
+            sale_item = sale_items[sale_item.pk]
+            quantity = int(entry["quantity"])
+            if quantity < 1:
+                raise ValidationError({"items": f"Line {index}: return at least 1 unit."})
+            condition = entry.get("condition") or SaleReturnItem.Condition.RESELLABLE
+            if condition not in SaleReturnItem.Condition.values:
+                raise ValidationError({"items": f"Line {index}: invalid condition {condition!r}."})
+            requested[sale_item.pk] = requested.get(sale_item.pk, 0) + quantity
+            returnable = sale_item.quantity - already.get(sale_item.pk, 0)
+            if requested[sale_item.pk] > returnable:
+                raise ValidationError({
+                    "items": f"Line {index} ({sale_item.product.name}): only {returnable} "
+                             f"of {sale_item.quantity} can still be returned."
+                })
+            paid_for_units = (sale_item.unit_price * quantity).quantize(CENT)
+            refund_amount = entry.get("refund_amount")
+            refund_amount = paid_for_units if refund_amount is None else Decimal(refund_amount).quantize(CENT)
+            if refund_amount < 0:
+                raise ValidationError({"items": f"Line {index}: the refund can't be negative."})
+            if refund_amount > paid_for_units:
+                raise ValidationError({
+                    "items": f"Line {index}: the refund can't be more than the price paid ({paid_for_units})."
+                })
+            lines.append((sale_item, quantity, condition, refund_amount))
+
+        refund_total = sum((line[3] for line in lines), ZERO)
+        new_net_total = locked.net_total - refund_total
+        paid_out = min(max(locked.amount_paid - new_net_total, ZERO), refund_total)
+        method = refund_method or None
+        if paid_out > 0:
+            if not method or method == SaleReturn.RefundMethod.BALANCE:
+                raise ValidationError({"refund_method": "Choose how the refund is paid back."})
+            validate_method_and_reference(method, refund_reference)
+        else:
+            method = SaleReturn.RefundMethod.BALANCE
+
+        sale_return = SaleReturn.objects.create(
+            sale=locked, reason=reason, refund_method=method,
+            refund_reference=(refund_reference or "").strip() if paid_out > 0 else "",
+            refund_total=refund_total, paid_out=paid_out, balance_reduced=refund_total - paid_out,
+            created_by=user, approved_by=approved_by,
+        )
+
+        inventories = _lock_inventories(line[0].product_id for line in lines)
+        for sale_item, quantity, condition, refund_amount in lines:
+            return_item = SaleReturnItem.objects.create(
+                sale_return=sale_return, sale_item=sale_item, quantity=quantity,
+                refund_amount=refund_amount, condition=condition,
+            )
+            bucket = (
+                StockMovement.Bucket.DAMAGED if condition == SaleReturnItem.Condition.DAMAGED
+                else StockMovement.Bucket.IN_STOCK
+            )
+            record_movement(
+                inventories[sale_item.product_id], bucket, quantity,
+                StockMovement.MovementType.SALE_RETURN, ("sale_return_item", return_item.pk), user,
+                reason=f"Return #{sale_return.pk} of Sale #{locked.pk}: {reason}",
+            )
+
+        locked.returned_amount = locked.returned_amount + refund_total
+        fully_returned = all(
+            already.get(pk, 0) + requested.get(pk, 0) >= item.quantity for pk, item in sale_items.items()
+        )
+        locked.status = Sale.SaleStatus.RETURNED if fully_returned else Sale.SaleStatus.PARTIALLY_RETURNED
+        locked.save(update_fields=["returned_amount", "status"])
+
+        if paid_out > 0:
+            payment = Payment.objects.create(
+                direction=Payment.Direction.OUT, sale=locked, amount=paid_out, method=method,
+                reference=sale_return.refund_reference, recorded_by=user,
+                note=f"Refund for return #{sale_return.pk}",
+            )
+            sale_return.refund_payment = payment
+            sale_return.save(update_fields=["refund_payment"])
+        refresh_sale_payments(locked)
+
+        _notify_admins(locked, notification_type="sale_returned")
+    return sale_return

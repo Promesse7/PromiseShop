@@ -92,7 +92,7 @@ def trading_history(admin, supplier, product):
     make_purchase(admin, supplier, product, 50, Decimal("1.00"), Decimal("1.00"), Purchase.Status.DRAFT)
     # Sold 2 @ 150 (catalog 160); a cancelled sale must not count.
     make_sale(admin, product, 2, Decimal("150.00"), Decimal("160.00"))
-    make_sale(admin, product, 9, Decimal("150.00"), Decimal("160.00"), status=Sale.SaleStatus.CANCELLED)
+    make_sale(admin, product, 9, Decimal("150.00"), Decimal("160.00"), status=Sale.SaleStatus.VOIDED)
     return product
 
 

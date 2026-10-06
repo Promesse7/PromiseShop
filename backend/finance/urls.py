@@ -2,11 +2,12 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from finance.views import (
-    ConfirmPurchasePaymentReviewView, CustomerDebtsView, ExpenseViewSet, PaymentViewSet,
-    ShopProfileView, SupplierDebtsView,
+    ConfirmPurchasePaymentReviewView, CustomerDebtsView, DailyCloseViewSet, ExpenseViewSet,
+    PaymentViewSet, ShopProfileView, SupplierDebtsView,
 )
 
 router = DefaultRouter()
+router.register("daily-close", DailyCloseViewSet, basename="daily-close")
 router.register("expenses", ExpenseViewSet, basename="expense")
 router.register("payments", PaymentViewSet, basename="payment")
 

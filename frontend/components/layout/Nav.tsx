@@ -17,6 +17,8 @@ import {
   Bell,
   HandCoins,
   Wrench,
+  History,
+  CalendarCheck,
   Upload,
   Settings,
   LogOut,
@@ -33,6 +35,9 @@ interface NavLink {
 
 const STAFF_LINKS: NavLink[] = [
   { href: "/checkout", label: "Checkout", icon: ShoppingCart },
+  // Staff see only their own sales from today (the backend enforces it).
+  { href: "/sales", label: "My sales", icon: History },
+  { href: "/close-day", label: "Close day", icon: CalendarCheck },
   { href: "/products", label: "Products", icon: Package },
   { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/stock", label: "Stock", icon: Boxes },
@@ -45,7 +50,9 @@ const ADMIN_LINKS: NavLink[] = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/purchases", label: "Purchases", icon: Truck },
   { href: "/stock", label: "Stock", icon: Boxes },
-  { href: "/checkout", label: "Sales", icon: ShoppingCart },
+  { href: "/checkout", label: "Checkout", icon: ShoppingCart },
+  { href: "/sales", label: "Sales", icon: History },
+  { href: "/close-day", label: "Close day", icon: CalendarCheck },
   { href: "/suppliers", label: "Suppliers", icon: Building2 },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/debts", label: "Debts", icon: HandCoins },

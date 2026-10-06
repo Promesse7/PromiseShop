@@ -138,3 +138,39 @@ class Payment(models.Model):
     def __str__(self):
         target = f"sale #{self.sale_id}" if self.sale_id else f"purchase #{self.purchase_id}"
         return f"{self.direction} {self.amount} ({self.method}) for {target}"
+
+
+class DailyClose(models.Model):
+    """One cashier's day closed: counted cash against what the system expects.
+
+    Unique per cashier per Kigali business date and never reopened; a correction
+    goes into the next day's note.
+    """
+
+    close_id = models.AutoField(primary_key=True)
+    cashier = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, related_name="daily_closes"
+    )
+    business_date = models.DateField()
+    opening_float = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+    expected_cash = models.DecimalField(max_digits=14, decimal_places=2)
+    # {method: {"in", "out", "net", "references": [...]}} at the moment of closing.
+    expected_by_method = models.JSONField(default=dict)
+    # The rest of the Z-report figures at the moment of closing.
+    summary = models.JSONField(default=dict)
+    counted_cash = models.DecimalField(max_digits=14, decimal_places=2)
+    variance = models.DecimalField(max_digits=14, decimal_places=2)
+    note = models.TextField(blank=True, default="")
+    closed_by = models.ForeignKey(
+        "accounts.Employee", on_delete=models.PROTECT, related_name="daily_closes_confirmed"
+    )
+    closed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-business_date", "-close_id"]
+        constraints = [
+            models.UniqueConstraint(fields=["cashier", "business_date"], name="one_close_per_cashier_per_day"),
+        ]
+
+    def __str__(self):
+        return f"Close {self.business_date} {self.cashier_id} (variance {self.variance})"

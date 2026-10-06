@@ -136,13 +136,13 @@ def test_activity_feed_huge_limit_is_clamped_to_100(admin):
 
 
 def test_activity_feed_cancelled_sale_includes_status(admin):
-    Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.CANCELLED)
+    Sale.objects.create(employee=admin, total_amount=Decimal("1000.00"), status=Sale.SaleStatus.VOIDED)
     client = auth_client(admin, "adminpass")
     response = client.get("/api/dashboard/activity-feed/")
     assert response.status_code == 200
     body = response.json()
     assert len(body) == 1
-    assert body[0]["status"] == "cancelled"
+    assert body[0]["status"] == "voided"
 
 
 def test_activity_feed_orders_items_newest_first(admin, supplier):
