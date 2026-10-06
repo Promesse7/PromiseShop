@@ -5,6 +5,7 @@ import { lineSubtotal, type CartLine } from "@/lib/pos/cart";
 import type { PriceCheckLine } from "@/lib/types";
 import { PriceDifference } from "./PriceDifference";
 import { formatRwf } from "@/lib/format";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 
 interface CartTableProps {
   lines: CartLine[];
@@ -23,17 +24,20 @@ function parseNumberInput(raw: string): number | null {
 }
 
 export function CartTable({ lines, onSetQuantity, onSetUnitPrice, onRemove, verdicts, onSetPriceNote }: CartTableProps) {
+  // A long cart scrolls inside its card (header pinned, fade where lines hide) so the totals
+  // and Complete sale stay in reach.
+  const th = "sticky top-0 z-[1] bg-surface font-medium py-2 px-2 text-text/70";
   return (
-    <div className="hidden lg:block overflow-x-auto">
+    <ScrollArea maxHeight="55vh" className="hidden lg:block !overflow-x-auto">
     <table className="w-full text-sm border-collapse">
       <thead>
         <tr className="border-b border-divider">
-          <th className="text-left font-medium py-2 px-2 text-text/70">Product</th>
-          <th className="text-left font-medium py-2 px-2 text-text/70">Barcode</th>
-          <th className="text-right font-medium py-2 px-2 text-text/70">Price (VAT incl.)</th>
-          <th className="text-right font-medium py-2 px-2 text-text/70 w-[76px]">Qty</th>
-          <th className="text-right font-medium py-2 px-2 text-text/70">Subtotal</th>
-          <th></th>
+          <th className={`${th} text-left`}>Product</th>
+          <th className={`${th} text-left`}>Barcode</th>
+          <th className={`${th} text-right`}>Price (VAT incl.)</th>
+          <th className={`${th} text-right w-[76px]`}>Qty</th>
+          <th className={`${th} text-right`}>Subtotal</th>
+          <th className={th}></th>
         </tr>
       </thead>
       <tbody>
@@ -105,6 +109,6 @@ export function CartTable({ lines, onSetQuantity, onSetUnitPrice, onRemove, verd
         )}
       </tbody>
     </table>
-    </div>
+    </ScrollArea>
   );
 }

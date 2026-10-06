@@ -25,6 +25,14 @@ function renderTable(lines: CartLine[], handlers: Partial<{ onSetQuantity: () =>
 }
 
 describe("CartTable", () => {
+  it("scrolls a long cart inside its card, with the header pinned", () => {
+    renderTable([line]);
+    const area = screen.getByRole("table").closest("[data-at-start]") as HTMLElement | null;
+    expect(area).not.toBeNull();
+    expect(area?.style.maxHeight).toBe("55vh");
+    for (const header of screen.getAllByRole("columnheader")) expect(header.className).toContain("sticky");
+  });
+
   it("shows an empty-cart message with no lines", () => {
     renderTable([]);
     expect(screen.getByText("No items scanned yet")).toBeInTheDocument();
