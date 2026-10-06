@@ -51,3 +51,29 @@ Spec: `docs/superpowers/specs/2026-10-06-release-dev-handoff.md`, Module D. Base
 | 5 | not in expenses / COGS; merge step moves rows; delete refused | merge step, delete guard |
 | 6 | reports | `reports.py` |
 | 7 | Vitest per hook/component | Shop use page, asset page + replace wizard, product "Use in shop", scan → asset |
+
+## Endpoints (as built)
+
+- `GET /api/operations/consumptions/?from=&to=&product=&taken_by=&purpose=&shop_asset=` — paginated, newest first.
+- `POST /api/operations/consumptions/` `{product, quantity, purpose, reason, taken_by?, shop_asset?, approval?}` → 201.
+- `GET /api/operations/assets/?status=a,b&location=&assigned_to=&product=&is_spare=&serial=&q=`; `GET …/<id>/`.
+- `POST /api/operations/assets/` (register, admin/manager) `{name, product?, serial?, status?, location?, assigned_to?,
+  acquired_at?, acquisition_value?, notes?, is_spare?, reason?}`.
+- `POST /api/operations/assets/from-stock/` `{product, unit? | serial?, name?, location?, assigned_to?, is_spare?, notes?,
+  reason, approval?}`.
+- `POST …/<id>/status/` `{to_status, reason, approval?}`; `POST …/<id>/replace/` `{new_status, reason,
+  replacement_product? | replacement_unit? | replacement_serial? | spare_asset?, name?, location?, assigned_to?, approval?}`
+  → 201 with the asset now in service; `POST …/<id>/return-to-stock/` `{bucket: in_stock|damaged, reason}` (admin);
+  `GET …/<id>/events/`.
+- Refusals: 400 `code: approval_required` (no PIN / role may not), `approval_refused` (wrong PIN), 429 after 5 wrong PINs.
+
+## Reports (`operations/reports.py`, Kigali dates, inclusive)
+
+- `consumption_total(start, end)` → `{count, quantity, value, unknown_cost_count}`
+- `consumption_by_purpose(start, end)` → `[{purpose, count, quantity, value}]`
+- `consumption_by_month(start, end)` → `[{month: "YYYY-MM", purpose, count, quantity, value}]`
+- `consumption_by_employee(start, end)` → `[{employee_id, employee_name, count, quantity, value}]`
+- `materials_used_internally(start, end)` → `{consumed_value, taken_as_assets_value, total_value}`
+- `assets_damaged(start, end)` → `{count, value}`
+- `replacements_per_asset(days=90, as_of=None)` → `[{asset_id, name, replacements}]`
+- `frequent_replacements(threshold=2, days=90, as_of=None)` → `[{root_asset_id, name, replacements}]` (chains followed)
