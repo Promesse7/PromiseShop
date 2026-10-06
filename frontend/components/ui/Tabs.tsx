@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { motion } from "motion/react";
 import { SPRING, useReducedMotionSafe } from "@/lib/motion";
+import { ScrollArea } from "./ScrollArea";
 
 export interface TabItem {
   id: string;
@@ -84,12 +85,14 @@ export function Tabs({ tabs, value, onChange, label, children }: TabsProps) {
 
   return (
     <div>
+      {/* A crowded row scrolls sideways with a fade on the hidden side; tabs snap into place. */}
+      <ScrollArea orientation="horizontal" className="snap-x snap-proximity border-b border-divider">
       <div
         ref={tablist}
         role="tablist"
         aria-label={label}
         onKeyDown={handleKeyDown}
-        className="flex gap-1 border-b border-divider overflow-x-auto"
+        className="flex w-max min-w-full gap-1"
       >
         {tabs.map((tab, index) => {
           const selected = tab.id === value;
@@ -106,7 +109,7 @@ export function Tabs({ tabs, value, onChange, label, children }: TabsProps) {
               aria-controls={`${id}-panel`}
               tabIndex={selected ? 0 : -1}
               onClick={() => select(tab.id)}
-              className={`relative whitespace-nowrap px-3 py-2 text-sm transition-colors ${
+              className={`relative snap-start whitespace-nowrap px-3 py-2 text-sm transition-colors ${
                 selected ? "text-accent font-medium" : "text-text/60 hover:text-text"
               }`}
             >
@@ -118,13 +121,14 @@ export function Tabs({ tabs, value, onChange, label, children }: TabsProps) {
                 <motion.span
                   layoutId={reduced ? undefined : `${id}-underline`}
                   transition={SPRING.pill}
-                  className="absolute inset-x-1 -bottom-px h-0.5 rounded-full bg-accent"
+                  className="absolute inset-x-1 bottom-0 h-0.5 rounded-full bg-accent"
                 />
               )}
             </button>
           );
         })}
       </div>
+      </ScrollArea>
       {children && (
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-tab-${value}`} className="pt-4">
           {children(value)}

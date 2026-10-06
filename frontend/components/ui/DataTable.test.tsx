@@ -123,3 +123,51 @@ describe("DataTable (phone)", () => {
     expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("S-2");
   });
 });
+
+describe("DataTable (scrolling)", () => {
+  type Callback = (entries: Partial<IntersectionObserverEntry>[]) => void;
+  let observed: { callback: Callback; root: Element | Document | null | undefined }[] = [];
+
+  function stubIntersectionObserver() {
+    observed = [];
+    vi.stubGlobal(
+      "IntersectionObserver",
+      class {
+        constructor(callback: Callback, options?: IntersectionObserverInit) {
+          observed.push({ callback, root: options?.root });
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+      }
+    );
+  }
+
+  it("marks the header stuck once rows have scrolled under it, and unstuck at the top", () => {
+    stubIntersectionObserver();
+    render(<DataTable columns={columns} rows={rows} rowKey={(r) => String(r.id)} label="Sales" />);
+    const head = screen.getAllByRole("rowgroup")[0];
+    expect(head).toHaveAttribute("data-stuck", "false");
+    const sentinel = observed.find((o) => o.root !== undefined)!;
+
+    act(() => sentinel.callback([{ isIntersecting: false, boundingClientRect: { top: -20 } as DOMRect }]));
+    expect(head).toHaveAttribute("data-stuck", "true");
+
+    act(() => sentinel.callback([{ isIntersecting: true, boundingClientRect: { top: 4 } as DOMRect }]));
+    expect(head).toHaveAttribute("data-stuck", "false");
+    vi.unstubAllGlobals();
+  });
+
+  it("scrolls wide tables inside their own area, where the header sticks", () => {
+    stubIntersectionObserver();
+    render(<DataTable columns={columns} rows={rows} rowKey={(r) => String(r.id)} label="Sales" />);
+    const area = screen.getByRole("table", { name: "Sales" }).closest("[data-at-start]");
+    expect(area).not.toBeNull();
+    // The sentinel is watched against the table's own scroll area, where the header sticks.
+    expect(observed.some((o) => o.root === area)).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});
