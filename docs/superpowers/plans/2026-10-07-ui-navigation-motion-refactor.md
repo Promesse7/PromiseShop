@@ -6,6 +6,8 @@
 
 **Architecture:** Wave 1 adds new building blocks (motion tokens, `Page`, `DataTable`, `Sheet`-aware `Dialog`, states, confirm, money formatter) without touching screens. Wave 2 replaces the top-bar `Nav` with an `AppShell` (sidebar, top bar, phone tab bar, More sheet, jump search, help panel, page transitions). Wave 3 moves every screen group onto the template. Wave 4 adds shared-element transitions and a consistency pass. Frontend only; no backend changes; role visibility unchanged.
 
+**Route transitions (decided after reading `node_modules/next/dist/docs/01-app/02-guides/view-transitions.md`):** Next 16's App Router supports React's `<ViewTransition>` (`import { ViewTransition } from 'react'`) with no config; navigations are transitions, so it animates automatically, and it degrades to no animation on unsupported browsers. A `(protected)/template.tsx` only remounts when the *first* segment changes (`/products` → `/products/12` does not remount it), so it is NOT used for page transitions. Use `ViewTransition` for page enter/exit and for card → detail shared-element morphs (`name="product-<id>"` etc.), plus `Link transitionTypes={['nav-back']}` for the reverse direction. Use `motion` for everything inside a page (sheets, nav pills, lists, count-ups, presses). Read that guide before Tasks 11 and 16.
+
 **Tech Stack:** Next 16.3 (App Router), React 19.2, TypeScript, Tailwind 3.4, TanStack Query, lucide-react, **`motion`** (Framer Motion, `motion/react` import), Vitest 2.1 + RTL, Playwright.
 
 **Spec:** Approved in-chat design (2026-10-07, Sections 1–4). The user waived a written spec; the design is restated below as Global Constraints and per-task requirements.
@@ -205,7 +207,7 @@ What it does:
 ### Task 11: `AppShell` + page transitions; retire `Nav`
 
 **Files:**
-- Create `components/shell/AppShell.tsx` (+test) and `app/(protected)/template.tsx`. A Next template re-mounts per navigation and wraps children in `motion.div` with `pageVariants`.
+- Create `components/shell/AppShell.tsx` (+test). Wrap the page content in React `<ViewTransition>` with a CSS enter/exit (fade + 8px rise, 220ms, defined in `globals.css` via `::view-transition-*` and `view-transition-class`), and a reversed slide for `nav-back` transition types. Do not use `template.tsx` for this.
 - Modify `app/(protected)/layout.tsx` to render `<AppShell role username>{children}</AppShell>`.
 - Delete `components/layout/Nav.tsx` and `Nav.test.tsx`. Port their role assertions into the `navModel` tests first.
 
@@ -265,7 +267,7 @@ Each Wave 3 task ends with: the group's tests, then a full vitest run, `tsc`, `e
 ## Wave 4 — Polish
 
 ### Task 16: Shared-element transitions + consistency pass
-- `layoutId` on list-card title/image ↔ detail header for products, customers, sales and shop assets (`motion` `LayoutGroup` across the template boundary; if a route boundary prevents the shared layout, fall back to the standard page transition and note it).
+- Shared-element morphs with React `<ViewTransition name="product-<id>">` on the list card title/thumbnail and the matching detail header, for products, customers, sales and shop assets. Back links use `transitionTypes={['nav-back']}`.
 - Remove `PageHeader` and the old `Table` once unused (grep first). Unify toast placement: bottom-centre on phone above the TabBar, top-right on desktop, slide and stack.
 - Button press feedback: `whileTap={{ scale: 0.97 }}` in `Button`.
 - [ ] Full vitest, `tsc`, `eslint`, commit.
