@@ -7,6 +7,7 @@ import { ToastProvider } from "@/components/layout/ToastProvider";
 import * as useStockOverviewModule from "@/lib/stock/useStockOverview";
 import * as useEquipmentUnitsModule from "@/lib/stock/useEquipmentUnits";
 import type { StockOverview } from "@/lib/stock/useStockOverview";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 
 let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
@@ -146,5 +147,23 @@ describe("StockPageClient", () => {
 
     expect(screen.queryByRole("img", { name: "Barcode for JBL6-KX2201" })).not.toBeInTheDocument();
     vi.restoreAllMocks();
+  });
+
+  it("puts the stock filter in a Filters sheet on phone", async () => {
+    mockSearchParams = new URLSearchParams();
+    setMatchMedia({ desktop: false });
+    renderWithProviders(<StockPageClient />);
+    expect(screen.queryByRole("radio", { name: "Low / out" })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filters" }));
+    await userEvent.click(screen.getByRole("radio", { name: "Low / out" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close dialog" }));
+    expect(screen.getByRole("button", { name: "Filters (1)" })).toBeInTheDocument();
+    expect(screen.queryByText("Samsung 43\" Crystal UHD TV")).not.toBeInTheDocument();
+  });
+
+  it("links to the movements log", () => {
+    mockSearchParams = new URLSearchParams();
+    renderWithProviders(<StockPageClient />);
+    expect(screen.getByRole("link", { name: /Movements/ })).toHaveAttribute("href", "/stock/movements");
   });
 });
