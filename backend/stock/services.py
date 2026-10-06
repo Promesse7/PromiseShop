@@ -22,6 +22,7 @@ MANUAL_MOVEMENT_TYPES = {
     StockMovement.MovementType.FROM_IN_USE,
     StockMovement.MovementType.INTERNAL_CONSUMPTION,
     StockMovement.MovementType.TO_SHOP_ASSET,
+    StockMovement.MovementType.FROM_SHOP_ASSET,
     StockMovement.MovementType.OPENING,
     StockMovement.MovementType.MERGE_IN,
     StockMovement.MovementType.MERGE_OUT,
