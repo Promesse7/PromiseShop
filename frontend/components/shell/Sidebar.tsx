@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
@@ -7,6 +8,7 @@ import { ChevronsLeft, ChevronsRight, Zap } from "lucide-react";
 import { findActiveItem, getNavGroupsForRole, getNavItemsForRole } from "@/lib/nav/navModel";
 import { DURATION, EASE, SPRING, useReducedMotionSafe } from "@/lib/motion";
 import type { EmployeeRole } from "@/lib/types";
+import { ScrollArea } from "@/components/ui/ScrollArea";
 
 interface SidebarProps {
   role: EmployeeRole;
@@ -23,6 +25,13 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
   const reduced = useReducedMotionSafe();
   const groups = getNavGroupsForRole(role);
   const active = findActiveItem(pathname, getNavItemsForRole(role));
+  const navRef = useRef<HTMLElement>(null);
+
+  // Keep the current page's link in view when the list is taller than the screen.
+  useEffect(() => {
+    const current = navRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    current?.scrollIntoView?.({ block: "nearest", behavior: reduced ? "auto" : "smooth" });
+  }, [active?.href, collapsed, reduced]);
 
   return (
     <motion.aside
@@ -38,7 +47,9 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
         {!collapsed && <span className="font-medium text-sm whitespace-nowrap">Promise Electronic Shop</span>}
       </div>
 
-      <nav className="flex-1 overflow-y-auto overflow-x-hidden px-3 pb-3">
+      {/* Scrolls on its own when the list is taller than the screen; edges fade where more links hide. */}
+      <ScrollArea className="flex-1 min-h-0 overflow-x-hidden">
+      <nav ref={navRef} className="px-3 pb-3">
         {groups.map((group) => (
           <div key={group.id} className="mt-3 first:mt-0">
             {collapsed ? (
@@ -79,6 +90,7 @@ export function Sidebar({ role, collapsed, onToggle }: SidebarProps) {
           </div>
         ))}
       </nav>
+      </ScrollArea>
 
       <button
         type="button"

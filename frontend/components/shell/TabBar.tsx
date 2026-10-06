@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { Menu } from "lucide-react";
 import { findActiveItem, getNavItemsForRole, getTabBarItems } from "@/lib/nav/navModel";
-import { SPRING, useReducedMotionSafe } from "@/lib/motion";
+import { DURATION, EASE, SPRING, useReducedMotionSafe } from "@/lib/motion";
+import { useBottomChromeHidden } from "@/lib/scroll/chrome";
 import type { EmployeeRole } from "@/lib/types";
 
 interface TabBarProps {
@@ -20,10 +21,16 @@ export function TabBar({ role, onMore }: TabBarProps) {
   const tabs = getTabBarItems(role);
   const active = findActiveItem(pathname, getNavItemsForRole(role));
   const moreActive = active !== undefined && !tabs.some((t) => t.href === active.href);
+  // Slides away while reading (scrolling down), back on scroll-up or at the page bottom.
+  const hidden = useBottomChromeHidden();
 
   return (
-    <nav
+    <motion.nav
       aria-label="Quick navigation"
+      data-hidden={hidden ? "true" : "false"}
+      initial={false}
+      animate={{ y: hidden ? "100%" : "0%" }}
+      transition={reduced ? { duration: 0 } : { duration: DURATION.base, ease: EASE.out }}
       style={{ viewTransitionName: "app-tabbar" }}
       className="lg:hidden print:hidden fixed inset-x-0 bottom-0 z-40 glass-bar border-t border-divider pb-[env(safe-area-inset-bottom)]"
     >
@@ -70,6 +77,6 @@ export function TabBar({ role, onMore }: TabBarProps) {
           </button>
         </li>
       </ul>
-    </nav>
+    </motion.nav>
   );
 }

@@ -19,6 +19,7 @@ import { ProductLabel } from "@/components/products/ProductLabel";
 import { useToast } from "@/components/layout/ToastProvider";
 import { apiFetch } from "@/lib/api-client";
 import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
+import { STICKY_BOTTOM_TRANSITION, useStickyBottomStyle } from "@/components/shell/useStickyBottomStyle";
 import type { EmployeeRole } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
@@ -57,6 +58,7 @@ export default function ProductsPageClient({ role, openNew = false }: ProductsPa
   // Merging duplicates is admin only (it is irreversible).
   const isStrictAdmin = role === "admin";
   const reduced = useReducedMotionSafe();
+  const stickyBottom = useStickyBottomStyle();
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
@@ -245,7 +247,9 @@ export default function ProductsPageClient({ role, openNew = false }: ProductsPa
         key="bulk"
         role="region"
         aria-label="Selected products"
-        className="fixed inset-x-3 bottom-24 z-20 flex items-center gap-2 rounded-lg border border-accent/20 bg-surface p-2 text-sm shadow-lg lg:static lg:inset-auto lg:z-auto lg:bg-accent/10 lg:shadow-none"
+        // Phone: rides on the tab bar (bottom is ignored once it turns static on desktop).
+        style={stickyBottom}
+        className={`fixed inset-x-3 mb-2 z-20 flex items-center gap-2 rounded-lg border border-accent/20 bg-surface p-2 text-sm shadow-lg lg:static lg:inset-auto lg:mb-0 lg:z-auto lg:bg-accent/10 lg:shadow-none ${STICKY_BOTTOM_TRANSITION}`}
         initial={reduced ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE.out } }}
         exit={reduced ? undefined : { opacity: 0, y: 12, transition: { duration: DURATION.fast } }}

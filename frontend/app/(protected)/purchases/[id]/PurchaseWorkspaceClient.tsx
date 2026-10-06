@@ -28,6 +28,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/layout/ToastProvider";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { STICKY_BOTTOM_TRANSITION, useStickyBottomStyle } from "@/components/shell/useStickyBottomStyle";
 import { formatRwf } from "@/lib/format";
 import { ApiError, extractErrorMessage } from "@/lib/api-client";
 import type { EmployeeRole, Purchase, PurchaseItem } from "@/lib/types";
@@ -66,6 +67,7 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
   const { show } = useToast();
   const confirm = useConfirm();
   const isDesktop = useIsDesktop();
+  const stickyBottom = useStickyBottomStyle();
   const { purchase, isLoading, isError, refetch } = usePurchaseDetail(purchaseId);
   const suppliers = useSuppliers();
   const receivePurchase = useReceivePurchase();
@@ -223,8 +225,8 @@ export default function PurchaseWorkspaceClient({ purchaseId, role }: PurchaseWo
         <>
           <section
             aria-label="Purchase summary"
-            className="fixed inset-x-3 z-20 flex items-center gap-2 rounded-lg border border-divider bg-surface/95 px-3 py-2 shadow-lg backdrop-blur print:hidden"
-            style={{ bottom: "calc(80px + env(safe-area-inset-bottom))" }}
+            className={`fixed inset-x-3 z-20 mb-2 flex items-center gap-2 rounded-lg border border-divider bg-surface/95 px-3 py-2 shadow-lg backdrop-blur print:hidden ${STICKY_BOTTOM_TRANSITION}`}
+            style={stickyBottom}
           >
             <div className="min-w-0 flex-1 text-sm">
               <span className="font-medium">{plural(itemCount, "item")}</span>

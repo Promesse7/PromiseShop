@@ -22,6 +22,8 @@ beforeEach(() => {
   push.mockReset();
   back.mockReset();
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ count: 0, next: null, results: [] }) }));
+  // AppShell restores scroll positions; jsdom doesn't implement scrolling.
+  window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
 });
 
 function withQuery(ui: React.ReactElement) {

@@ -6,7 +6,9 @@ import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, ChevronRight, MoreHorizontal, SlidersHorizontal } from "lucide-react";
 import { useIsDesktop } from "@/lib/useMediaQuery";
 import { DURATION, EASE, useReducedMotionSafe } from "@/lib/motion";
+import { usePageTitleRegistration } from "@/components/shell/PageTitleContext";
 import { Dialog } from "./Dialog";
+import { ScrollArea } from "./ScrollArea";
 import { SharedElement } from "./SharedElement";
 
 export interface Crumb {
@@ -54,7 +56,14 @@ export function Page({
   sharedName,
   children,
 }: PageProps) {
-  const heading = <h1 className="m-0 truncate text-xl font-semibold leading-tight">{title}</h1>;
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // Lets the top bar show this title once the heading scrolls under it.
+  usePageTitleRegistration(title, headingRef);
+  const heading = (
+    <h1 ref={headingRef} className="m-0 truncate text-xl font-semibold leading-tight">
+      {title}
+    </h1>
+  );
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-1">
@@ -194,7 +203,12 @@ export function Toolbar({ search, filters, activeFilterCount = 0, trailing }: To
     return (
       <div className="flex flex-wrap items-center gap-2">
         {search && <div className="min-w-[220px] flex-1 sm:max-w-sm">{search}</div>}
-        {filters && <div className="flex flex-wrap items-center gap-2">{filters}</div>}
+        {filters && (
+          // Many chips scroll sideways with faded edges rather than wrapping onto ragged lines.
+          <ScrollArea orientation="horizontal" label="Filters" className="min-w-0 max-w-full">
+            <div className="flex w-max items-center gap-2 py-0.5">{filters}</div>
+          </ScrollArea>
+        )}
         {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
       </div>
     );
@@ -218,7 +232,11 @@ export function Toolbar({ search, filters, activeFilterCount = 0, trailing }: To
           </Dialog>
         </>
       )}
-      {trailing && <div className="flex shrink-0 items-center gap-2">{trailing}</div>}
+      {trailing && (
+        <ScrollArea orientation="horizontal" className="min-w-0 shrink">
+          <div className="flex w-max items-center gap-2">{trailing}</div>
+        </ScrollArea>
+      )}
     </div>
   );
 }

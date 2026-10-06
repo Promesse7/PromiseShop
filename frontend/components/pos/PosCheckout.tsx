@@ -27,6 +27,7 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { Page } from "@/components/ui/Page";
 import { formatRwf } from "@/lib/format";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { STICKY_BOTTOM_TRANSITION, useStickyBottomStyle } from "@/components/shell/useStickyBottomStyle";
 import type { Customer, PosProduct, Sale } from "@/lib/types";
 
 interface PosCheckoutProps {
@@ -48,6 +49,7 @@ function errorCode(body: unknown): string | undefined {
 export function PosCheckout({ servedBy }: PosCheckoutProps) {
   const catalog = usePosCatalog();
   const isDesktop = useIsDesktop();
+  const stickyBottom = useStickyBottomStyle();
   const [payOpen, setPayOpen] = useState(false);
   const queryClient = useQueryClient();
   const { show } = useToast();
@@ -267,7 +269,8 @@ export function PosCheckout({ servedBy }: PosCheckoutProps) {
         </div>
         <section
           aria-label="Sale total"
-          className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-divider bg-surface/95 px-4 py-2.5 shadow-lg backdrop-blur print:hidden"
+          style={stickyBottom}
+          className={`fixed inset-x-0 z-20 border-t border-divider bg-surface/95 px-4 py-2.5 shadow-lg backdrop-blur print:hidden ${STICKY_BOTTOM_TRANSITION}`}
         >
           <div className="mx-auto flex max-w-[640px] items-center gap-3">
             <div className="min-w-0 flex-1">
