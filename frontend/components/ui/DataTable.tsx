@@ -57,6 +57,8 @@ function cellContent<T>(column: DataColumn<T>, row: T): ReactNode {
   return value === null || value === undefined ? "" : String(value);
 }
 
+const CARD_VIEWPORT = { once: true, margin: "-24px" } as const;
+
 function isRightAligned<T>(column: DataColumn<T>): boolean {
   return column.align === "right" || (column.align === undefined && column.money === true);
 }
@@ -138,9 +140,9 @@ export function DataTable<T>({
     const primaryColumn = columns.find((c) => c.key === primaryKey);
 
     return (
-      <motion.ul aria-label={label} className="m-0 flex list-none flex-col gap-2 p-0" {...motionProps}>
+      <motion.ul aria-label={label} className="m-0 flex list-none flex-col gap-2 p-0">
         <AnimatePresence initial={false}>
-          {sortedRows.map((row) => {
+          {sortedRows.map((row, index) => {
             const href = rowHref?.(row);
             const body = (
               <>
@@ -165,7 +167,18 @@ export function DataTable<T>({
             const cardClass =
               "block rounded-lg border border-divider bg-surface px-3.5 py-3 shadow-sm no-underline text-text";
             return (
-              <motion.li key={rowKey(row)} layout={!reduced} variants={reduced ? undefined : listItem} exit={reduced ? undefined : "exit"}>
+              // Each card rises in the first time it scrolls into view (the first screenful in a
+              // quick stagger), and still animates out when removed or re-sorted.
+              <motion.li
+                key={rowKey(row)}
+                layout={!reduced}
+                variants={reduced ? undefined : listItem}
+                initial={reduced ? false : "hidden"}
+                whileInView={reduced ? undefined : "show"}
+                viewport={CARD_VIEWPORT}
+                transition={reduced ? undefined : { delay: Math.min(index, 8) * 0.03 }}
+                exit={reduced ? undefined : "exit"}
+              >
                 {href ? (
                   <Link href={href} className={`${cardClass} active:bg-text/[0.04]`}>
                     {body}
