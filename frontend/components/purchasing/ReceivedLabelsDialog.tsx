@@ -94,7 +94,22 @@ export function ReceivedLabelsDialog({ open, onClose, items }: ReceivedLabelsDia
   const count = totalUnits(items);
 
   return (
-    <Dialog open={open} onClose={onClose} title="Stock received">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      title="Stock received"
+      footer={
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>Done</Button>
+          {serialised.length > 0 && !scanning && (
+            <Button variant="secondary" onClick={() => setScanning(true)}>Scan serials now</Button>
+          )}
+          <Button onClick={() => window.print()} disabled={labels.length === 0}>
+            Print labels — {count} label{count === 1 ? "" : "s"} for the units just received
+          </Button>
+        </div>
+      }
+    >
       <div className="flex flex-col gap-3 max-w-lg">
         <p className="text-sm text-text/70">
           {count} unit{count === 1 ? "" : "s"} went into stock across {labels.length} product{labels.length === 1 ? "" : "s"}.
@@ -104,15 +119,6 @@ export function ReceivedLabelsDialog({ open, onClose, items }: ReceivedLabelsDia
             <li key={l.product}>{l.name} × {l.copies}</li>
           ))}
         </ul>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => window.print()} disabled={labels.length === 0}>
-            Print labels — {count} label{count === 1 ? "" : "s"} for the units just received
-          </Button>
-          {serialised.length > 0 && !scanning && (
-            <Button variant="secondary" onClick={() => setScanning(true)}>Scan serials now</Button>
-          )}
-          <Button variant="ghost" onClick={onClose}>Done</Button>
-        </div>
         {scanning && (
           <div className="flex flex-col gap-2">
             <p className="text-xs text-text/50">Optional — you can also register serials later from the Stock page.</p>

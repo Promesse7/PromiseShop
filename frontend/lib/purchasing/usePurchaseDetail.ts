@@ -6,6 +6,8 @@ export interface PurchaseDetail {
   purchase: Purchase | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** Re-run the query (the error state's Try again). */
+  refetch?: () => void;
 }
 
 export function usePurchaseDetail(purchaseId: number): PurchaseDetail {
@@ -18,5 +20,6 @@ export function usePurchaseDetail(purchaseId: number): PurchaseDetail {
     purchase: query.data,
     isLoading: query.isLoading,
     isError: query.isError,
+    refetch: () => void query.refetch(),
   };
 }
