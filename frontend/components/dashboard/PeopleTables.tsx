@@ -1,86 +1,89 @@
 import { Card, CardKicker } from "@/components/ui/Card";
+import { DataTable, type DataColumn } from "@/components/ui/DataTable";
 import { rwf, type PeopleResponse } from "@/lib/dashboard/money";
 
 interface PeopleTablesProps {
   people: PeopleResponse;
 }
 
-const TH = "text-left font-medium py-2 px-2 text-text/70";
-const TD = "py-2 px-2";
+type CashierRow = PeopleResponse["cashiers"][number];
+type ApproverRow = PeopleResponse["approvers"][number];
+
+const CASHIER_COLUMNS: DataColumn<CashierRow>[] = [
+  { key: "name", header: "Cashier", primary: true, sortValue: (r) => r.name },
+  { key: "sales_count", header: "Sales", align: "right", mobile: true, sortValue: (r) => r.sales_count },
+  {
+    key: "sales_value",
+    header: "Value",
+    align: "right",
+    mobile: true,
+    render: (r) => rwf(r.sales_value),
+    sortValue: (r) => Number(r.sales_value),
+  },
+  {
+    key: "avg_discount_pct",
+    header: "Avg discount",
+    align: "right",
+    mobile: true,
+    render: (r) => (r.avg_discount_pct == null ? "—" : `${r.avg_discount_pct}%`),
+    sortValue: (r) => Number(r.avg_discount_pct ?? 0),
+  },
+  { key: "approvals_received", header: "Approvals", align: "right" },
+  { key: "below_floor_approvals", header: "Below floor", align: "right" },
+  { key: "voids", header: "Voids", align: "right" },
+  { key: "returns", header: "Returns", render: (r) => `${r.returns_count} (${rwf(r.returns_value)})` },
+  { key: "closes", header: "Day closes", align: "right" },
+  {
+    key: "variance_total",
+    header: "Variance",
+    align: "right",
+    mobile: true,
+    render: (r) => rwf(r.variance_total),
+    sortValue: (r) => Number(r.variance_total),
+  },
+];
+
+const APPROVER_COLUMNS: DataColumn<ApproverRow>[] = [
+  { key: "name", header: "Approver", primary: true, sortValue: (r) => r.name },
+  { key: "approvals_given", header: "Lines approved", align: "right", sortValue: (r) => r.approvals_given },
+  { key: "sales", header: "Sales", align: "right" },
+  { key: "below_floor", header: "Below floor", align: "right" },
+  {
+    key: "discount_approved",
+    header: "Discount approved",
+    align: "right",
+    render: (r) => rwf(r.discount_approved),
+    sortValue: (r) => Number(r.discount_approved),
+  },
+];
 
 export function PeopleTables({ people }: PeopleTablesProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Card elevation="sm">
+      <Card elevation="sm" className="flex flex-col gap-2">
         <CardKicker>Cashiers</CardKicker>
         {people.cashiers.length === 0 ? (
-          <p className="text-sm text-text/50">No sales in this period</p>
+          <p className="m-0 text-sm text-text/50">No sales in this period</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse" aria-label="Cashiers">
-              <thead>
-                <tr className="border-b border-divider">
-                  <th className={TH}>Cashier</th>
-                  <th className={TH}>Sales</th>
-                  <th className={TH}>Value</th>
-                  <th className={TH}>Avg discount</th>
-                  <th className={TH}>Approvals</th>
-                  <th className={TH}>Below floor</th>
-                  <th className={TH}>Voids</th>
-                  <th className={TH}>Returns</th>
-                  <th className={TH}>Day closes</th>
-                  <th className={TH}>Variance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {people.cashiers.map((row) => (
-                  <tr key={row.employee_id} className="border-b border-divider">
-                    <td className={TD}>{row.name}</td>
-                    <td className={TD}>{row.sales_count}</td>
-                    <td className={TD}>{rwf(row.sales_value)}</td>
-                    <td className={TD}>{row.avg_discount_pct == null ? "—" : `${row.avg_discount_pct}%`}</td>
-                    <td className={TD}>{row.approvals_received}</td>
-                    <td className={TD}>{row.below_floor_approvals}</td>
-                    <td className={TD}>{row.voids}</td>
-                    <td className={TD}>
-                      {row.returns_count} ({rwf(row.returns_value)})
-                    </td>
-                    <td className={TD}>{row.closes}</td>
-                    <td className={TD}>{rwf(row.variance_total)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            label="Cashiers"
+            columns={CASHIER_COLUMNS}
+            rows={people.cashiers}
+            rowKey={(r) => String(r.employee_id)}
+          />
         )}
       </Card>
-      <Card elevation="sm">
+      <Card elevation="sm" className="flex flex-col gap-2">
         <CardKicker>Approvers</CardKicker>
         {people.approvers.length === 0 ? (
-          <p className="text-sm text-text/50">No manager approvals in this period</p>
+          <p className="m-0 text-sm text-text/50">No manager approvals in this period</p>
         ) : (
-          <table className="w-full text-sm border-collapse" aria-label="Approvers">
-            <thead>
-              <tr className="border-b border-divider">
-                <th className={TH}>Approver</th>
-                <th className={TH}>Lines approved</th>
-                <th className={TH}>Sales</th>
-                <th className={TH}>Below floor</th>
-                <th className={TH}>Discount approved</th>
-              </tr>
-            </thead>
-            <tbody>
-              {people.approvers.map((row) => (
-                <tr key={row.employee_id} className="border-b border-divider">
-                  <td className={TD}>{row.name}</td>
-                  <td className={TD}>{row.approvals_given}</td>
-                  <td className={TD}>{row.sales}</td>
-                  <td className={TD}>{row.below_floor}</td>
-                  <td className={TD}>{rwf(row.discount_approved)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <DataTable
+            label="Approvers"
+            columns={APPROVER_COLUMNS}
+            rows={people.approvers}
+            rowKey={(r) => String(r.employee_id)}
+          />
         )}
       </Card>
     </div>

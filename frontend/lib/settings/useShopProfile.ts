@@ -6,7 +6,7 @@ export interface UseShopProfileResult {
   data: ShopProfile | undefined;
   isLoading: boolean;
   isError: boolean;
-  refetch: () => void;
+  refetch?: () => void;
 }
 
 export function useShopProfile(): UseShopProfileResult {

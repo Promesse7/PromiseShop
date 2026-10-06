@@ -12,9 +12,9 @@ import { ExportCsvButton } from "@/components/dashboard/ExportCsvButton";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { PeriodPicker } from "@/components/dashboard/PeriodPicker";
 import { MoneyAlerts, MoneyDashboard } from "@/components/dashboard/MoneyDashboard";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
+import { Tabs } from "@/components/ui/Tabs";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { SegmentedToggle } from "@/components/ui/SegmentedToggle";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
 import { SetupChecklist } from "@/components/shell/SetupChecklist";
 import { presetRange, type DateRange, type PeriodPreset } from "@/lib/dashboard/money";
@@ -26,11 +26,13 @@ interface DashboardPageClientProps {
 
 type Tab = "overview" | "money" | "people";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "overview", label: "Overview" },
-  { value: "money", label: "Money chain" },
-  { value: "people", label: "People" },
+const TABS: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "money", label: "Money chain" },
+  { id: "people", label: "People" },
 ];
+
+const DESCRIPTION = "This month at a glance: sales, costs, profit and what needs restocking.";
 
 export default function DashboardPageClient({ role }: DashboardPageClientProps) {
   const data = useDashboardData();
@@ -39,63 +41,78 @@ export default function DashboardPageClient({ role }: DashboardPageClientProps) 
   const [tab, setTab] = useState<Tab>("overview");
 
   if (data.isForbidden) {
-    return <AdminOnlyNotice />;
+    return (
+      <Page title="Dashboard">
+        <AdminOnlyNotice />
+      </Page>
+    );
   }
 
   if (data.isError) {
     return (
-      <ErrorState message="Couldn't load the dashboard." />
+      <Page title="Dashboard" description={DESCRIPTION}>
+        <ErrorState message="Couldn't load the dashboard." />
+      </Page>
     );
   }
 
   if (data.isLoading) {
-    return <DashboardSkeleton />;
+    return (
+      <Page title="Dashboard" description={DESCRIPTION}>
+        <DashboardSkeleton />
+      </Page>
+    );
   }
 
   // First-run setup steps show here until the first purchase is received (other pages
   // reach them through the help panel); the figures render from day one.
   return (
-    <div>
-      <SetupChecklist />
-      <PageHeader title="Dashboard" subtitle="Monthly summary">
-        <span className="flex items-center gap-1.5 text-xs text-emerald-600">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-dot" aria-hidden />
-          Live
-        </span>
-        <div className="ml-auto">
-          {tab === "overview" && <ExportCsvButton data={data} />}
-        </div>
-      </PageHeader>
-      <QuickActions role={role} />
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <SegmentedToggle name="dashboard-tab" options={TABS} value={tab} onChange={(v) => setTab(v as Tab)} />
-        {tab !== "overview" && (
-          <PeriodPicker
-            preset={preset}
-            range={range}
-            onChange={(nextPreset, nextRange) => {
-              setPreset(nextPreset);
-              setRange(nextRange);
-            }}
-          />
-        )}
+    <Page
+      title="Dashboard"
+      description={DESCRIPTION}
+      toolbar={
+        <Toolbar
+          filters={
+            tab !== "overview" ? (
+              <PeriodPicker
+                preset={preset}
+                range={range}
+                onChange={(nextPreset, nextRange) => {
+                  setPreset(nextPreset);
+                  setRange(nextRange);
+                }}
+              />
+            ) : undefined
+          }
+          activeFilterCount={tab !== "overview" && preset !== "month" ? 1 : 0}
+          trailing={tab === "overview" ? <ExportCsvButton data={data} /> : undefined}
+        />
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <SetupChecklist />
+        <QuickActions role={role} />
+        <MoneyAlerts range={range} />
+        <Tabs tabs={TABS} value={tab} onChange={(id) => setTab(id as Tab)} label="Dashboard views">
+          {(active) =>
+            active === "overview" ? (
+              <div className="flex flex-col gap-4">
+                <StatCards data={data} />
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.5fr_1fr]">
+                  <RevenueTrendChart points={data.trend} />
+                  <LowStockTable rows={data.lowStockRows} />
+                </div>
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  <TopSellersTable rows={data.topSellers} />
+                  <SlowMoversTable rows={data.slowMovers} />
+                </div>
+              </div>
+            ) : (
+              <MoneyDashboard range={range} tab={active as "money" | "people"} />
+            )
+          }
+        </Tabs>
       </div>
-      <MoneyAlerts range={range} />
-      {tab === "overview" ? (
-        <>
-          <StatCards data={data} />
-          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-            <RevenueTrendChart points={data.trend} />
-            <LowStockTable rows={data.lowStockRows} />
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <TopSellersTable rows={data.topSellers} />
-            <SlowMoversTable rows={data.slowMovers} />
-          </div>
-        </>
-      ) : (
-        <MoneyDashboard range={range} tab={tab} />
-      )}
-    </div>
+    </Page>
   );
 }

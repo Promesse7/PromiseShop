@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { MoneyWaterfall, waterfallBars } from "./MoneyWaterfall";
+import { setMatchMedia } from "@/lib/test/matchMedia";
 import type { ChainStep } from "@/lib/dashboard/money";
 
 const steps: ChainStep[] = [
@@ -28,5 +29,20 @@ describe("MoneyWaterfall", () => {
     expect(screen.getByRole("img", { name: "Money chain waterfall" })).toBeInTheDocument();
     expect(screen.getByText("Returns and voids")).toBeInTheDocument();
     expect(screen.getByText(`RWF ${(-228000).toLocaleString()}`)).toBeInTheDocument();
+  });
+
+  it("grows each bar up from its base when motion is allowed", () => {
+    setMatchMedia({ reducedMotion: false });
+    const { container } = render(<MoneyWaterfall steps={steps} />);
+    const bars = container.querySelectorAll("rect");
+    expect(bars).toHaveLength(steps.length);
+    bars.forEach((bar) => expect(bar.getAttribute("style") ?? "").toContain("scaleY(0)"));
+  });
+
+  it("draws the bars at full height straight away with reduced motion", () => {
+    const { container } = render(<MoneyWaterfall steps={steps} />);
+    container.querySelectorAll("rect").forEach((bar) => {
+      expect(bar.getAttribute("style") ?? "").not.toContain("scaleY(0)");
+    });
   });
 });
