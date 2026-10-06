@@ -1,7 +1,6 @@
 "use client";
 
 import { useId, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAllPages } from "@/lib/api-client";
@@ -13,11 +12,10 @@ import {
   type MovementFilters,
 } from "@/lib/stock/movements";
 import { MovementsTable } from "@/components/stock/MovementsTable";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Field } from "@/components/ui/Field";
-import { PageHeader } from "@/components/ui/PageHeader";
+import { Page, Toolbar } from "@/components/ui/Page";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import type { EmployeeRole, Product, StockBucket, StockMovementType } from "@/lib/types";
 
 // The API caps a page at 500; the ledger page shows (and exports) up to that many rows.
@@ -71,15 +69,13 @@ export default function StockMovementsPageClient({ role }: StockMovementsPageCli
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
-  return (
-    <div>
-      <PageHeader title="Stock movements" subtitle="Every change to every stock bucket">
-        <Link href="/stock" className="ml-auto text-sm text-accent">
-          ← Stock overview
-        </Link>
-      </PageHeader>
-      <Card elevation="sm" className="mb-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+  const activeFilterCount = [filters.product, filters.type, filters.bucket, filters.from, filters.to].filter(Boolean).length;
+
+  const toolbar = (
+    <Toolbar
+      activeFilterCount={activeFilterCount}
+      filters={
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <div className="flex flex-col gap-1">
             <label htmlFor={productId} className="block text-xs text-text/70">Product</label>
             <select
@@ -125,31 +121,37 @@ export default function StockMovementsPageClient({ role }: StockMovementsPageCli
           <Field label="From" name="from" type="date" value={filters.from ?? ""} onChange={(v) => setFilter("from", v)} />
           <Field label="To" name="to" type="date" value={filters.to ?? ""} onChange={(v) => setFilter("to", v)} />
         </div>
-        <div className="flex items-center gap-3 mt-3">
-          <span className="text-sm text-text/60">
-            {ledger.count > ledger.movements.length
-              ? `Showing the latest ${ledger.movements.length} of ${ledger.count} movements`
-              : `${ledger.count} movement${ledger.count === 1 ? "" : "s"}`}
-          </span>
-          <Button
-            variant="secondary"
-            className="ml-auto"
-            disabled={ledger.movements.length === 0}
-            onClick={() => downloadCsv(movementsToCsv(ledger.movements, showCost))}
-          >
-            Export CSV
-          </Button>
-        </div>
-      </Card>
+      }
+    />
+  );
+
+  return (
+    <Page
+      title="Stock movements"
+      description="Every change to every stock bucket, with who did it and why"
+      breadcrumb={[{ label: "Stock" }, { label: "Stock", href: "/stock" }, { label: "Movements" }]}
+      back="/stock"
+      secondaryActions={
+        ledger.movements.length > 0
+          ? [{ label: "Export CSV", onSelect: () => downloadCsv(movementsToCsv(ledger.movements, showCost)) }]
+          : []
+      }
+      toolbar={toolbar}
+    >
       {ledger.isError ? (
         <ErrorState message="Couldn't load stock movements." />
       ) : ledger.isLoading ? (
-        <p className="text-sm text-text/50">Loading movements…</p>
+        <LoadingState variant="table" label="Loading movements…" />
       ) : (
-        <Card elevation="sm">
+        <div className="flex flex-col gap-2">
+          <p className="m-0 text-sm text-text/60">
+            {ledger.count > ledger.movements.length
+              ? `Showing the latest ${ledger.movements.length} of ${ledger.count} movements`
+              : `${ledger.count} movement${ledger.count === 1 ? "" : "s"}`}
+          </p>
           <MovementsTable movements={ledger.movements} showCost={showCost} emptyMessage="No movements match these filters" />
-        </Card>
+        </div>
       )}
-    </div>
+    </Page>
   );
 }
