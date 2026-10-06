@@ -198,7 +198,8 @@ describe("ProductDetailPageClient", () => {
 
   it("opens the edit dialog when Edit is clicked", async () => {
     renderWithProviders(<ProductDetailPageClient productId={1} role="admin" />);
-    await userEvent.click(screen.getAllByRole("button", { name: "Edit" })[0]);
+    // Exactly one "Edit" (the product); the info sheet has its own, distinct name.
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(screen.getByText("Edit product")).toBeInTheDocument();
   });
 

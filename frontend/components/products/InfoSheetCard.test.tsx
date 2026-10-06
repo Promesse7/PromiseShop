@@ -25,12 +25,12 @@ describe("InfoSheetCard", () => {
   it("calls onEdit when Edit is clicked", async () => {
     const onEdit = vi.fn();
     render(<InfoSheetCard usageInstructions="Hold power 2s." onEdit={onEdit} />);
-    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit info sheet" }));
     expect(onEdit).toHaveBeenCalled();
   });
 
   it("does not render an Edit button when onEdit is not provided", () => {
     render(<InfoSheetCard usageInstructions="Hold power 2s." />);
-    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Edit info sheet" })).not.toBeInTheDocument();
   });
 });

@@ -20,7 +20,7 @@ export function InfoSheetCard({ usageInstructions, onEdit }: InfoSheetCardProps)
           Print info sheet
         </Button>
         {onEdit && (
-          <Button variant="ghost" onClick={onEdit}>
+          <Button variant="ghost" onClick={onEdit} aria-label="Edit info sheet">
             Edit
           </Button>
         )}
