@@ -35,7 +35,6 @@ import { Button } from "@/components/ui/Button";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useToast } from "@/components/layout/ToastProvider";
 import { apiFetch, ApiError, extractErrorMessage } from "@/lib/api-client";
-import { formatRwf } from "@/lib/format";
 import type { EmployeeRole, Product } from "@/lib/types";
 
 const ADMIN_ROLES: EmployeeRole[] = ["admin", "manager"];
