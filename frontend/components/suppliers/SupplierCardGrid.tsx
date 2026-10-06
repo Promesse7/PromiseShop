@@ -5,7 +5,8 @@ import { motion } from "motion/react";
 import { Mail, MapPin, Phone, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardTitle } from "@/components/ui/Card";
-import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 import type { Supplier } from "@/lib/types";
 
 interface SupplierCardGridProps {
@@ -25,10 +26,9 @@ export function SupplierCardGrid({ suppliers, onEdit, empty }: SupplierCardGridP
   return (
     <motion.ul
       className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      {...(reduced ? { initial: false } : { variants: listContainer, initial: "hidden", animate: "show" })}
     >
-      {suppliers.map((s) => (
-        <motion.li key={s.supplier_id} variants={reduced ? undefined : listItem} className="h-full">
+      {suppliers.map((s, index) => (
+        <motion.li key={s.supplier_id} {...revealItemProps(index, reduced)} className="h-full">
           <Card elevation="sm" className="h-full">
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">

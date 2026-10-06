@@ -7,7 +7,8 @@ import { Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { formatRwf } from "@/lib/format";
-import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
+import { useReducedMotionSafe } from "@/lib/motion";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 import type { Customer } from "@/lib/types";
 
 interface CustomerCardGridProps {
@@ -26,12 +27,11 @@ export function CustomerCardGrid({ customers, onEdit }: CustomerCardGridProps) {
     <motion.ul
       aria-label="Customers"
       className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      {...(reduced ? { initial: false } : { variants: listContainer, initial: "hidden", animate: "show" })}
     >
-      {customers.map((c) => (
+      {customers.map((c, index) => (
         <motion.li
           key={c.customer_id}
-          variants={reduced ? undefined : listItem}
+          {...revealItemProps(index, reduced)}
           whileTap={reduced ? undefined : { scale: 0.985 }}
           className="flex h-full flex-col gap-2 rounded-lg border border-divider bg-surface px-3.5 py-3 shadow-sm"
         >

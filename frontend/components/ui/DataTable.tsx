@@ -9,6 +9,7 @@ import { formatRwf } from "@/lib/format";
 import { listContainer, listItem, useReducedMotionSafe } from "@/lib/motion";
 import { LoadingState } from "./LoadingState";
 import { ScrollArea } from "./ScrollArea";
+import { revealItemProps } from "@/lib/scroll/revealItemProps";
 
 export interface DataColumn<T> {
   key: string;
@@ -56,8 +57,6 @@ function cellContent<T>(column: DataColumn<T>, row: T): ReactNode {
   if (column.money) return formatRwf(value as string | number | null | undefined);
   return value === null || value === undefined ? "" : String(value);
 }
-
-const CARD_VIEWPORT = { once: true, margin: "-24px" } as const;
 
 function isRightAligned<T>(column: DataColumn<T>): boolean {
   return column.align === "right" || (column.align === undefined && column.money === true);
@@ -172,11 +171,7 @@ export function DataTable<T>({
               <motion.li
                 key={rowKey(row)}
                 layout={!reduced}
-                variants={reduced ? undefined : listItem}
-                initial={reduced ? false : "hidden"}
-                whileInView={reduced ? undefined : "show"}
-                viewport={CARD_VIEWPORT}
-                transition={reduced ? undefined : { delay: Math.min(index, 8) * 0.03 }}
+                {...revealItemProps(index, reduced)}
                 exit={reduced ? undefined : "exit"}
               >
                 {href ? (
