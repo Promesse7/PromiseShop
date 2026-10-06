@@ -25,6 +25,7 @@ import { ConsumptionTable } from "@/components/operations/ConsumptionTable";
 import { useConsumptions } from "@/lib/operations/useShopUse";
 import { useOpeningStockStatus } from "@/lib/products/useOpeningStock";
 import { Page, type PageAction } from "@/components/ui/Page";
+import { StatStrip } from "@/components/finance/StatStrip";
 import { Tabs } from "@/components/ui/Tabs";
 import { Tag } from "@/components/ui/Tag";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -57,16 +58,6 @@ const TABS = [
   { id: "stock", label: "Stock & movements" },
   { id: "shop-use", label: "Shop use" },
 ];
-
-function Stat({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
-  return (
-    <div className="rounded-lg border border-divider bg-surface px-3.5 py-2.5">
-      <div className="text-xs text-text/50">{label}</div>
-      <div className="text-lg font-medium tabular-nums">{value}</div>
-      {hint && <div className="text-xs text-text/50">{hint}</div>}
-    </div>
-  );
-}
 
 function ProductShopUse({ productId, showValue }: { productId: number; showValue: boolean }) {
   const consumptions = useConsumptions({ product: productId });
@@ -219,12 +210,26 @@ export default function ProductDetailPageClient({ productId, role }: ProductDeta
           </button>
         </div>
 
-        <section aria-label="Key figures" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Stat label="In stock" value={inStock} hint={`reorder at ${product.reorder_level}`} />
-          <Stat label="Retail price" value={retail !== null ? formatRwf(retail) : "Not priced"} />
-          {isAdmin && <Stat label="Avg cost" value={row?.avg_cost_paid ? formatRwf(row.avg_cost_paid) : "—"} />}
-          {isAdmin && <Stat label="Margin" value={row?.margin_pct ? `${row.margin_pct}%` : "—"} hint="all time" />}
-        </section>
+        <StatStrip
+          label="Key figures"
+          stats={[
+            {
+              label: "In stock",
+              value: inStock,
+              hint: `reorder at ${product.reorder_level}`,
+              tone: status === "ok" ? "default" : "danger",
+            },
+            retail !== null
+              ? { label: "Retail price", amount: retail }
+              : { label: "Retail price", value: "Not priced", tone: "muted" as const },
+            ...(isAdmin
+              ? [
+                  { label: "Avg cost", amount: row?.avg_cost_paid ?? null },
+                  { label: "Margin", value: row?.margin_pct ? `${row.margin_pct}%` : "—", hint: "all time" },
+                ]
+              : []),
+          ]}
+        />
 
         <Tabs tabs={TABS} value={tab} onChange={setTab} label="Product sections">
           {(active) => (

@@ -12,6 +12,7 @@ import { ReplaceAssetWizard } from "@/components/operations/ReplaceAssetWizard";
 import { Button } from "@/components/ui/Button";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Page } from "@/components/ui/Page";
+import { StatStrip } from "@/components/finance/StatStrip";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Tag } from "@/components/ui/Tag";
@@ -25,15 +26,6 @@ const TECHNICIAN_STATUSES: ShopAssetStatus[] = ["in_service", "under_repair"];
 interface AssetDetailPageClientProps {
   assetId: number;
   role: EmployeeRole;
-}
-
-function Fact({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-divider bg-surface px-3.5 py-2.5">
-      <div className="text-xs text-text/50">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
-  );
 }
 
 export default function AssetDetailPageClient({ assetId, role }: AssetDetailPageClientProps) {
@@ -85,16 +77,17 @@ export default function AssetDetailPageClient({ assetId, role }: AssetDetailPage
           {asset.serial && <span className="font-mono text-xs text-text/50">{asset.serial}</span>}
         </div>
 
-        <section aria-label="Asset facts" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Fact label="Location" value={asset.location || "—"} />
-          <Fact label="Assigned to" value={asset.assigned_to_name ?? "—"} />
-          <Fact label="Since" value={asset.acquired_at} />
-          {isManager ? (
-            <Fact label="Value" value={formatValue(asset.acquisition_value)} />
-          ) : (
-            <Fact label="Source" value={asset.source === "from_stock" ? "Taken from stock" : "Already owned"} />
-          )}
-        </section>
+        <StatStrip
+          label="Asset facts"
+          stats={[
+            { label: "Location", value: asset.location || "—" },
+            { label: "Assigned to", value: asset.assigned_to_name ?? "—" },
+            { label: "Since", value: asset.acquired_at },
+            isManager
+              ? { label: "Value", value: formatValue(asset.acquisition_value) }
+              : { label: "Source", value: asset.source === "from_stock" ? "Taken from stock" : "Already owned" },
+          ]}
+        />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card elevation="sm">

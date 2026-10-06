@@ -5,6 +5,7 @@ import { useEquipmentUnitDetail } from "@/lib/stock/useEquipmentUnitDetail";
 import { StatusHistoryTimeline } from "@/components/stock/StatusHistoryTimeline";
 import { ChangeStatusDialog } from "@/components/stock/ChangeStatusDialog";
 import { Page } from "@/components/ui/Page";
+import { StatStrip } from "@/components/finance/StatStrip";
 import { Card, CardKicker } from "@/components/ui/Card";
 import { Tag } from "@/components/ui/Tag";
 import { Button } from "@/components/ui/Button";
@@ -13,15 +14,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 
 interface UnitDetailPageClientProps {
   unitId: number;
-}
-
-function Fact({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-divider bg-surface px-3.5 py-2.5">
-      <div className="text-xs text-text/50">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
-  );
 }
 
 export default function UnitDetailPageClient({ unitId }: UnitDetailPageClientProps) {
@@ -51,12 +43,18 @@ export default function UnitDetailPageClient({ unitId }: UnitDetailPageClientPro
       primaryAction={<Button onClick={() => setChangeStatusOpen(true)}>Change status</Button>}
     >
       <div className="flex flex-col gap-4">
-        <section aria-label="Unit details" className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Fact label="Status" value={unit.status ? <Tag variant="neutral">{statusLabel}</Tag> : "—"} />
-          <Fact label="Location" value={unit.storage_location ?? "—"} />
-          <Fact label="Last changed" value={new Date(unit.status_changed_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })} />
-          <Fact label="Condition" value={unit.condition_notes ?? "—"} />
-        </section>
+        <StatStrip
+          label="Unit details"
+          stats={[
+            { label: "Status", value: unit.status ? <Tag variant="neutral">{statusLabel}</Tag> : "—" },
+            { label: "Location", value: unit.storage_location ?? "—" },
+            {
+              label: "Last changed",
+              value: new Date(unit.status_changed_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
+            },
+            { label: "Condition", value: unit.condition_notes ?? "—" },
+          ]}
+        />
         <Card elevation="sm">
           <CardKicker>History</CardKicker>
           <StatusHistoryTimeline entries={unit.status_history} />

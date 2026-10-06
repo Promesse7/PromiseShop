@@ -170,7 +170,7 @@ describe("ProductDetailPageClient", () => {
 
   it("shows key stats in the header: stock and retail for everyone, cost and margin for admin/manager only", () => {
     const { unmount } = renderWithProviders(<ProductDetailPageClient productId={1} role="manager" />);
-    const stats = within(screen.getByRole("region", { name: "Key figures" }));
+    const stats = within(screen.getByRole("list", { name: "Key figures" }));
     expect(stats.getByText("In stock")).toBeInTheDocument();
     expect(stats.getByText("RWF 145,000")).toBeInTheDocument();
     expect(stats.getByText("Avg cost")).toBeInTheDocument();
@@ -178,7 +178,7 @@ describe("ProductDetailPageClient", () => {
     unmount();
 
     renderWithProviders(<ProductDetailPageClient productId={1} role="sales_staff" />);
-    const staffStats = within(screen.getByRole("region", { name: "Key figures" }));
+    const staffStats = within(screen.getByRole("list", { name: "Key figures" }));
     expect(staffStats.queryByText("Avg cost")).not.toBeInTheDocument();
     expect(staffStats.queryByText(/%/)).not.toBeInTheDocument();
   });

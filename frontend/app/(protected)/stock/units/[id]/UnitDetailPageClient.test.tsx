@@ -66,6 +66,6 @@ describe("UnitDetailPageClient", () => {
   it("has a back link to the stock overview and shows the unit's key facts", () => {
     renderWithProviders(<UnitDetailPageClient unitId={3} />);
     expect(screen.getByRole("link", { name: "Back" })).toHaveAttribute("href", "/stock");
-    expect(screen.getByRole("region", { name: "Unit details" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Unit details" })).toBeInTheDocument();
   });
 });

@@ -65,7 +65,7 @@ describe("AssetDetailPageClient", () => {
   it("shows details, value and the timeline with replacement links for an admin", async () => {
     renderPage("admin");
     expect(await screen.findByRole("heading", { level: 1, name: "Office printer" })).toBeInTheDocument();
-    expect(within(screen.getByRole("region", { name: "Asset facts" })).getByText("RWF 200,000")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "Asset facts" })).getByText("RWF 200,000")).toBeInTheDocument();
     expect(await screen.findByText("In service → Damaged")).toBeInTheDocument();
     expect(screen.getByText(/approved by Manager One/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Office printer" })).toHaveAttribute("href", "/shop-use/assets/12");
