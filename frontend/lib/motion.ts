@@ -83,16 +83,18 @@ export function useCountUp(target: number, durationMs = DURATION.slow * 1000): n
 
   useEffect(() => {
     if (reduced || typeof requestAnimationFrame === "undefined") {
+      // No animation: the returned value is the target itself (see below).
       fromRef.current = target;
-      setValue(target);
       return;
     }
     const from = fromRef.current;
     if (from === target) return;
     const start = performance.now();
     let frame = 0;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / durationMs);
+    // Read the clock here rather than trusting the frame timestamp, which some environments
+    // (jsdom, background tabs) report on a different clock.
+    const tick = () => {
+      const t = Math.min(1, Math.max(0, performance.now() - start) / durationMs);
       const eased = 1 - Math.pow(1 - t, 3);
       setValue(from + (target - from) * eased);
       if (t < 1) frame = requestAnimationFrame(tick);
@@ -102,5 +104,5 @@ export function useCountUp(target: number, durationMs = DURATION.slow * 1000): n
     return () => cancelAnimationFrame(frame);
   }, [target, reduced, durationMs]);
 
-  return value;
+  return reduced ? target : value;
 }
